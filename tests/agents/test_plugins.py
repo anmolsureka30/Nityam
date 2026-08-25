@@ -10,9 +10,9 @@ class FakeCallbackContext:
 
 
 class FakeLlmResponse:
-    def __init__(self, model_version="gemini-3.5-flash", id="resp1"):
+    def __init__(self, model_version="gemini-3.5-flash", interaction_id="resp1"):
         self.model_version = model_version
-        self.id = id
+        self.interaction_id = interaction_id
 
 
 @pytest.mark.asyncio
@@ -27,6 +27,7 @@ async def test_provenance_plugin_records_every_model_call():
                                        llm_response=FakeLlmResponse())
     assert recorded[0]["stage"] == "Glyph"
     assert recorded[0]["model"] == "gemini-3.5-flash"
+    assert recorded[0]["output_ref"] == "resp1"
 
 
 @pytest.mark.asyncio

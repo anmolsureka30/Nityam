@@ -14,7 +14,7 @@ class ProvenancePlugin(BasePlugin):
         await self._recorder(
             stage=callback_context.agent_name,
             model=getattr(llm_response, "model_version", None),
-            output_ref=getattr(llm_response, "id", None),
+            output_ref=getattr(llm_response, "interaction_id", None),
         )
         return None
 
