@@ -52,3 +52,6 @@ def test_read_board_state_prompt_includes_no_guess_instruction():
     prompt = client.last_contents[0]
     assert "DO NOT" in prompt.upper() or "do not" in prompt
     assert "unreadable" in prompt
+    # Regression guard: verify the mask actually reaches the model
+    assert client.last_contents[1] == b"img"
+    assert client.last_contents[2] == b"mask"
