@@ -1451,26 +1451,61 @@ def framediff_masks(frames: list, dilate_px: int = 12) -> list:
     """V1 masking. Static camera + planar board => temporal median is a good
     background estimate; the teacher is the largest thing deviating from it.
 
-    Each frame's background excludes that frame itself (leave-one-out),
-    rather than reusing one shared median for every frame. A shared median
-    is vulnerable to "ghosting": if the occluder sits at the same pixel in
-    a majority of the sampled frames (e.g. a teacher pausing in place), the
-    median absorbs the occluder into the "background" at that pixel, the
-    diff silently goes to zero there, and no downstream step can recover
-    it. Leaving each frame out of its own estimate costs no more
-    asymptotically, since the stride already caps the sample at ~10 frames
-    regardless of input size.
+    Each frame's background is the median of a *pool of other frames*
+    drawn from the FULL frame list, excluding a temporal window around that
+    frame's own index (sized to ~10% of the span) — not just the index
+    itself. Two prior versions of this were each caught by review:
+      - A single shared median over all frames, reused for every frame, is
+        vulnerable to "ghosting": if the occluder sits at the same pixel in
+        a majority of the frames used to build it, the median absorbs the
+        occluder into the "background" at that pixel, the diff silently
+        goes to zero there, and no downstream step can recover it.
+      - Leaving out only the current frame's own index from a small, fixed
+        ~10-frame stride subsample closes self-contamination but not
+        sample-majority contamination: frames not on that stride grid all
+        shared the identical small sample, so an occluder dominating a
+        majority of just that sample (while a clear minority of the whole
+        span) still poisoned the estimate for most frames.
+    Drawing the pool from the (near-)full span means an occluder has to
+    dominate a majority of the ENTIRE board-state span — not an arbitrary
+    small sample of it — before it can contaminate the estimate. Excluding
+    a window (not just the index) around `idx` matters because a lingering
+    occluder covers several consecutive sampled frames, so frames
+    immediately neighbouring `idx` are the ones most likely to share idx's
+    own occlusion and shouldn't get a vote on whether idx itself is
+    occluded.
+
+    Fundamental V1 limit, NOT fixed by this or any median-based approach:
+    if the occluder genuinely covers a majority of a frame's remaining
+    pool — it dwells in the same spot for most of the whole board-state
+    span — the median cannot distinguish it from the board. Out of scope
+    for V1; that's what the V3 (SAM3-based) masking upgrade is for.
+
+    Cost trade-off, deliberate: a near-full-span median per frame is
+    materially slower than reusing one small shared median (roughly 3-4x
+    more per-pixel median work at a typical ~45-frame span). This pipeline
+    is offline/batch with no per-recording latency budget defined anywhere
+    in the config, and a masking false negative here flows into the
+    compositor as if the occluder were legitimate board content —
+    equivalent to hallucinating board content, the worst failure mode this
+    product has. Correctness was prioritized over the extra latency.
     """
     stacked = np.stack(frames)
     n_frames = len(frames)
-    step = max(1, n_frames // 10 or 1)
+    window = n_frames // 10
+    # Safety valve for pathologically large inputs (board-state spans are
+    # capped at ~45 sampled frames per the architecture doc, so this never
+    # engages in practice and never reintroduces the small-sample bug above).
+    max_pool = 300
 
     masks = []
     for idx, f in enumerate(frames):
-        other = [i for i in range(0, n_frames, step) if i != idx]
-        if not other:
-            other = [i for i in range(n_frames) if i != idx] or [idx]
-        bg = np.median(stacked[other], axis=0).astype(np.uint8)
+        pool = [i for i in range(n_frames) if abs(i - idx) > window]
+        if not pool:
+            pool = [i for i in range(n_frames) if i != idx] or [idx]
+        elif len(pool) > max_pool:
+            pool = pool[:: len(pool) // max_pool + 1]
+        bg = np.median(stacked[pool], axis=0).astype(np.uint8)
         bg_g = cv2.cvtColor(bg, cv2.COLOR_BGR2GRAY)
 
         d = cv2.absdiff(cv2.cvtColor(f, cv2.COLOR_BGR2GRAY), bg_g)
@@ -1557,6 +1592,15 @@ Expected: PASS (4 tests)
 git add shruti/stages/slate/mask.py shruti/stages/slate/photometric.py shruti/stages/slate/composite.py tests/stages/slate/test_mask.py tests/stages/slate/test_composite.py
 git commit -m "feat: implement SLATE V1 masking and the board-compositing algorithm"
 ```
+
+**Post-implementation note:** the `framediff_masks` snippet above (Step 3) reflects two
+review-found ghosting bugs fixed after initial implementation, not the original brief text —
+see `shruti/stages/slate/mask.py`'s docstring for the full history. `tests/stages/slate/test_mask.py`
+also grew a permanent regression test
+(`test_framediff_masks_flags_occluder_that_dwells_in_one_spot_across_a_realistic_span`) for the
+second bug, so the pair of test files now runs 5 tests, not 4 — `uv run pytest
+tests/stages/slate/test_mask.py tests/stages/slate/test_composite.py -v` should show `5 passed`.
+Full detail is in `.superpowers/sdd/shruti_implementation_plan/task-8-report.md`.
 
 ---
 
