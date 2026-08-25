@@ -1058,13 +1058,24 @@ def find_erase_events(curve, times, drop_ratio: float = 0.35, window_s: float = 
 
 
 def dedupe_within(events: list[EraseEvent], min_gap_s: float = 10.0) -> list[EraseEvent]:
+    """Keep the median-low event of each cluster of events within min_gap_s
+    of each other — not the first. A sustained drop typically fires this
+    detector at many consecutive sample points (once ratio/persistence
+    conditions are met, they stay met until the curve moves again), so
+    "first" lands at the drop's onset while the true erase timestamp is
+    closer to the cluster's middle."""
     if not events:
         return []
     events = sorted(events, key=lambda e: e.at_s)
-    deduped = [events[0]]
-    for e in events[1:]:
-        if e.at_s - deduped[-1].at_s >= min_gap_s:
-            deduped.append(e)
+    deduped = []
+    i = 0
+    while i < len(events):
+        j = i
+        while j < len(events) and events[j].at_s - events[i].at_s < min_gap_s:
+            j += 1
+        mid_idx = (i + j - 1) // 2
+        deduped.append(events[mid_idx])
+        i = j
     return deduped
 ```
 
