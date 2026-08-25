@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>One kernel, three lessons</title>
+<style>
+:root{color-scheme:light;--page:#f6f5f2;--card:#fff;--ink:#1a1a19;--ink2:#55534e;--ink3:#8a8880;--line:#e7e5e0;--s1:#2a78d6;--s3:#1baf7a}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--page:#121211;--card:#1a1a19;--ink:#f4f3ef;--ink2:#b8b6ae;--ink3:#83817a;--line:#2c2c29;--s1:#3987e5;--s3:#199e70}}
+*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);
+font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
+.w{max-width:940px;margin:0 auto;padding:64px 22px}
+.dot{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--s1),var(--s3));margin-bottom:22px}
+h1{font-size:31px;font-weight:660;letter-spacing:-.025em;margin:0 0 10px}
+.sub{color:var(--ink2);margin:0 0 40px;max-width:60ch;font-size:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.c{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);
+border-radius:15px;padding:22px;transition:transform .14s,box-shadow .14s,border-color .14s}
+.c:hover{transform:translateY(-3px);border-color:var(--s1);box-shadow:0 12px 30px -14px rgba(26,26,25,.3)}
+.c h2{font-size:17px;font-weight:620;margin:0 0 7px;letter-spacing:-.012em}
+.c p{color:var(--ink2);margin:0 0 16px;font-size:14.5px;min-height:42px}
+.c span{font:11px ui-monospace,Menlo,monospace;color:var(--ink3);background:var(--page);
+border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.n{margin-top:40px;padding-top:22px;border-top:1px solid var(--line);color:var(--ink3);font-size:13.5px;max-width:64ch}
+</style></head><body><div class="w">
+<div class="dot"></div>
+<h1>One kernel, three lessons</h1>
+<p class="sub">All three artifacts below run the same hand-written physics engine and the same
+renderer. Everything that differs between them &mdash; the sliders, the visuals, the questions and
+above all what the artifact watches the student <em>do</em> &mdash; lives in a JSON document the
+tutor writes.</p>
+<div class="g"><a class="c" href="lesson1_max_range.html"><h2>Maximum range</h2><p>Which angle sends it farthest?</p><span>kinematics2d</span></a>
+<a class="c" href="lesson2_gravity.html"><h2>Gravity</h2><p>What if you played on the Moon?</p><span>kinematics2d</span></a>
+<a class="c" href="lesson3_xy_independence.html"><h2>x/y independence</h2><p>Does it slow down horizontally?</p><span>kinematics2d</span></a></div>
+<p class="n">Lessons 1 and 2 required no code changes at all. Lesson 3 added one reusable
+layer type (<code>vector_set</code>, ~30 lines) which every future artifact can now use.</p>
+</div></body></html>

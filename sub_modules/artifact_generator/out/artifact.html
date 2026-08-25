@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nityam Artifact — art_projectile_max_range_v1</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a22; --panel2:#1b2029; --line:#252c38;
+    --fg:#e8edf5; --dim:#8b95a7; --ok:#39c98a; --warn:#e0894a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .nty-root{max-width:1080px;margin:0 auto;padding:22px 20px 40px}
+
+  .nty-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+            border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+  .nty-head h1{font-size:17px;font-weight:600;margin:0 0 8px}
+  .nty-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .nty-chip{font:11px/1.4 ui-monospace,Menlo,monospace;color:#9fb4d8;
+            background:#1a2434;border:1px solid #24344c;border-radius:20px;padding:3px 9px}
+  .nty-chip-warn{color:#f3b58c;background:#2a1e18;border-color:#4a3226}
+  .nty-theme-wrap{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--dim);white-space:nowrap}
+  .nty-theme{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+             border-radius:7px;padding:6px 9px;font-size:13px}
+
+  .nty-main{display:grid;grid-template-columns:1fr 288px;gap:16px;align-items:start}
+  @media(max-width:860px){.nty-main{grid-template-columns:1fr}}
+
+  .nty-stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .nty-canvas{width:100%;height:390px;display:block}
+  .nty-annos{min-height:0;margin-top:6px}
+  .nty-anno{font-size:12.5px;color:#cfe0ff;background:#16233a;border:1px solid #223350;
+            border-left:3px solid #4a7fd4;border-radius:6px;padding:7px 10px;margin-top:6px}
+
+  .nty-side{display:flex;flex-direction:column;gap:12px}
+  .nty-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px}
+  .nty-card-t{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+              margin-bottom:11px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .nty-sub{font:10px ui-monospace,Menlo,monospace;color:#5c6779}
+
+  .nty-ro{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13px}
+  .nty-ro-l{color:var(--dim)}
+  .nty-ro-v{font:13px ui-monospace,Menlo,monospace}
+  .nty-ro-em .nty-ro-v{color:var(--ok);font-size:15px;font-weight:600}
+  .nty-ro-em .nty-ro-l{color:var(--fg)}
+
+  .nty-ctl{margin-bottom:13px}
+  .nty-ctl-l{display:flex;justify-content:space-between;font-size:12.5px;color:var(--dim);margin-bottom:5px}
+  .nty-badge{font:12px ui-monospace,Menlo,monospace;color:var(--fg);background:var(--panel2);
+             border:1px solid var(--line);border-radius:5px;padding:1px 7px}
+  .nty-range{width:100%;accent-color:#4a7fd4}
+  .nty-btn{width:100%;margin-top:6px;background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+           border-radius:8px;padding:8px;font-size:13px;cursor:pointer}
+  .nty-btn:hover{background:#232b38}
+
+  .nty-assess{margin-top:16px}
+  .nty-hidden{display:none}
+  .nty-q{font-size:15px;margin:0 0 12px}
+  .nty-opts{display:flex;gap:8px;flex-wrap:wrap}
+  .nty-opt{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:8px;
+           padding:9px 17px;font-size:14px;cursor:pointer;font-family:ui-monospace,Menlo,monospace}
+  .nty-opt:hover:not(:disabled){border-color:#4a7fd4}
+  .nty-opt-ok{background:#12341f;border-color:var(--ok);color:#8ff0bd}
+  .nty-opt-bad{background:#3a1a1a;border-color:#c0504d;color:#f3a9a7}
+  .nty-fb{margin-top:11px;font-size:13px;line-height:1.55}
+  .nty-fb-ok{color:#8ff0bd} .nty-fb-bad{color:#f3c9a7}
+
+  .nty-eviwrap{margin-top:16px}
+  .nty-evi{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:7px}
+  .nty-evi-empty{color:#5c6779;font-size:12.5px;font-style:italic}
+  .nty-evi-row{background:var(--panel2);border:1px solid var(--line);border-left:3px solid #3d4a5e;
+               border-radius:7px;padding:8px 11px}
+  .nty-evi-good{border-left-color:var(--ok)}
+  .nty-evi-warn{border-left-color:#e0894a}
+  .nty-evi-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .nty-evi-h code{font:12px ui-monospace,Menlo,monospace;color:#cfe0ff}
+  .nty-tag{font:10px ui-monospace,Menlo,monospace;color:#9fb4d8;background:#1a2434;
+           border-radius:4px;padding:2px 6px}
+  .nty-tag-warn{color:#f3b58c;background:#2a1e18}
+  .nty-evi-b{font:11px ui-monospace,Menlo,monospace;color:#7f8b9e;margin-top:4px}
+  .nty-evi-n{font-size:11.5px;color:#8b95a7;margin-top:4px;font-style:italic}
+
+  .nty-foot{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);
+            font:11px ui-monospace,Menlo,monospace;color:#5c6779;
+            display:flex;flex-wrap:wrap;gap:14px}
+</style>
+</head>
+<body>
+  <div class="nty-root" id="nityam-artifact"></div>
+  <div class="nty-root nty-foot" id="nityam-foot"></div>
+
+<script>
+//== runtime ==================================================================
+/* ---- kernel.js ---- */
+/* kinematics2d - the trusted physics (JS twin of generate/kernel_py.py).
+ *
+ * Hand-written. Never generated. The IR chooses a kernel; it does not author one.
+ * Kept in sync with the Python twin by the parity vectors embedded at build time. */
+(function (NS) {
+  var N = 90;
+
+  function kinematics2d(inp) {
+    var speed = inp.speed, angleDeg = inp.angle;
+    var g = inp.gravity == null ? 9.8 : inp.gravity;
+    var y0 = inp.y0 == null ? 0 : inp.y0;
+
+    var rad = angleDeg * Math.PI / 180;
+    var ux = speed * Math.cos(rad);
+    var uy = speed * Math.sin(rad);
+
+    var disc = uy * uy + 2 * g * y0;
+    var tof = g > 0 ? (uy + Math.sqrt(Math.max(disc, 0))) / g : 0;
+
+    var range = ux * tof;
+    var maxHeight = uy > 0 ? y0 + (uy * uy) / (2 * g) : y0;
+
+    var path = new Array(N + 1);
+    for (var i = 0; i <= N; i++) {
+      var t = tof * i / N;
+      path[i] = { t: t, x: ux * t, y: y0 + uy * t - 0.5 * g * t * t, vx: ux, vy: uy - g * t };
+    }
+
+    return {
+      ux: ux, uy: uy,
+      range: range,
+      max_height: maxHeight,
+      time_of_flight: tof,
+      path: path,
+      launch_point: { x: 0, y: y0 }
+    };
+  }
+
+  NS.KERNELS = { kinematics2d: kinematics2d };
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- evaluate.js ---- */
+/* One evaluation cycle: state -> frame.
+ *
+ * Pure and cheap (closed-form kinematics is microseconds), so we just re-run it
+ * on every slider tick. No animation loop, no diffing.
+ *
+ *   frame = { state, kernel, derived, theme }
+ *
+ * Everything the renderer and the probes read comes out of exactly this object. */
+(function (NS) {
+
+  NS.resolveRef = function (ref, ctx) {
+    if (typeof ref === 'number') return ref;
+    if (typeof ref !== 'string') return undefined;
+    var i = ref.indexOf('.');
+    if (i < 0) return undefined;
+    var ns = ref.slice(0, i), name = ref.slice(i + 1);
+    return ctx[ns] ? ctx[ns][name] : undefined;
+  };
+
+  NS.defaultState = function (ir) {
+    var s = {};
+    for (var k in ir.state) s[k] = ir.state[k].value;
+    return s;
+  };
+
+  NS.evaluate = function (ir, state, theme) {
+    var kfn = NS.KERNELS[ir.kernel];
+    if (!kfn) throw new Error('unknown kernel: ' + ir.kernel);
+
+    var inputs = {};
+    for (var port in ir.kernel_inputs) {
+      inputs[port] = NS.resolveRef(ir.kernel_inputs[port], { state: state });
+    }
+    var kernel = kfn(inputs);
+
+    var derived = {};
+    for (var name in ir.derived) {
+      derived[name] = NS.resolveRef(ir.derived[name], { state: state, kernel: kernel });
+    }
+
+    return { state: state, kernel: kernel, derived: derived, theme: theme };
+  };
+
+  /* {{theme.x}} and {{value}} token substitution for labels and copy. */
+  NS.fill = function (tpl, theme, value) {
+    if (typeof tpl !== 'string') return tpl;
+    return tpl
+      .replace(/\{\{\s*theme\.([a-zA-Z_]+)\s*\}\}/g, function (_, k) { return theme[k] != null ? theme[k] : ''; })
+      .replace(/\{\{\s*value\s*\}\}/g, value != null ? String(value) : '');
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- probes.js ---- */
+/* The probe engine: turns interaction into concept-tagged evidence.
+ *
+ * This is the part that makes an artifact a diagnostic instrument rather than a
+ * visualisation. In the real product `emit` posts to the Learning Agent, which
+ * calls update_student_memory(). Here it renders into the evidence stream so
+ * you can watch it happen. */
+(function (NS) {
+
+  NS.createProbeEngine = function (ir, emit) {
+    var settled = {};    // controlId -> { value: true }  (distinct parked values)
+    var maxSeen = {};    // "derived.range" -> number
+    var fired = {};      // probeId -> true
+    var counts = {};     // probeId -> how many times it emitted
+
+    function distinctSettled(cid) { return Object.keys(settled[cid] || {}).length; }
+
+    function refValue(ref, frame) {
+      var i = ref.indexOf('.');
+      return NS.resolveRef(ref, frame);
+    }
+
+    function noteMax(ref, frame) {
+      var v = refValue(ref, frame);
+      if (typeof v !== 'number') return;
+      if (maxSeen[ref] === undefined || v > maxSeen[ref]) maxSeen[ref] = v;
+    }
+
+    /* Structured conditions - data, not code, so they were validated at build time. */
+    function evalCondition(cond, frame) {
+      if (!cond) return false;
+      if (cond.all) return cond.all.every(function (c) { return evalCondition(c, frame); });
+      if (cond.any) return cond.any.some(function (c) { return evalCondition(c, frame); });
+
+      if (cond.near) {
+        var v = refValue(cond.near.ref, frame);
+        return typeof v === 'number' && Math.abs(v - cond.near.value) <= (cond.near.tol == null ? 1e-9 : cond.near.tol);
+      }
+      if (cond.distinct_settled) {
+        var d = cond.distinct_settled, n = distinctSettled(d.control);
+        if (d.gte != null) return n >= d.gte;
+        if (d.eq != null) return n === d.eq;
+        return false;
+      }
+      if (cond.is_max_seen) {
+        var r = cond.is_max_seen.ref, cur = refValue(r, frame);
+        return typeof cur === 'number' && maxSeen[r] !== undefined && cur >= maxSeen[r] - 1e-9;
+      }
+      return false;
+    }
+    NS.evalCondition = evalCondition;   // reused by annotation layers
+
+    function fire(probe, frame) {
+      var payload = {};
+      (probe.payload || []).forEach(function (ref) {
+        var v = refValue(ref, frame);
+        payload[ref] = typeof v === 'number' ? Math.round(v * 100) / 100 : v;
+      });
+      counts[probe.id] = (counts[probe.id] || 0) + 1;
+      if (probe.once) fired[probe.id] = true;
+
+      emit({
+        t: Date.now(),
+        probe: probe.id,
+        event: probe.emit,
+        concept: probe.concept || null,
+        misconception: probe.misconception || null,
+        note: probe.note || null,
+        payload: payload
+      });
+    }
+
+    function evaluatePredicates(frame) {
+      ir.probes.forEach(function (p) {
+        if (p.on !== 'predicate' || fired[p.id]) return;
+        if (evalCondition(p.when, frame)) fire(p, frame);
+      });
+    }
+
+    return {
+      /* Called ~400ms after the student stops dragging a control. */
+      onSettle: function (controlId, frame) {
+        settled[controlId] = settled[controlId] || {};
+        var ctrl = ir.controls.filter(function (c) { return c.id === controlId; })[0];
+        if (ctrl && ctrl.bind) settled[controlId][NS.resolveRef(ctrl.bind, frame)] = true;
+
+        ir.probes.forEach(function (p) { if (p.payload) p.payload.forEach(function (r) { noteMax(r, frame); }); });
+
+        ir.probes.forEach(function (p) {
+          if (p.on === 'control_settle' && p.control === controlId && !fired[p.id]) fire(p, frame);
+        });
+        evaluatePredicates(frame);
+      },
+      count: function (probeId) { return counts[probeId] || 0; },
+      state: function () { return { settled: settled, maxSeen: maxSeen, counts: counts }; }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- render.js ---- */
+/* The renderer: frame -> pixels + DOM.
+ *
+ * Hand-written, deterministic, the same code for every artifact. The IR only
+ * chooses which layers to stack and what to bind them to. The model has no say
+ * over layout - that is a deliberate trade: less visual variety, total
+ * predictability. */
+(function (NS) {
+
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
+  }
+
+  function niceStep(span) {
+    var raw = span / 6, mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    var norm = raw / mag;
+    var step = norm >= 5 ? 5 : norm >= 2 ? 2 : 1;
+    return step * mag;
+  }
+
+  /* ---------------------------------------------------------- canvas scene */
+
+  NS.drawScene = function (canvas, ir, frame, snapshots, theme) {
+    var dpr = window.devicePixelRatio || 1;
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    var g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+
+    var scene = ir.layers.filter(function (l) { return l.type === 'scene2d'; })[0] || {};
+    var traceLayer = ir.layers.filter(function (l) { return l.type === 'trace'; })[0];
+    var hasGhosts = ir.layers.some(function (l) { return l.type === 'trace_set'; });
+    var vecLayer = ir.layers.filter(function (l) { return l.type === 'vector'; })[0];
+
+    var paths = [];
+    if (traceLayer) paths.push(NS.resolveRef(traceLayer.points, frame) || []);
+    if (hasGhosts) snapshots.forEach(function (s) { paths.push(s.frame.kernel.path); });
+
+    var xmax = 1, ymax = 1;
+    paths.forEach(function (p) {
+      p.forEach(function (pt) { if (pt.x > xmax) xmax = pt.x; if (pt.y > ymax) ymax = pt.y; });
+    });
+    xmax *= 1.06; ymax = Math.max(ymax * 1.35, xmax * 0.18);
+
+    var M = { l: 46, r: 18, t: 16, b: 34 };
+    var pw = W - M.l - M.r, ph = H - M.t - M.b;
+    var scale = Math.min(pw / xmax, ph / ymax);          // equal aspect: physics stays honest
+    var ox = M.l, oy = H - M.b;
+
+    function px(x, y) { return [ox + x * scale, oy - y * scale]; }
+
+    // grid + axes
+    var stepX = niceStep(xmax), stepY = niceStep(ymax);
+    g.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    g.lineWidth = 1;
+    for (var x = 0; x <= xmax; x += stepX) {
+      var a = px(x, 0), b = px(x, ymax);
+      g.strokeStyle = 'rgba(255,255,255,0.05)'; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,0.32)'; g.textAlign = 'center';
+      g.fillText(String(Math.round(x)), a[0], oy + 15);
+    }
+    for (var y = 0; y <= ymax; y += stepY) {
+      var c = px(0, y), d = px(xmax, y);
+      g.strokeStyle = 'rgba(255,255,255,0.05)'; g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(d[0], d[1]); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,0.32)'; g.textAlign = 'right';
+      g.fillText(String(Math.round(y)), ox - 8, c[1] + 4);
+    }
+
+    // ground
+    g.strokeStyle = 'rgba(255,255,255,0.30)'; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(ox, oy); g.lineTo(ox + xmax * scale, oy); g.stroke();
+    if (scene.ground_label) {
+      g.fillStyle = 'rgba(255,255,255,0.30)'; g.textAlign = 'left';
+      g.fillText(NS.fill(scene.ground_label, theme), ox + 4, oy + 15);
+    }
+    if (scene.x_label) { g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillText(scene.x_label, W - M.r, oy + 15); }
+
+    // ghost traces
+    if (hasGhosts) {
+      snapshots.forEach(function (s) {
+        g.strokeStyle = 'rgba(255,255,255,0.26)'; g.lineWidth = 1.4; g.setLineDash([4, 4]);
+        g.beginPath();
+        s.frame.kernel.path.forEach(function (pt, i) { var q = px(pt.x, pt.y); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+        g.stroke(); g.setLineDash([]);
+        var last = s.frame.kernel.path[s.frame.kernel.path.length - 1];
+        var lp = px(last.x, last.y);
+        g.fillStyle = 'rgba(255,255,255,0.55)'; g.textAlign = 'center';
+        g.fillText(Math.round(s.frame.state.theta) + '°', lp[0], lp[1] - 8);
+      });
+    }
+
+    // live trace
+    var accent = theme.accent || '#f2683c';
+    if (traceLayer) {
+      var path = NS.resolveRef(traceLayer.points, frame) || [];
+      g.strokeStyle = accent; g.lineWidth = 2.6; g.lineJoin = 'round';
+      g.beginPath();
+      path.forEach(function (pt, i) { var q = px(pt.x, pt.y); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+      g.stroke();
+
+      var end = path[path.length - 1];
+      if (end) {
+        var e = px(end.x, end.y);
+        var glyph = NS.fill(traceLayer.end_marker || '', theme);
+        if (glyph) { g.font = '17px system-ui, "Apple Color Emoji", sans-serif'; g.textAlign = 'center'; g.fillText(glyph, e[0], e[1] - 3); }
+        else { g.fillStyle = accent; g.beginPath(); g.arc(e[0], e[1] - 4, 5, 0, Math.PI * 2); g.fill(); }
+
+        // range tick on the ground
+        g.strokeStyle = accent; g.lineWidth = 1; g.setLineDash([2, 3]);
+        g.beginPath(); g.moveTo(e[0], oy); g.lineTo(e[0], oy - 9); g.stroke(); g.setLineDash([]);
+      }
+    }
+
+    // launch velocity vectors
+    if (vecLayer) {
+      var at = NS.resolveRef(vecLayer.at, frame) || { x: 0, y: 0 };
+      var o = px(at.x, at.y);
+      var vx = NS.resolveRef(vecLayer.components.x, frame) || 0;
+      var vy = NS.resolveRef(vecLayer.components.y, frame) || 0;
+      var umax = (ir.state.u && ir.state.u.max) || 40;
+      var k = 78 / umax;   // pixels per m/s - vectors are schematic, not to world scale
+      var L = vecLayer.labels || {};
+
+      function arrow(x1, y1, x2, y2, col, dash, lbl) {
+        g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 1.8;
+        g.setLineDash(dash || []);
+        g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]);
+        var ang = Math.atan2(y2 - y1, x2 - x1);
+        g.beginPath();
+        g.moveTo(x2, y2);
+        g.lineTo(x2 - 7 * Math.cos(ang - 0.4), y2 - 7 * Math.sin(ang - 0.4));
+        g.lineTo(x2 - 7 * Math.cos(ang + 0.4), y2 - 7 * Math.sin(ang + 0.4));
+        g.closePath(); g.fill();
+        if (lbl) { g.font = '11px ui-monospace, Menlo, monospace'; g.textAlign = 'center'; g.fillText(lbl, x2 + 9 * Math.cos(ang), y2 + 9 * Math.sin(ang) - 2); }
+      }
+
+      if (vecLayer.decompose) {
+        arrow(o[0], o[1], o[0] + vx * k, o[1], 'rgba(120,200,255,0.85)', [3, 3], L.x || 'ux');
+        arrow(o[0], o[1], o[0], o[1] - vy * k, 'rgba(255,190,120,0.85)', [3, 3], L.y || 'uy');
+      }
+      arrow(o[0], o[1], o[0] + vx * k, o[1] - vy * k, '#ffffff', [], L.resultant || 'u');
+    }
+  };
+
+  /* ------------------------------------------------------------- DOM build */
+
+  NS.buildDOM = function (ir, root, handlers) {
+    root.innerHTML = '';
+    var refs = { sliders: {}, readouts: [], annotations: null, evidence: null, assess: null };
+
+    // header
+    var head = el('header', 'nty-head');
+    var hl = el('div');
+    hl.appendChild(el('h1', null, ir.intent.learning_outcome));
+    var chips = el('div', 'nty-chips');
+    ir.intent.concept_ids.forEach(function (c) { chips.appendChild(el('span', 'nty-chip', c)); });
+    if (ir.intent.target_misconception) chips.appendChild(el('span', 'nty-chip nty-chip-warn', 'targets: ' + ir.intent.target_misconception));
+    hl.appendChild(chips);
+    head.appendChild(hl);
+
+    var themeSel = el('select', 'nty-theme');
+    Object.keys(handlers.themes).forEach(function (k) {
+      var o = el('option', null, handlers.themes[k].label || k); o.value = k; themeSel.appendChild(o);
+    });
+    themeSel.value = handlers.themeKey;
+    themeSel.onchange = function () { handlers.onTheme(themeSel.value); };
+    var tw = el('label', 'nty-theme-wrap'); tw.appendChild(el('span', null, 'Personalisation')); tw.appendChild(themeSel);
+    head.appendChild(tw);
+    root.appendChild(head);
+
+    // main split
+    var main = el('div', 'nty-main');
+    var left = el('div', 'nty-stage');
+    var canvas = el('canvas', 'nty-canvas');
+    left.appendChild(canvas);
+    refs.annotations = el('div', 'nty-annos');
+    left.appendChild(refs.annotations);
+    main.appendChild(left);
+
+    var side = el('aside', 'nty-side');
+
+    // readouts
+    var rg = ir.layers.filter(function (l) { return l.type === 'readout_group'; })[0];
+    if (rg) {
+      var box = el('div', 'nty-card');
+      box.appendChild(el('div', 'nty-card-t', 'Readouts'));
+      rg.items.forEach(function (it) {
+        var row = el('div', 'nty-ro' + (it.emphasis ? ' nty-ro-em' : ''));
+        row.appendChild(el('span', 'nty-ro-l', it.label));
+        var v = el('span', 'nty-ro-v', '—');
+        row.appendChild(v);
+        box.appendChild(row);
+        refs.readouts.push({ spec: it, node: v });
+      });
+      side.appendChild(box);
+    }
+
+    // controls
+    var cbox = el('div', 'nty-card');
+    cbox.appendChild(el('div', 'nty-card-t', 'Controls'));
+    ir.controls.forEach(function (c) {
+      if (c.widget === 'slider') {
+        var name = c.bind.split('.')[1], sv = ir.state[name];
+        var wrap = el('div', 'nty-ctl');
+        var lab = el('div', 'nty-ctl-l');
+        lab.appendChild(el('span', null, NS.fill(c.label, handlers.theme)));
+        var badge = el('span', 'nty-badge');
+        lab.appendChild(badge);
+        wrap.appendChild(lab);
+        var inp = el('input', 'nty-range');
+        inp.type = 'range'; inp.min = sv.min; inp.max = sv.max; inp.step = sv.step || 1; inp.value = sv.value;
+        inp.oninput = function () { handlers.onControl(c, parseFloat(inp.value)); };
+        wrap.appendChild(inp);
+        cbox.appendChild(wrap);
+        refs.sliders[c.id] = { input: inp, badge: badge, spec: c };
+      } else {
+        var btn = el('button', 'nty-btn', c.label);
+        btn.onclick = function () { handlers.onAction(c); };
+        cbox.appendChild(btn);
+      }
+    });
+    side.appendChild(cbox);
+    main.appendChild(side);
+    root.appendChild(main);
+
+    // assessment (hidden until its gate opens)
+    if (ir.assessment && ir.assessment.length) {
+      refs.assess = el('div', 'nty-card nty-assess nty-hidden');
+      root.appendChild(refs.assess);
+    }
+
+    // evidence stream
+    var ev = el('div', 'nty-card nty-eviwrap');
+    var evh = el('div', 'nty-card-t');
+    evh.appendChild(document.createTextNode('Evidence stream'));
+    evh.appendChild(el('span', 'nty-sub', '→ update_student_memory()'));
+    ev.appendChild(evh);
+    refs.evidence = el('div', 'nty-evi');
+    refs.evidence.appendChild(el('div', 'nty-evi-empty', 'Nothing yet. Move the angle slider and let go.'));
+    ev.appendChild(refs.evidence);
+    root.appendChild(ev);
+
+    refs.canvas = canvas;
+    return refs;
+  };
+
+  NS.updateReadouts = function (refs, frame) {
+    refs.readouts.forEach(function (r) {
+      var v = NS.resolveRef(r.spec.value, frame);
+      var p = r.spec.precision == null ? 1 : r.spec.precision;
+      r.node.textContent = (typeof v === 'number' ? v.toFixed(p) : '—') + (r.spec.unit ? ' ' + r.spec.unit : '');
+    });
+  };
+
+  NS.updateAnnotations = function (ir, refs, frame, theme) {
+    refs.annotations.innerHTML = '';
+    ir.layers.filter(function (l) { return l.type === 'annotation'; }).forEach(function (l) {
+      if (NS.evalCondition(l.when, frame)) {
+        refs.annotations.appendChild(el('div', 'nty-anno', NS.fill(l.text, theme)));
+      }
+    });
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- mount.js ---- */
+/* mountArtifact(ir, container, options) -> { destroy }
+ *
+ * The single entry point. In this proof of concept the shell HTML calls it on
+ * page load. In the Nityam app you call the identical function from React:
+ *
+ *     useEffect(() => {
+ *       const a = Nityam.mountArtifact(ir, ref.current, {
+ *         themes, theme: student.interest,
+ *         onEvidence: e => agent.updateStudentMemory(e)
+ *       });
+ *       return () => a.destroy();
+ *     }, [ir]);
+ *
+ * Same renderer, same IR, two shells. */
+(function (NS) {
+
+  var SETTLE_MS = 400;
+
+  NS.mountArtifact = function (ir, container, opts) {
+    opts = opts || {};
+    var themes = opts.themes || { plain: { label: 'Plain' } };
+    var themeKey = opts.theme && themes[opts.theme] ? opts.theme : Object.keys(themes)[0];
+    var theme = themes[themeKey];
+
+    var state = NS.defaultState(ir);
+    var snapshots = [];
+    var settleTimers = {};
+    var refs, probes;
+    var answered = {};        // questionId -> chosen option (survives a theme rebuild)
+    var evidenceLog = [];     // every event this session, so a rebuild can restore it
+
+    function emitEvidence(e) {
+      evidenceLog.push(e);
+      renderEvidence(e);
+      if (opts.onEvidence) opts.onEvidence(e);
+      // eslint-disable-next-line no-console
+      console.log('[nityam:evidence]', e.event, e);
+      refreshGates();
+    }
+
+    function frame() { return NS.evaluate(ir, state, theme); }
+
+    function redraw() {
+      var f = frame();
+      NS.drawScene(refs.canvas, ir, f, snapshots, theme);
+      NS.updateReadouts(refs, f);
+      NS.updateAnnotations(ir, refs, f, theme);
+      for (var id in refs.sliders) {
+        var s = refs.sliders[id];
+        var v = state[s.spec.bind.split('.')[1]];
+        s.input.value = v;
+        s.badge.textContent = NS.fill(s.spec.display || '{{value}}', theme, v);
+      }
+      return f;
+    }
+
+    /* ---- evidence stream UI ------------------------------------------- */
+    function renderEvidence(e) {
+      var empty = refs.evidence.querySelector('.nty-evi-empty');
+      if (empty) empty.remove();
+      var row = document.createElement('div');
+      row.className = 'nty-evi-row' + (e.misconception ? ' nty-evi-warn' : (e.event.indexOf('discovered') >= 0 ? ' nty-evi-good' : ''));
+      var head = document.createElement('div');
+      head.className = 'nty-evi-h';
+      head.innerHTML = '<code>' + e.event + '</code>' +
+        (e.concept ? '<span class="nty-tag">' + e.concept + '</span>' : '') +
+        (e.misconception ? '<span class="nty-tag nty-tag-warn">' + e.misconception + '</span>' : '');
+      row.appendChild(head);
+      var body = document.createElement('div');
+      body.className = 'nty-evi-b';
+      body.textContent = JSON.stringify(e.payload);
+      row.appendChild(body);
+      if (e.note) { var n = document.createElement('div'); n.className = 'nty-evi-n'; n.textContent = e.note; row.appendChild(n); }
+      refs.evidence.insertBefore(row, refs.evidence.firstChild);
+    }
+
+    /* ---- assessment ---------------------------------------------------- */
+    function refreshGates() {
+      if (!refs.assess) return;
+      var q = ir.assessment[0];
+      var open = !q.gate || probes.count(q.gate.probe) >= (q.gate.count_gte || 1);
+      if (!open) return;
+      if (!refs.assess.classList.contains('nty-hidden')) return;   // already showing
+      refs.assess.classList.remove('nty-hidden');
+      buildQuestion(q);
+      if (answered[q.id] !== undefined) {
+        // restore the answered state after a theme rebuild, without re-emitting evidence
+        markAnswer(q, answered[q.id], refs.assess.querySelector('.nty-opts'));
+      }
+    }
+
+    function buildQuestion(q) {
+      refs.assess.innerHTML = '';
+      var t = document.createElement('div'); t.className = 'nty-card-t';
+      t.textContent = 'Checkpoint';
+      refs.assess.appendChild(t);
+      var p = document.createElement('p'); p.className = 'nty-q';
+      p.textContent = NS.fill(q.prompt, theme);
+      refs.assess.appendChild(p);
+      var row = document.createElement('div'); row.className = 'nty-opts';
+      q.options.forEach(function (o) {
+        var b = document.createElement('button');
+        b.className = 'nty-opt';
+        b.textContent = o + (q.unit || '');
+        b.onclick = function () { answer(q, o, row); };
+        row.appendChild(b);
+      });
+      refs.assess.appendChild(row);
+      var fb = document.createElement('div'); fb.className = 'nty-fb';
+      refs.assess.appendChild(fb);
+    }
+
+    function markAnswer(q, chosen, row) {
+      var correct = chosen === q.expected;
+      if (!row) return correct;
+      Array.prototype.forEach.call(row.children, function (b) {
+        b.disabled = true;
+        if (parseFloat(b.textContent) === q.expected) b.classList.add('nty-opt-ok');
+        else if (parseFloat(b.textContent) === chosen) b.classList.add('nty-opt-bad');
+      });
+      var fb = refs.assess.querySelector('.nty-fb');
+      if (fb) {
+        fb.textContent = correct ? (q.explain_correct || 'Correct.') : (q.explain_wrong || 'Not quite.');
+        fb.className = 'nty-fb ' + (correct ? 'nty-fb-ok' : 'nty-fb-bad');
+      }
+      return correct;
+    }
+
+    function answer(q, chosen, row) {
+      answered[q.id] = chosen;
+      var correct = markAnswer(q, chosen, row);
+
+      emitEvidence({
+        t: Date.now(), probe: q.id, event: 'assessment.answered',
+        concept: q.concept || null,
+        misconception: correct ? null : (q.diagnose || {})[String(chosen)] || null,
+        note: correct ? 'Correct after exploration.' : 'Incorrect - diagnosis attached.',
+        payload: { chosen: chosen, expected: q.expected, correct: correct }
+      });
+    }
+
+    /* ---- handlers ------------------------------------------------------ */
+    var handlers = {
+      themes: themes, themeKey: themeKey, theme: theme,
+
+      onControl: function (c, value) {
+        state[c.bind.split('.')[1]] = value;
+        redraw();
+        clearTimeout(settleTimers[c.id]);
+        settleTimers[c.id] = setTimeout(function () { probes.onSettle(c.id, frame()); }, SETTLE_MS);
+      },
+
+      onAction: function (c) {
+        if (c.action === 'snapshot') {
+          var cap = c.max || 3;
+          snapshots.push({ frame: frame(), state: Object.assign({}, state) });
+          while (snapshots.length > cap) snapshots.shift();
+        } else if (c.action === 'clear_snapshots') {
+          snapshots = [];
+        }
+        redraw();
+      },
+
+      onTheme: function (k) {
+        themeKey = k; theme = themes[k]; handlers.theme = theme;
+        var keep = { state: state, snaps: snapshots };
+        refs = NS.buildDOM(ir, container, handlers);
+        handlers.themeKey = k;
+        state = keep.state; snapshots = keep.snaps;
+        redraw();
+        evidenceLog.forEach(renderEvidence);   // restore the stream (oldest first -> newest on top)
+        refreshGates();
+      }
+    };
+
+    refs = NS.buildDOM(ir, container, handlers);
+    probes = NS.createProbeEngine(ir, emitEvidence);
+    redraw();
+    window.addEventListener('resize', redraw);
+
+    /* Kernel parity: the JS kernel must reproduce what the Python kernel
+       produced at build time. Catches silent drift between the twins. */
+    if (opts.parity) {
+      var worst = 0;
+      opts.parity.forEach(function (v) {
+        var got = NS.KERNELS[ir.kernel](v.in);
+        for (var k in v.out) worst = Math.max(worst, Math.abs(got[k] - v.out[k]));
+      });
+      console.log('[nityam:parity] max |python - js| = ' + worst.toExponential(2) +
+                  (worst < 1e-9 ? '  OK' : '  *** KERNEL DRIFT ***'));
+      if (opts.onParity) opts.onParity(worst);
+    }
+
+    return {
+      destroy: function () { window.removeEventListener('resize', redraw); container.innerHTML = ''; },
+      getState: function () { return Object.assign({}, state); },
+      getProbeState: function () { return probes.state(); }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+</script>
+
+<script>
+//== data (generated) =========================================================
+var IR      = {"ir_version": "0.1", "artifact_id": "art_projectile_max_range_v1", "kernel": "kinematics2d", "intent": {"concept_ids": ["projectile.max_range", "vector.decomposition"], "learning_outcome": "Range peaks at 45 degrees for a fixed launch speed.", "target_misconception": "misc.range_determined_by_speed_only"}, "state": {"u": {"value": 20, "unit": "m/s", "min": 5, "max": 40, "step": 1}, "theta": {"value": 30, "unit": "deg", "min": 0, "max": 90, "step": 1}, "g": {"value": 9.8, "unit": "m/s^2", "locked": true}}, "kernel_inputs": {"speed": "state.u", "angle": "state.theta", "gravity": "state.g", "y0": 0}, "derived": {"range": "kernel.range", "peak": "kernel.max_height", "tof": "kernel.time_of_flight", "ux": "kernel.ux", "uy": "kernel.uy"}, "controls": [{"id": "c_theta", "widget": "slider", "bind": "state.theta", "label": "Launch angle", "display": "{{value}}°"}, {"id": "c_u", "widget": "slider", "bind": "state.u", "label": "{{theme.launch_verb}} speed", "display": "{{value}} m/s"}, {"id": "c_pin", "widget": "button", "action": "snapshot", "max": 3, "label": "Pin this attempt"}, {"id": "c_clear", "widget": "button", "action": "clear_snapshots", "label": "Clear pins"}], "layers": [{"type": "scene2d", "id": "stage", "ground_label": "{{theme.ground_label}}", "x_label": "horizontal distance (m)", "y_label": "height (m)"}, {"type": "trace_set", "in": "stage", "source": "snapshots"}, {"type": "trace", "in": "stage", "points": "kernel.path", "end_marker": "{{theme.projectile_icon}}"}, {"type": "vector", "in": "stage", "at": "kernel.launch_point", "components": {"x": "derived.ux", "y": "derived.uy"}, "decompose": true, "labels": {"resultant": "u", "x": "uₓ", "y": "uᵧ"}}, {"type": "readout_group", "items": [{"label": "Range", "value": "derived.range", "unit": "m", "precision": 1, "emphasis": true}, {"label": "Max height", "value": "derived.peak", "unit": "m", "precision": 1}, {"label": "Time of flight", "value": "derived.tof", "unit": "s", "precision": 2}, {"label": "uₓ (horizontal)", "value": "derived.ux", "unit": "m/s", "precision": 1}, {"label": "uᵧ (vertical)", "value": "derived.uy", "unit": "m/s", "precision": 1}]}, {"type": "annotation", "text": "{{theme.protagonist}} is at 45° — look at the range now.", "when": {"near": {"ref": "state.theta", "value": 45, "tol": 1}}}, {"type": "annotation", "text": "Notice: 30° and 60° give exactly the same range. Why might that be?", "when": {"any": [{"near": {"ref": "state.theta", "value": 30, "tol": 0.5}}, {"near": {"ref": "state.theta", "value": 60, "tol": 0.5}}]}}], "probes": [{"id": "p_explore", "on": "control_settle", "control": "c_theta", "emit": "artifact.explored", "concept": "projectile.max_range", "payload": ["state.theta", "derived.range"]}, {"id": "p_optimum", "on": "predicate", "once": true, "when": {"all": [{"distinct_settled": {"control": "c_theta", "gte": 3}}, {"near": {"ref": "state.theta", "value": 45, "tol": 5}}, {"is_max_seen": {"ref": "derived.range"}}]}, "emit": "artifact.discovered_optimum", "concept": "projectile.max_range", "note": "Student located the optimum by experiment rather than being told.", "payload": ["state.theta", "derived.range"]}, {"id": "p_speed_only", "on": "predicate", "once": true, "when": {"all": [{"distinct_settled": {"control": "c_u", "gte": 3}}, {"distinct_settled": {"control": "c_theta", "eq": 0}}]}, "emit": "artifact.misconception_behavior", "misconception": "misc.range_determined_by_speed_only", "note": "Student is varying speed only and never touching angle - behavioural evidence of the misconception, gathered without asking.", "payload": ["state.u", "derived.range"]}], "assessment": [{"id": "q1", "type": "choice", "gate": {"probe": "p_explore", "count_gte": 2}, "prompt": "At a fixed launch speed, which angle sends {{theme.object}} the farthest?", "options": [30, 45, 60, 75], "unit": "°", "expected": 45, "concept": "projectile.max_range", "diagnose": {"30": "misc.flatter_is_farther", "60": "misc.higher_is_farther", "75": "misc.higher_is_farther"}, "explain_correct": "Right. Range depends on uₓ × time of flight. Raising the angle grows the time but shrinks uₓ - 45° is where that trade-off balances.", "explain_wrong": "Try pinning 30°, 45° and 60° and compare the three traces."}], "invariants": [{"check": "finite_outputs", "sweep": ["state.theta", "state.u"], "samples": 15}, {"check": "argmax", "of": "derived.range", "over": "state.theta", "expect": 45, "tol": 0.5}, {"check": "control_affects", "control": "c_theta", "target": "derived.range", "min_relative_change": 0.05}, {"check": "control_affects", "control": "c_u", "target": "derived.range", "min_relative_change": 0.05}], "theme_slots": ["protagonist", "object", "projectile_icon", "ground_label", "launch_verb"]};
+var THEMES  = {"cricket": {"label": "Cricket", "protagonist": "Arjun", "object": "the cricket ball", "projectile_icon": "🔴", "ground_label": "pitch", "launch_verb": "Bat", "accent": "#f2683c"}, "spiderman": {"label": "Spider-Man", "protagonist": "Spider-Man", "object": "the web", "projectile_icon": "🕸️", "ground_label": "street", "launch_verb": "Web", "accent": "#5b8cff"}, "plain": {"label": "Plain physics", "protagonist": "The projectile", "object": "the projectile", "projectile_icon": "⚫", "ground_label": "ground", "launch_verb": "Launch", "accent": "#39c98a"}};
+var PARITY  = [{"in": {"speed": 20, "angle": 30, "gravity": 9.8, "y0": 0}, "out": {"ux": 17.320508075688775, "uy": 9.999999999999998, "range": 35.34797566467096, "max_height": 5.102040816326529, "time_of_flight": 2.040816326530612}}, {"in": {"speed": 20, "angle": 45, "gravity": 9.8, "y0": 0}, "out": {"ux": 14.142135623730951, "uy": 14.14213562373095, "range": 40.816326530612244, "max_height": 10.20408163265306, "time_of_flight": 2.8861501272920305}}, {"in": {"speed": 20, "angle": 60, "gravity": 9.8, "y0": 0}, "out": {"ux": 10.000000000000002, "uy": 17.32050807568877, "range": 35.34797566467097, "max_height": 15.306122448979588, "time_of_flight": 3.534797566467096}}, {"in": {"speed": 35, "angle": 15, "gravity": 9.8, "y0": 0}, "out": {"ux": 33.80740392011739, "uy": 9.058666578588227, "range": 62.49999999999999, "max_height": 4.186706131736292, "time_of_flight": 1.8487074650180053}}, {"in": {"speed": 12, "angle": 75, "gravity": 9.8, "y0": 0}, "out": {"ux": 3.105828541230249, "uy": 11.59110991546882, "range": 7.346938775510204, "max_height": 6.85478719757549, "time_of_flight": 2.3655326358099633}}, {"in": {"speed": 25, "angle": 45, "gravity": 9.8, "y0": 10}, "out": {"ux": 17.67766952966369, "uy": 17.677669529663685, "range": 72.56433346709687, "max_height": 25.9438775510204, "time_of_flight": 4.104858581349291}}];
+var BUILD   = {"source": "mock (golden IR)", "theme": "cricket", "checks_passed": 12, "checks_total": 12, "spec": "spec_projectile.json"};
+
+var handle = Nityam.mountArtifact(IR, document.getElementById('nityam-artifact'), {
+  themes: THEMES,
+  theme: BUILD.theme,
+  parity: PARITY,
+  onEvidence: function (e) {
+    /* In the Nityam app this is where the Learning Agent receives the event
+       and calls update_student_memory(). */
+  },
+  onParity: function (worst) {
+    document.getElementById('nityam-foot').innerHTML =
+      '<span>artifact_id: ' + IR.artifact_id + '</span>' +
+      '<span>kernel: ' + IR.kernel + '</span>' +
+      '<span>ir: v' + IR.ir_version + '</span>' +
+      '<span>generated: ' + BUILD.source + '</span>' +
+      '<span>validator: ' + BUILD.checks_passed + '/' + BUILD.checks_total + ' checks passed</span>' +
+      '<span>kernel parity: ' + (worst < 1e-9 ? 'OK' : 'DRIFT ' + worst.toExponential(1)) + '</span>';
+  }
+});
+window.nityam = handle;
+</script>
+</body>
+</html>

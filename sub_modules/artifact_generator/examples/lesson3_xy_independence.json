@@ -1,0 +1,285 @@
+{
+  "ir_version": "0.1",
+  "artifact_id": "art_xy_independence_v1",
+  "kernel": "kinematics2d",
+  "intent": {
+    "concept_ids": [
+      "vector.decomposition",
+      "projectile.independence_xy"
+    ],
+    "learning_outcome": "Recognises that horizontal velocity is constant while vertical velocity reverses.",
+    "target_misconception": "misc.horizontal_velocity_decreases",
+    "eyebrow": "Look closely",
+    "student_prompt": "Does {{theme.object}} slow down horizontally as it flies?",
+    "student_hint": "The green arrows are horizontal speed, the orange ones vertical. Launch it and watch which arrows change."
+  },
+  "state": {
+    "u": {
+      "value": 20,
+      "unit": "m/s",
+      "min": 5,
+      "max": 40,
+      "step": 1
+    },
+    "theta": {
+      "value": 30,
+      "unit": "deg",
+      "min": 0,
+      "max": 90,
+      "step": 1
+    },
+    "g": {
+      "value": 9.8,
+      "unit": "m/s^2",
+      "locked": true
+    }
+  },
+  "kernel_inputs": {
+    "speed": "state.u",
+    "angle": "state.theta",
+    "gravity": "state.g",
+    "y0": 0
+  },
+  "derived": {
+    "range": "kernel.range",
+    "peak": "kernel.max_height",
+    "tof": "kernel.time_of_flight",
+    "ux": "kernel.ux",
+    "uy": "kernel.uy",
+    "vx_start": "kernel.ux"
+  },
+  "controls": [
+    {
+      "id": "c_theta",
+      "widget": "slider",
+      "bind": "state.theta",
+      "label": "Launch angle",
+      "display": "{{value}}°"
+    },
+    {
+      "id": "c_u",
+      "widget": "slider",
+      "bind": "state.u",
+      "label": "{{theme.launch_verb}} speed",
+      "display": "{{value}} m/s"
+    },
+    {
+      "id": "c_pin",
+      "widget": "button",
+      "action": "snapshot",
+      "max": 2,
+      "label": "Pin"
+    },
+    {
+      "id": "c_clear",
+      "widget": "button",
+      "action": "clear_snapshots",
+      "label": "Clear"
+    }
+  ],
+  "layers": [
+    {
+      "type": "scene2d",
+      "id": "stage",
+      "ground_label": "{{theme.ground_label}}",
+      "x_label": "horizontal distance (m)",
+      "y_label": "height (m)"
+    },
+    {
+      "type": "trace_set",
+      "in": "stage",
+      "source": "snapshots"
+    },
+    {
+      "type": "trace",
+      "in": "stage",
+      "points": "kernel.path",
+      "end_marker": "{{theme.projectile_icon}}"
+    },
+    {
+      "type": "vector_set",
+      "in": "stage",
+      "count": 6,
+      "scale": 95,
+      "decompose": true,
+      "components": {
+        "x": "point.vx",
+        "y": "point.vy"
+      },
+      "labels": {
+        "x": "vₓ",
+        "y": "vᵧ"
+      }
+    },
+    {
+      "type": "readout_group",
+      "items": [
+        {
+          "label": "Horizontal speed vₓ",
+          "value": "derived.ux",
+          "unit": "m/s",
+          "precision": 1,
+          "emphasis": true,
+          "swatch": "s3"
+        },
+        {
+          "label": "Vertical speed at launch",
+          "value": "derived.uy",
+          "unit": "m/s",
+          "precision": 1,
+          "swatch": "s2"
+        },
+        {
+          "label": "Range",
+          "value": "derived.range",
+          "unit": "m",
+          "precision": 1
+        },
+        {
+          "label": "Time of flight",
+          "value": "derived.tof",
+          "unit": "s",
+          "precision": 2
+        }
+      ]
+    },
+    {
+      "type": "annotation",
+      "text": "Every green arrow is the same length — horizontal speed never changes.",
+      "when": {
+        "near": {
+          "ref": "state.theta",
+          "value": 45,
+          "tol": 25
+        }
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "p_explore",
+      "on": "control_settle",
+      "control": "c_theta",
+      "emit": "artifact.explored",
+      "concept": "projectile.independence_xy",
+      "payload": [
+        "state.theta",
+        "derived.ux",
+        "derived.uy"
+      ]
+    },
+    {
+      "id": "p_steep",
+      "on": "predicate",
+      "once": true,
+      "when": {
+        "all": [
+          {
+            "distinct_settled": {
+              "control": "c_theta",
+              "gte": 3
+            }
+          },
+          {
+            "near": {
+              "ref": "state.theta",
+              "value": 80,
+              "tol": 10
+            }
+          }
+        ]
+      },
+      "emit": "artifact.discovered_optimum",
+      "concept": "projectile.independence_xy",
+      "note": "Student pushed to a steep launch, where vx is small but still constant along the whole flight.",
+      "student_text": "Even at this steep angle the green arrows stay identical the whole way. Horizontal speed never changes.",
+      "payload": [
+        "state.theta",
+        "derived.ux"
+      ]
+    },
+    {
+      "id": "p_speed_only",
+      "on": "predicate",
+      "once": true,
+      "when": {
+        "all": [
+          {
+            "distinct_settled": {
+              "control": "c_u",
+              "gte": 3
+            }
+          },
+          {
+            "distinct_settled": {
+              "control": "c_theta",
+              "eq": 0
+            }
+          }
+        ]
+      },
+      "emit": "artifact.misconception_behavior",
+      "misconception": "misc.range_determined_by_speed_only",
+      "note": "Student varies speed only and never decomposes - classic u vs ux confusion.",
+      "payload": [
+        "state.u",
+        "derived.ux"
+      ]
+    }
+  ],
+  "assessment": [
+    {
+      "id": "q1",
+      "type": "choice",
+      "gate": {
+        "probe": "p_explore",
+        "count_gte": 2
+      },
+      "prompt": "Halfway through the flight, what has happened to the horizontal speed vₓ?",
+      "options": [
+        0,
+        50,
+        100,
+        150
+      ],
+      "unit": "%",
+      "expected": 100,
+      "concept": "projectile.independence_xy",
+      "diagnose": {
+        "0": "misc.horizontal_velocity_decreases",
+        "50": "misc.horizontal_velocity_decreases"
+      },
+      "explain_correct": "100% — unchanged. Nothing pushes it horizontally, so vₓ stays exactly what it was at launch.",
+      "explain_wrong": "Compare the green arrows at the start and in the middle. Are they different lengths?"
+    }
+  ],
+  "invariants": [
+    {
+      "check": "finite_outputs",
+      "sweep": [
+        "state.theta",
+        "state.u"
+      ],
+      "samples": 15
+    },
+    {
+      "check": "control_affects",
+      "control": "c_theta",
+      "target": "derived.ux",
+      "min_relative_change": 0.05
+    },
+    {
+      "check": "control_affects",
+      "control": "c_u",
+      "target": "derived.ux",
+      "min_relative_change": 0.05
+    }
+  ],
+  "theme_slots": [
+    "protagonist",
+    "object",
+    "projectile_icon",
+    "ground_label",
+    "launch_verb"
+  ]
+}

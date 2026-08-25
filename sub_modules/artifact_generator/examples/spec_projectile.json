@@ -1,0 +1,26 @@
+{
+  "spec_version": "0.1",
+  "requested_by": "nityam.learning_agent",
+  "mode": "deep_revision",
+
+  "student": {
+    "id": "arjun_11a",
+    "mastery": { "projectile.max_range": 0.41, "vector.decomposition": 0.55 },
+    "active_misconception": "misc.range_determined_by_speed_only",
+    "interest": "cricket"
+  },
+
+  "intent": "Let the student discover experimentally that at a fixed launch speed, range is maximised at 45 degrees - and that 30 and 60 give the same range.",
+  "concept_ids": ["projectile.max_range", "vector.decomposition"],
+  "learning_outcome": "Predicts that range peaks at 45 degrees, rather than at maximum speed or maximum angle.",
+  "target_misconception": "misc.range_determined_by_speed_only",
+
+  "must_be_manipulable": ["launch_angle", "launch_speed"],
+  "must_be_visible": ["trajectory", "range_value", "velocity_components"],
+
+  "constraints": {
+    "latency_budget_ms": 3000,
+    "no_network_at_render": true,
+    "kernel_whitelist": ["kinematics2d"]
+  }
+}

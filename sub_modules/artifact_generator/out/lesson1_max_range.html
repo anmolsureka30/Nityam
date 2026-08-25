@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which angle sends it the farthest?</title>
+<style>
+/* ── tokens ───────────────────────────────────────────────────────────────
+   Data-mark colours are the validated categorical slots 1-3 and are FIXED.
+   The theme tints the world (sky, story, icon) and never the data.          */
+:root{
+  color-scheme: light;
+  --page:#f6f5f2; --card:#ffffff; --card-2:#faf9f7;
+  --ink:#1a1a19; --ink-2:#55534e; --ink-3:#8a8880;
+  --line:#e7e5e0; --line-2:#f0eeea;
+  --s1:#2a78d6;  --s2:#eb6834;  --s3:#1baf7a;      /* trajectory · u_y · u_x */
+  --good:#1a8f63; --good-bg:#e8f6f0; --warn:#b45b17; --warn-bg:#fdf0e6;
+  --grid:rgba(26,26,25,.07); --ground:#e9e6df; --ground-line:#cfcbc1;
+  --shadow:0 1px 2px rgba(26,26,25,.05), 0 8px 24px -12px rgba(26,26,25,.14);
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#121211; --card:#1a1a19; --card-2:#1f1f1d;
+    --ink:#f4f3ef; --ink-2:#b8b6ae; --ink-3:#83817a;
+    --line:#2c2c29; --line-2:#232321;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --good:#3fbc8a; --good-bg:#14261f; --warn:#e0894a; --warn-bg:#2a1e14;
+    --grid:rgba(255,255,255,.07); --ground:#232320; --ground-line:#33332f;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#121211; --card:#1a1a19; --card-2:#1f1f1d;
+  --ink:#f4f3ef; --ink-2:#b8b6ae; --ink-3:#83817a;
+  --line:#2c2c29; --line-2:#232321;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --good:#3fbc8a; --good-bg:#14261f; --warn:#e0894a; --warn-bg:#2a1e14;
+  --grid:rgba(255,255,255,.07); --ground:#232320; --ground-line:#33332f;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--page); color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 56px}
+
+/* ── top bar ─────────────────────────────────────────────────────────── */
+.top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.dot{width:26px;height:26px;border-radius:8px;flex:none;
+     background:linear-gradient(140deg,var(--s1),var(--s3));
+     box-shadow:0 2px 8px -2px color-mix(in srgb,var(--s1) 60%,transparent)}
+.brand b{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.brand span{font-size:13px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand i{font-style:normal;color:var(--line);margin:0 2px}
+.picker{display:flex;align-items:center;gap:8px;flex:none}
+.picker label{font-size:12px;color:var(--ink-3)}
+select{
+  appearance:none;background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:9px;padding:7px 30px 7px 11px;font-size:13.5px;font-family:inherit;cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a8880' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+}
+select:hover{border-color:var(--ink-3)}
+
+/* ── lesson header ───────────────────────────────────────────────────── */
+.lesson{margin-bottom:20px}
+.eyebrow{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;
+         letter-spacing:.07em;text-transform:uppercase;color:var(--s1);margin-bottom:9px}
+.eyebrow::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--s1)}
+.lesson h1{margin:0 0 7px;font-size:26px;line-height:1.25;font-weight:660;letter-spacing:-.022em;max-width:34ch}
+.lesson p{margin:0;font-size:15px;color:var(--ink-2);max-width:56ch}
+
+/* ── layout ──────────────────────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.stage{padding:12px 12px 0;overflow:hidden}
+canvas{width:100%;height:340px;display:block;border-radius:9px}
+@media(max-width:900px){canvas{height:290px}}
+
+.stagebar{display:flex;align-items:center;gap:9px;padding:11px 4px 13px;flex-wrap:wrap}
+.spacer{flex:1}
+
+/* ── buttons ─────────────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:10px;padding:9px 15px;font:inherit;font-size:13.5px;font-weight:530;
+  cursor:pointer;min-height:38px;transition:background .13s,border-color .13s,transform .08s;
+}
+.btn:hover{background:var(--card-2);border-color:var(--ink-3)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.42;cursor:default;transform:none}
+.btn-primary{background:var(--s1);border-color:var(--s1);color:#fff;font-weight:580}
+.btn-primary:hover{background:color-mix(in srgb,var(--s1) 86%,#000);border-color:color-mix(in srgb,var(--s1) 86%,#000)}
+.btn svg{flex:none}
+.pincount{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* ── side panel ──────────────────────────────────────────────────────── */
+.side{display:flex;flex-direction:column;gap:14px}
+.pad{padding:16px}
+.ttl{font-size:11px;font-weight:640;letter-spacing:.08em;text-transform:uppercase;
+     color:var(--ink-3);margin-bottom:13px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+.hero{margin-bottom:14px}
+.hero-l{font-size:12px;color:var(--ink-3);margin-bottom:2px}
+.hero-v{font-size:38px;line-height:1.05;font-weight:640;letter-spacing:-.028em;
+        font-variant-numeric:tabular-nums;transition:color .2s}
+.hero-v u{font-style:normal;text-decoration:none;font-size:17px;font-weight:500;color:var(--ink-3);margin-left:4px}
+.hero-v.bump{animation:bump .34s cubic-bezier(.34,1.56,.64,1)}
+@keyframes bump{0%{transform:scale(1)}42%{transform:scale(1.07)}100%{transform:scale(1)}}
+
+.stat{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+      padding:7px 0;border-top:1px solid var(--line-2);font-size:13.5px}
+.stat-l{color:var(--ink-2);display:flex;align-items:center;gap:7px;min-width:0}
+.swatch{width:9px;height:9px;border-radius:2.5px;flex:none}
+.stat-v{font-variant-numeric:tabular-nums;font-weight:540;white-space:nowrap}
+
+/* ── sliders ─────────────────────────────────────────────────────────── */
+.ctl{margin-bottom:17px}
+.ctl:last-of-type{margin-bottom:12px}
+.ctl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:10px}
+.ctl-l{font-size:13.5px;color:var(--ink-2)}
+.ctl-v{font-size:15px;font-weight:620;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:grab;margin:0;display:block;
+}
+input[type=range]:active{cursor:grabbing}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:var(--line);border:none}
+input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--line);border:none}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;margin-top:-8px;
+  background:var(--card);border:2.5px solid var(--s1);
+  box-shadow:0 1px 4px rgba(26,26,25,.22);transition:transform .12s;
+}
+input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;background:var(--card);border:2.5px solid var(--s1);
+  box-shadow:0 1px 4px rgba(26,26,25,.22);
+}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.12)}
+input[type=range]:focus-visible::-webkit-slider-thumb{outline:3px solid color-mix(in srgb,var(--s1) 34%,transparent);outline-offset:2px}
+
+/* ── annotation ──────────────────────────────────────────────────────── */
+.annos{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.anno{
+  display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;
+  background:var(--card);border:1px solid var(--line);border-left:3px solid var(--s1);
+  border-radius:10px;padding:11px 14px;color:var(--ink);box-shadow:var(--shadow);
+  animation:slide .26s ease-out;
+}
+.anno svg{flex:none;margin-top:2px;color:var(--s1)}
+@keyframes slide{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+
+/* ── checkpoint ──────────────────────────────────────────────────────── */
+.check{margin-top:18px;padding:20px}
+.hide{display:none}
+.q{font-size:19px;font-weight:600;letter-spacing:-.015em;margin:0 0 15px;max-width:46ch;line-height:1.35}
+.opts{display:flex;gap:9px;flex-wrap:wrap}
+.opt{
+  background:var(--card);border:1.5px solid var(--line);border-radius:11px;
+  padding:12px 22px;font:inherit;font-size:16px;font-weight:580;font-variant-numeric:tabular-nums;
+  color:var(--ink);cursor:pointer;min-width:74px;min-height:46px;transition:all .13s;
+}
+.opt:hover:not(:disabled){border-color:var(--s1);background:color-mix(in srgb,var(--s1) 6%,var(--card));transform:translateY(-1px)}
+.opt:disabled{cursor:default}
+.opt.ok{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.opt.bad{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.fb{margin-top:14px;font-size:14.5px;line-height:1.55;display:flex;gap:9px;align-items:flex-start;max-width:62ch}
+.fb svg{flex:none;margin-top:2px}
+.fb.ok{color:var(--good)} .fb.bad{color:var(--warn)}
+
+/* ── noticed / evidence ──────────────────────────────────────────────── */
+.noticed{margin-top:18px;padding:16px 18px}
+.toggle{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);
+        cursor:pointer;user-select:none;text-transform:none;letter-spacing:0;font-weight:500}
+.toggle input{accent-color:var(--s1);margin:0;cursor:pointer}
+
+.mastery{margin-bottom:14px}
+.mastery-top{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);margin-bottom:7px}
+.mastery-top b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--s1),var(--s3));
+       width:0;transition:width .6s cubic-bezier(.22,1,.36,1)}
+
+.feed{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding-right:2px}
+.empty{font-size:13.5px;color:var(--ink-3);padding:6px 0}
+.ev{display:flex;gap:11px;align-items:flex-start;background:var(--card-2);
+    border:1px solid var(--line-2);border-radius:10px;padding:11px 13px;animation:slide .26s ease-out}
+.ev-ic{width:22px;height:22px;border-radius:7px;flex:none;display:flex;align-items:center;
+       justify-content:center;background:var(--line);color:var(--ink-2);font-size:12px}
+.ev.good .ev-ic{background:var(--good-bg);color:var(--good)}
+.ev.warn .ev-ic{background:var(--warn-bg);color:var(--warn)}
+.ev-b{min-width:0;flex:1}
+.ev-t{font-size:13.5px;line-height:1.45}
+.ev-raw{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-3);
+        margin-top:5px;word-break:break-all;display:none}
+.showraw .ev-raw{display:block}
+
+/* ── toast ───────────────────────────────────────────────────────────── */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);
+  background:var(--ink);color:var(--page);padding:13px 20px;border-radius:12px;
+  font-size:14.5px;font-weight:540;box-shadow:0 12px 32px -8px rgba(0,0,0,.42);
+  opacity:0;pointer-events:none;transition:opacity .28s,transform .28s;z-index:50;
+  display:flex;align-items:center;gap:9px;max-width:calc(100vw - 40px);
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ── footer ──────────────────────────────────────────────────────────── */
+.foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);
+      font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-3);
+      display:flex;flex-wrap:wrap;gap:7px 16px}
+
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="art"></div>
+    <div class="foot" id="foot"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+//== runtime =================================================================
+/* ---- kernel.js ---- */
+/* kinematics2d - the trusted physics (JS twin of generate/kernel_py.py).
+ *
+ * Hand-written. Never generated. The IR chooses a kernel; it does not author one.
+ * Kept in sync with the Python twin by the parity vectors embedded at build time. */
+(function (NS) {
+  var N = 90;
+
+  function kinematics2d(inp) {
+    var speed = inp.speed, angleDeg = inp.angle;
+    var g = inp.gravity == null ? 9.8 : inp.gravity;
+    var y0 = inp.y0 == null ? 0 : inp.y0;
+
+    var rad = angleDeg * Math.PI / 180;
+    var ux = speed * Math.cos(rad);
+    var uy = speed * Math.sin(rad);
+
+    var disc = uy * uy + 2 * g * y0;
+    var tof = g > 0 ? (uy + Math.sqrt(Math.max(disc, 0))) / g : 0;
+
+    var range = ux * tof;
+    var maxHeight = uy > 0 ? y0 + (uy * uy) / (2 * g) : y0;
+
+    var path = new Array(N + 1);
+    for (var i = 0; i <= N; i++) {
+      var t = tof * i / N;
+      path[i] = { t: t, x: ux * t, y: y0 + uy * t - 0.5 * g * t * t, vx: ux, vy: uy - g * t };
+    }
+
+    return {
+      ux: ux, uy: uy,
+      range: range,
+      max_height: maxHeight,
+      time_of_flight: tof,
+      path: path,
+      launch_point: { x: 0, y: y0 }
+    };
+  }
+
+  NS.KERNELS = { kinematics2d: kinematics2d };
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- evaluate.js ---- */
+/* One evaluation cycle: state -> frame.
+ *
+ * Pure and cheap (closed-form kinematics is microseconds), so we just re-run it
+ * on every slider tick. No animation loop, no diffing.
+ *
+ *   frame = { state, kernel, derived, theme }
+ *
+ * Everything the renderer and the probes read comes out of exactly this object. */
+(function (NS) {
+
+  NS.resolveRef = function (ref, ctx) {
+    if (typeof ref === 'number') return ref;
+    if (typeof ref !== 'string') return undefined;
+    var i = ref.indexOf('.');
+    if (i < 0) return undefined;
+    var ns = ref.slice(0, i), name = ref.slice(i + 1);
+    return ctx[ns] ? ctx[ns][name] : undefined;
+  };
+
+  NS.defaultState = function (ir) {
+    var s = {};
+    for (var k in ir.state) s[k] = ir.state[k].value;
+    return s;
+  };
+
+  NS.evaluate = function (ir, state, theme) {
+    var kfn = NS.KERNELS[ir.kernel];
+    if (!kfn) throw new Error('unknown kernel: ' + ir.kernel);
+
+    var inputs = {};
+    for (var port in ir.kernel_inputs) {
+      inputs[port] = NS.resolveRef(ir.kernel_inputs[port], { state: state });
+    }
+    var kernel = kfn(inputs);
+
+    var derived = {};
+    for (var name in ir.derived) {
+      derived[name] = NS.resolveRef(ir.derived[name], { state: state, kernel: kernel });
+    }
+
+    return { state: state, kernel: kernel, derived: derived, theme: theme };
+  };
+
+  /* {{theme.x}} and {{value}} token substitution for labels and copy. */
+  NS.fill = function (tpl, theme, value) {
+    if (typeof tpl !== 'string') return tpl;
+    return tpl
+      .replace(/\{\{\s*theme\.([a-zA-Z_]+)\s*\}\}/g, function (_, k) { return theme[k] != null ? theme[k] : ''; })
+      .replace(/\{\{\s*value\s*\}\}/g, value != null ? String(value) : '');
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- probes.js ---- */
+/* The probe engine: turns interaction into concept-tagged evidence.
+ *
+ * This is the part that makes an artifact a diagnostic instrument rather than a
+ * visualisation. In the real product `emit` posts to the Learning Agent, which
+ * calls update_student_memory(). Here it renders into the evidence stream so
+ * you can watch it happen. */
+(function (NS) {
+
+  NS.createProbeEngine = function (ir, emit) {
+    var settled = {};    // controlId -> { value: true }  (distinct parked values)
+    var maxSeen = {};    // "derived.range" -> number
+    var fired = {};      // probeId -> true
+    var counts = {};     // probeId -> how many times it emitted
+
+    function distinctSettled(cid) { return Object.keys(settled[cid] || {}).length; }
+
+    function refValue(ref, frame) {
+      var i = ref.indexOf('.');
+      return NS.resolveRef(ref, frame);
+    }
+
+    function noteMax(ref, frame) {
+      var v = refValue(ref, frame);
+      if (typeof v !== 'number') return;
+      if (maxSeen[ref] === undefined || v > maxSeen[ref]) maxSeen[ref] = v;
+    }
+
+    /* Structured conditions - data, not code, so they were validated at build time. */
+    function evalCondition(cond, frame) {
+      if (!cond) return false;
+      if (cond.all) return cond.all.every(function (c) { return evalCondition(c, frame); });
+      if (cond.any) return cond.any.some(function (c) { return evalCondition(c, frame); });
+
+      if (cond.near) {
+        var v = refValue(cond.near.ref, frame);
+        return typeof v === 'number' && Math.abs(v - cond.near.value) <= (cond.near.tol == null ? 1e-9 : cond.near.tol);
+      }
+      if (cond.distinct_settled) {
+        var d = cond.distinct_settled, n = distinctSettled(d.control);
+        if (d.gte != null) return n >= d.gte;
+        if (d.eq != null) return n === d.eq;
+        return false;
+      }
+      if (cond.is_max_seen) {
+        var r = cond.is_max_seen.ref, cur = refValue(r, frame);
+        return typeof cur === 'number' && maxSeen[r] !== undefined && cur >= maxSeen[r] - 1e-9;
+      }
+      return false;
+    }
+    NS.evalCondition = evalCondition;   // reused by annotation layers
+
+    function fire(probe, frame) {
+      var payload = {};
+      (probe.payload || []).forEach(function (ref) {
+        var v = refValue(ref, frame);
+        payload[ref] = typeof v === 'number' ? Math.round(v * 100) / 100 : v;
+      });
+      counts[probe.id] = (counts[probe.id] || 0) + 1;
+      if (probe.once) fired[probe.id] = true;
+
+      emit({
+        t: Date.now(),
+        probe: probe.id,
+        event: probe.emit,
+        concept: probe.concept || null,
+        misconception: probe.misconception || null,
+        note: probe.note || null,
+        student_text: probe.student_text || null,
+        payload: payload
+      });
+    }
+
+    function evaluatePredicates(frame) {
+      ir.probes.forEach(function (p) {
+        if (p.on !== 'predicate' || fired[p.id]) return;
+        if (evalCondition(p.when, frame)) fire(p, frame);
+      });
+    }
+
+    return {
+      /* Called ~400ms after the student stops dragging a control. */
+      onSettle: function (controlId, frame) {
+        settled[controlId] = settled[controlId] || {};
+        var ctrl = ir.controls.filter(function (c) { return c.id === controlId; })[0];
+        if (ctrl && ctrl.bind) settled[controlId][NS.resolveRef(ctrl.bind, frame)] = true;
+
+        ir.probes.forEach(function (p) { if (p.payload) p.payload.forEach(function (r) { noteMax(r, frame); }); });
+
+        ir.probes.forEach(function (p) {
+          if (p.on === 'control_settle' && p.control === controlId && !fired[p.id]) fire(p, frame);
+        });
+        evaluatePredicates(frame);
+      },
+      count: function (probeId) { return counts[probeId] || 0; },
+      state: function () { return { settled: settled, maxSeen: maxSeen, counts: counts }; }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- render.js ---- */
+/* The renderer: frame -> pixels + DOM.
+ *
+ * Hand-written, deterministic, identical for every artifact. The IR chooses
+ * which layers to stack and what to bind them to; it has no say over layout,
+ * colour or type. That is a deliberate trade - less visual variety, total
+ * predictability, and one place to make everything look good.
+ *
+ * Colour rule: data marks use fixed, CVD-validated colours (categorical slots
+ * 1-3). The THEME tints the world - sky, story, icon - and never the data. */
+(function (NS) {
+
+  var SVG = {
+    play:  '<svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M3.5 1.8v9.4a.6.6 0 0 0 .92.5l7.2-4.7a.6.6 0 0 0 0-1L4.42 1.3a.6.6 0 0 0-.92.5z"/></svg>',
+    pin:   '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 8.5V13"/><path d="M4 1h6l-.8 4.2L11 7.2v1.3H3V7.2l1.8-2z"/></svg>',
+    idea:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 13h4M6.5 15h3"/><path d="M8 1a4.5 4.5 0 0 0-2.6 8.2c.4.3.6.7.6 1.1v.2h4v-.2c0-.4.2-.8.6-1.1A4.5 4.5 0 0 0 8 1z"/></svg>',
+    check: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4.5L6.2 11.5 3 8.3"/></svg>',
+    cross: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M11.5 4.5l-7 7M4.5 4.5l7 7"/></svg>'
+  };
+
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
+  }
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
+  }
+  function niceStep(span, target) {
+    var raw = span / (target || 4), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), n = raw / mag;
+    return (n >= 5 ? 5 : n >= 2 ? 2 : 1) * mag;
+  }
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+
+  /* ─────────────────────────────────────────────────────────── the scene */
+
+  NS.drawScene = function (canvas, ir, frame, snapshots, theme, anim) {
+    var dpr = window.devicePixelRatio || 1;
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W || !H) return;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    var g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var C = {
+      s1: cssVar('--s1'), s2: cssVar('--s2'), s3: cssVar('--s3'),
+      ink: cssVar('--ink'), ink2: cssVar('--ink-2'), ink3: cssVar('--ink-3'),
+      grid: cssVar('--grid'), ground: cssVar('--ground'), groundLine: cssVar('--ground-line'),
+      card: cssVar('--card')
+    };
+    var FONT = '-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif';
+
+    var scene = ir.layers.filter(function (l) { return l.type === 'scene2d'; })[0] || {};
+    var traceLayer = ir.layers.filter(function (l) { return l.type === 'trace'; })[0];
+    var ghosts = ir.layers.some(function (l) { return l.type === 'trace_set'; }) ? snapshots : [];
+    var vecLayer = ir.layers.filter(function (l) { return l.type === 'vector'; })[0];
+    var vecSet = ir.layers.filter(function (l) { return l.type === 'vector_set'; })[0];
+
+    /* world bounds across the live path and every pinned ghost */
+    var live = traceLayer ? (NS.resolveRef(traceLayer.points, frame) || []) : [];
+    var xmax = 1, ymax = 1;
+    [live].concat(ghosts.map(function (s) { return s.frame.kernel.path; })).forEach(function (p) {
+      p.forEach(function (pt) { if (pt.x > xmax) xmax = pt.x; if (pt.y > ymax) ymax = pt.y; });
+    });
+    xmax *= 1.07;
+    ymax = Math.max(ymax * 1.25, xmax * 0.30);   // headroom so the scene fills the frame
+
+    var M = { l: 58, r: 24, t: 14, b: 42 };
+    var scale = Math.min((W - M.l - M.r) / xmax, (H - M.t - M.b) / ymax);  // equal aspect
+    var ox = M.l, oy = H - M.b;
+    function px(x, y) { return [ox + x * scale, oy - y * scale]; }
+    var right = ox + xmax * scale;
+
+    /* sky - a whisper of the theme's colour, the only place theme touches paint */
+    g.clearRect(0, 0, W, H);
+    var sky = g.createLinearGradient(0, 0, 0, oy);
+    sky.addColorStop(0, (theme.tint || 'rgba(42,120,214,0.07)'));
+    sky.addColorStop(1, 'rgba(0,0,0,0)');
+    roundRect(g, 0, 0, W, H, 9); g.fillStyle = sky; g.fill();
+
+    /* grid + axis labels - recessive */
+    g.font = '11px ' + FONT; g.lineWidth = 1;
+    var sx = niceStep(xmax, 5), sy = niceStep(ymax, 4);
+    g.strokeStyle = C.grid;
+    for (var x = sx; x <= xmax; x += sx) {
+      var a = px(x, 0); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(a[0], M.t); g.stroke();
+      g.fillStyle = C.ink3; g.textAlign = 'center'; g.fillText(Math.round(x), a[0], oy + 18);
+    }
+    for (var y = sy; y <= ymax; y += sy) {
+      var c = px(0, y); g.beginPath(); g.moveTo(ox, c[1]); g.lineTo(right, c[1]); g.stroke();
+      g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText(Math.round(y), ox - 9, c[1] + 4);
+    }
+    if (scene.x_label) { g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText(scene.x_label, right, oy + 33); }
+    if (scene.y_label) { g.save(); g.translate(13, oy); g.rotate(-Math.PI / 2);
+      g.fillStyle = C.ink3; g.textAlign = 'left'; g.fillText(scene.y_label, 4, 0); g.restore(); }
+
+    /* ground */
+    g.fillStyle = C.ground; g.fillRect(0, oy, W, H - oy);
+    g.strokeStyle = C.groundLine; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, oy + .5); g.lineTo(W, oy + .5); g.stroke();
+    if (scene.ground_label) {
+      g.fillStyle = C.ink3; g.textAlign = 'left'; g.font = '11px ' + FONT;
+      g.fillText(NS.fill(scene.ground_label, theme), 6, oy + 18);
+    }
+
+    /* pinned ghosts - neutral, dashed, DIRECT-LABELLED (identity never colour-alone) */
+    ghosts.forEach(function (s) {
+      g.strokeStyle = C.ink3; g.globalAlpha = .45; g.lineWidth = 1.5; g.setLineDash([5, 5]);
+      g.beginPath();
+      s.frame.kernel.path.forEach(function (pt, i) { var q = px(pt.x, pt.y); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+      g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+
+      var last = s.frame.kernel.path[s.frame.kernel.path.length - 1], lp = px(last.x, last.y);
+      var lbl = Math.round(s.frame.state.theta) + '°';
+      g.font = '600 11px ' + FONT; g.textAlign = 'center';
+      var w = g.measureText(lbl).width + 13;
+      g.fillStyle = C.card; g.strokeStyle = C.groundLine; g.lineWidth = 1;
+      roundRect(g, lp[0] - w / 2, lp[1] - 25, w, 18, 9); g.fill(); g.stroke();
+      g.fillStyle = C.ink2; g.fillText(lbl, lp[0], lp[1] - 12);
+    });
+
+    /* the live trajectory */
+    if (live.length) {
+      g.strokeStyle = C.s1; g.lineWidth = 2.6; g.lineJoin = 'round'; g.lineCap = 'round';
+      g.beginPath();
+      live.forEach(function (pt, i) { var q = px(pt.x, pt.y); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+      g.stroke();
+
+      /* range dimension line along the ground */
+      var end = live[live.length - 1], e = px(end.x, end.y);
+      g.strokeStyle = C.s1; g.globalAlpha = .32; g.lineWidth = 1.5; g.setLineDash([3, 4]);
+      g.beginPath(); g.moveTo(ox, oy + 9); g.lineTo(e[0], oy + 9); g.stroke();
+      g.setLineDash([]); g.globalAlpha = 1;
+      [ox, e[0]].forEach(function (t) {
+        g.strokeStyle = C.s1; g.globalAlpha = .5; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(t, oy + 5); g.lineTo(t, oy + 13); g.stroke(); g.globalAlpha = 1;
+      });
+
+      /* the projectile - animated along the path, or resting at the landing point */
+      var p = end;
+      if (anim && anim.playing) {
+        var i = Math.min(live.length - 1, Math.floor(anim.u * (live.length - 1)));
+        p = live[i];
+        /* motion trail */
+        g.strokeStyle = C.s1; g.globalAlpha = .22; g.lineWidth = 6; g.lineCap = 'round';
+        g.beginPath();
+        for (var j = Math.max(0, i - 9); j <= i; j++) { var q = px(live[j].x, live[j].y); j === Math.max(0, i - 9) ? g.moveTo(q[0], q[1]) : g.lineTo(q[0], q[1]); }
+        g.stroke(); g.globalAlpha = 1;
+      }
+      var bp = px(p.x, p.y);
+      var glyph = NS.fill(traceLayer.end_marker || '', theme);
+      g.globalAlpha = .18; g.fillStyle = C.ink;
+      g.beginPath(); g.ellipse(bp[0], oy - 1.5, 7, 2.5, 0, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+      if (glyph) { g.font = '19px ' + FONT + ',"Apple Color Emoji"'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, bp[0], bp[1] - 7); g.textBaseline = 'alphabetic'; }
+      else { g.fillStyle = C.s1; g.strokeStyle = C.card; g.lineWidth = 2;
+             g.beginPath(); g.arc(bp[0], bp[1] - 6, 6.5, 0, Math.PI * 2); g.fill(); g.stroke(); }
+
+      /* celebration burst */
+      if (anim && anim.burst > 0) {
+        var lp2 = px(end.x, end.y);
+        for (var k = 0; k < 12; k++) {
+          var ang = (k / 12) * Math.PI * 2, d = (1 - anim.burst) * 34;
+          g.globalAlpha = anim.burst * .85; g.fillStyle = k % 2 ? C.s3 : C.s1;
+          g.beginPath(); g.arc(lp2[0] + Math.cos(ang) * d, lp2[1] - 6 + Math.sin(ang) * d, 2.6 * anim.burst + .6, 0, Math.PI * 2); g.fill();
+        }
+        g.globalAlpha = 1;
+      }
+    }
+
+    /* velocity arrows */
+    function arrow(x1, y1, x2, y2, col, dash, lbl, lw) {
+      if (Math.abs(x2 - x1) < .8 && Math.abs(y2 - y1) < .8) return;
+      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = lw || 2; g.lineCap = 'round';
+      g.setLineDash(dash || []);
+      var ang = Math.atan2(y2 - y1, x2 - x1);
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2 - 6 * Math.cos(ang), y2 - 6 * Math.sin(ang)); g.stroke();
+      g.setLineDash([]);
+      g.beginPath(); g.moveTo(x2, y2);
+      g.lineTo(x2 - 8 * Math.cos(ang - .38), y2 - 8 * Math.sin(ang - .38));
+      g.lineTo(x2 - 8 * Math.cos(ang + .38), y2 - 8 * Math.sin(ang + .38));
+      g.closePath(); g.fill();
+      if (lbl) {
+        g.font = '600 11.5px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+        var lx = x2 + 15 * Math.cos(ang), ly = y2 + 15 * Math.sin(ang);
+        lx = Math.max(lx, ox + 12);            // never collide with the y-axis gutter
+        var w = g.measureText(lbl).width + 9;
+        g.fillStyle = C.card; g.globalAlpha = .9; roundRect(g, lx - w / 2, ly - 8, w, 16, 6); g.fill(); g.globalAlpha = 1;
+        g.fillStyle = col; g.fillText(lbl, lx, ly); g.textBaseline = 'alphabetic';
+      }
+    }
+
+    var umax = (ir.state.u && ir.state.u.max) || 40;
+    /* arrows are schematic - size them against the drawn scene, not the world */
+    var K = Math.min(132, (right - ox) * 0.34) / umax;
+
+    if (vecLayer) {
+      var at = NS.resolveRef(vecLayer.at, frame) || { x: 0, y: 0 }, o = px(at.x, at.y);
+      var vx = NS.resolveRef(vecLayer.components.x, frame) || 0;
+      var vy = NS.resolveRef(vecLayer.components.y, frame) || 0;
+      var L = vecLayer.labels || {};
+      if (vecLayer.decompose) {
+        arrow(o[0], o[1], o[0] + vx * K, o[1], C.s3, [4, 3], L.x || 'uₓ', 1.8);
+        arrow(o[0], o[1], o[0], o[1] - vy * K, C.s2, [4, 3], L.y || 'uᵧ', 1.8);
+      }
+      arrow(o[0], o[1], o[0] + vx * K, o[1] - vy * K, C.ink, [], L.resultant || 'u', 2.2);
+    }
+
+    /* vector_set - velocity arrows sampled along the flight. This is what makes
+       "horizontal velocity never changes" visible rather than asserted. */
+    if (vecSet && live.length) {
+      var n = vecSet.count || 5, K2 = (vecSet.scale || 52) / umax;
+      for (var m = 0; m < n; m++) {
+        var pt = live[Math.round((m + 0.5) / n * (live.length - 1))];
+        var q = px(pt.x, pt.y);
+        var cx = NS.resolveRef(vecSet.components.x, { state: frame.state, kernel: frame.kernel, derived: frame.derived, point: pt });
+        var cy = NS.resolveRef(vecSet.components.y, { state: frame.state, kernel: frame.kernel, derived: frame.derived, point: pt });
+        if (cx == null) cx = pt.vx; if (cy == null) cy = pt.vy;
+        g.globalAlpha = .95;
+        if (vecSet.decompose) {
+          arrow(q[0], q[1], q[0] + cx * K2, q[1], C.s3, [], m === 0 ? (vecSet.labels || {}).x || 'vₓ' : '', 1.6);
+          arrow(q[0], q[1], q[0], q[1] - cy * K2, C.s2, [], m === 0 ? (vecSet.labels || {}).y || 'vᵧ' : '', 1.6);
+        } else {
+          arrow(q[0], q[1], q[0] + cx * K2, q[1] - cy * K2, C.ink, [], '', 1.6);
+        }
+        g.globalAlpha = 1;
+        g.fillStyle = C.s1; g.beginPath(); g.arc(q[0], q[1], 2.5, 0, Math.PI * 2); g.fill();
+      }
+    }
+  };
+
+  /* ────────────────────────────────────────────────────────── DOM build */
+
+  NS.buildDOM = function (ir, root, h) {
+    root.innerHTML = '';
+    var R = { sliders: {}, stats: [], hero: null, annos: null, feed: null, check: null, bar: null, pins: null };
+    var q0 = (ir.assessment || [])[0];
+
+    /* top bar */
+    var top = el('div', 'top');
+    var brand = el('div', 'brand');
+    brand.appendChild(el('div', 'dot'));
+    brand.appendChild(el('b', null, 'Nityam'));
+    brand.appendChild(el('i', null, '/'));
+    brand.appendChild(el('span', null, (ir.intent.concept_ids[0] || '').split('.')[0].replace(/_/g, ' ')
+      .replace(/^./, function (s) { return s.toUpperCase(); }) + ' · Class 11 Physics'));
+    top.appendChild(brand);
+
+    var pick = el('div', 'picker');
+    pick.appendChild(el('label', null, 'Story'));
+    var sel = el('select');
+    Object.keys(h.themes).forEach(function (k) {
+      var o = el('option', null, h.themes[k].label || k); o.value = k; sel.appendChild(o);
+    });
+    sel.value = h.themeKey;
+    sel.onchange = function () { h.onTheme(sel.value); };
+    pick.appendChild(sel);
+    top.appendChild(pick);
+    root.appendChild(top);
+
+    /* lesson header - the learning outcome, in student language */
+    var lesson = el('div', 'lesson');
+    lesson.appendChild(el('div', 'eyebrow', h.eyebrow || 'Explore'));
+    lesson.appendChild(el('h1', null, NS.fill(ir.intent.student_prompt || ir.intent.learning_outcome, h.theme)));
+    if (ir.intent.student_hint) lesson.appendChild(el('p', null, NS.fill(ir.intent.student_hint, h.theme)));
+    root.appendChild(lesson);
+
+    /* stage + side */
+    var grid = el('div', 'grid');
+    var leftCol = el('div');
+    var stage = el('div', 'card stage');
+    var canvas = el('canvas');
+    stage.appendChild(canvas);
+
+    var bar = el('div', 'stagebar');
+    var play = el('button', 'btn btn-primary');
+    play.innerHTML = SVG.play + '<span>Launch</span>';
+    play.onclick = function () { h.onPlay(); };
+    bar.appendChild(play);
+
+    ir.controls.filter(function (c) { return c.widget === 'button'; }).forEach(function (c) {
+      var b = el('button', 'btn');
+      b.innerHTML = (c.action === 'snapshot' ? SVG.pin : '') + '<span>' + c.label + '</span>';
+      b.onclick = function () { h.onAction(c); };
+      bar.appendChild(b);
+      if (c.action === 'snapshot') { R.pins = el('span', 'pincount'); bar.appendChild(R.pins); }
+    });
+    bar.appendChild(el('div', 'spacer'));
+    stage.appendChild(bar);
+    leftCol.appendChild(stage);
+
+    R.annos = el('div', 'annos');
+    leftCol.appendChild(R.annos);
+    grid.appendChild(leftCol);
+
+    /* side panel */
+    var side = el('aside', 'side');
+    var rg = ir.layers.filter(function (l) { return l.type === 'readout_group'; })[0];
+    if (rg) {
+      var card = el('div', 'card pad');
+      var items = rg.items.slice();
+      var heroSpec = items.filter(function (i) { return i.emphasis; })[0] || items[0];
+      items = items.filter(function (i) { return i !== heroSpec; });
+
+      var hero = el('div', 'hero');
+      hero.appendChild(el('div', 'hero-l', heroSpec.label));
+      var hv = el('div', 'hero-v');
+      hv.innerHTML = '<span>—</span>' + (heroSpec.unit ? '<u>' + heroSpec.unit + '</u>' : '');
+      hero.appendChild(hv);
+      card.appendChild(hero);
+      R.hero = { spec: heroSpec, node: hv, num: hv.firstChild };
+
+      items.forEach(function (it) {
+        var row = el('div', 'stat');
+        var l = el('span', 'stat-l');
+        if (it.swatch) { var sw = el('span', 'swatch'); sw.style.background = 'var(--' + it.swatch + ')'; l.appendChild(sw); }
+        l.appendChild(el('span', null, it.label));
+        row.appendChild(l);
+        var v = el('span', 'stat-v', '—');
+        row.appendChild(v);
+        card.appendChild(row);
+        R.stats.push({ spec: it, node: v });
+      });
+      side.appendChild(card);
+    }
+
+    var cc = el('div', 'card pad');
+    cc.appendChild(el('div', 'ttl', 'Controls'));
+    ir.controls.filter(function (c) { return c.widget === 'slider'; }).forEach(function (c) {
+      var nm = c.bind.split('.')[1], sv = ir.state[nm];
+      var w = el('div', 'ctl');
+      var t = el('div', 'ctl-top');
+      t.appendChild(el('span', 'ctl-l', NS.fill(c.label, h.theme)));
+      var badge = el('span', 'ctl-v');
+      t.appendChild(badge); w.appendChild(t);
+      var inp = el('input');
+      inp.type = 'range'; inp.min = sv.min; inp.max = sv.max; inp.step = sv.step || 1; inp.value = sv.value;
+      inp.setAttribute('aria-label', NS.fill(c.label, h.theme));
+      inp.oninput = function () { h.onControl(c, parseFloat(inp.value)); };
+      w.appendChild(inp);
+      cc.appendChild(w);
+      R.sliders[c.id] = { input: inp, badge: badge, spec: c };
+    });
+    side.appendChild(cc);
+    grid.appendChild(side);
+    root.appendChild(grid);
+
+    /* checkpoint */
+    if (q0) { R.check = el('div', 'card check hide'); root.appendChild(R.check); }
+
+    /* what Nityam noticed */
+    var nt = el('div', 'card noticed');
+    var ttl = el('div', 'ttl');
+    ttl.appendChild(el('span', null, 'What Nityam noticed'));
+    var tog = el('label', 'toggle');
+    var cb = el('input'); cb.type = 'checkbox';
+    cb.onchange = function () { R.feed.classList.toggle('showraw', cb.checked); };
+    tog.appendChild(cb); tog.appendChild(el('span', null, 'raw events'));
+    ttl.appendChild(tog);
+    nt.appendChild(ttl);
+
+    var mw = el('div', 'mastery');
+    var mt = el('div', 'mastery-top');
+    mt.appendChild(el('span', null, (ir.intent.concept_ids[0] || '').replace(/[._]/g, ' ')));
+    var mv = el('b', null, '0%');
+    mt.appendChild(mv); mw.appendChild(mt);
+    var barw = el('div', 'bar'); var fill = el('i'); barw.appendChild(fill); mw.appendChild(barw);
+    nt.appendChild(mw);
+    R.bar = { fill: fill, label: mv };
+
+    R.feed = el('div', 'feed');
+    R.feed.appendChild(el('div', 'empty', 'Move a slider and let go — Nityam is watching how you explore.'));
+    nt.appendChild(R.feed);
+    root.appendChild(nt);
+
+    R.canvas = canvas;
+    R.SVG = SVG;
+    return R;
+  };
+
+  NS.updateReadouts = function (R, frame) {
+    function fmt(spec) {
+      var v = NS.resolveRef(spec.value, frame);
+      var p = spec.precision == null ? 1 : spec.precision;
+      return typeof v === 'number' ? v.toFixed(p) : '—';
+    }
+    if (R.hero) {
+      var t = fmt(R.hero.spec);
+      if (R.hero.num.textContent !== t) {
+        R.hero.num.textContent = t;
+        R.hero.node.classList.remove('bump'); void R.hero.node.offsetWidth; R.hero.node.classList.add('bump');
+      }
+    }
+    R.stats.forEach(function (s) {
+      s.node.textContent = fmt(s.spec) + (s.spec.unit ? ' ' + s.spec.unit : '');
+    });
+  };
+
+  NS.updateAnnotations = function (ir, R, frame, theme) {
+    var want = ir.layers.filter(function (l) { return l.type === 'annotation' && NS.evalCondition(l.when, frame); })
+                        .map(function (l) { return NS.fill(l.text, theme); });
+    var have = Array.prototype.map.call(R.annos.children, function (c) { return c.dataset.t; });
+    if (want.join('|') === have.join('|')) return;      // don't re-animate on every tick
+    R.annos.innerHTML = '';
+    want.forEach(function (t) {
+      var d = el('div', 'anno'); d.dataset.t = t;
+      d.innerHTML = SVG.idea + '<span></span>';
+      d.lastChild.textContent = t;
+      R.annos.appendChild(d);
+    });
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- mount.js ---- */
+/* mountArtifact(ir, container, options) -> handle
+ *
+ * The single entry point. This proof of concept calls it from a standalone HTML
+ * shell; the Nityam app calls the identical function from React:
+ *
+ *     useEffect(() => {
+ *       const a = Nityam.mountArtifact(ir, ref.current, {
+ *         themes, theme: student.interest,
+ *         onEvidence: e => agent.updateStudentMemory(e)
+ *       });
+ *       return () => a.destroy();
+ *     }, [ir]);
+ *
+ * Same runtime, same IR, two shells. */
+(function (NS) {
+
+  var SETTLE_MS = 380;
+
+  NS.mountArtifact = function (ir, container, opts) {
+    opts = opts || {};
+    var themes = opts.themes || { plain: { label: 'Plain' } };
+    var themeKey = themes[opts.theme] ? opts.theme : Object.keys(themes)[0];
+    var theme = themes[themeKey];
+
+    var state = NS.defaultState(ir);
+    var snapshots = [];
+    var timers = {};
+    var R, probes;
+    var answered = {};          // questionId -> chosen option (survives a rebuild)
+    var evidenceLog = [];       // every event this session, so a rebuild can restore it
+    var anim = { playing: false, u: 0, burst: 0, t0: 0, dur: 1 };
+    var raf = null;
+
+    function frame() { return NS.evaluate(ir, state, theme); }
+
+    /* ── draw ─────────────────────────────────────────────────────────── */
+    function redraw() {
+      var f = frame();
+      NS.drawScene(R.canvas, ir, f, snapshots, theme, anim);
+      NS.updateReadouts(R, f);
+      NS.updateAnnotations(ir, R, f, theme);
+      for (var id in R.sliders) {
+        var s = R.sliders[id], v = state[s.spec.bind.split('.')[1]];
+        if (parseFloat(s.input.value) !== v) s.input.value = v;
+        s.badge.textContent = NS.fill(s.spec.display || '{{value}}', theme, v);
+      }
+      if (R.pins) {
+        var cap = (ir.controls.filter(function (c) { return c.action === 'snapshot'; })[0] || {}).max || 3;
+        R.pins.textContent = snapshots.length ? snapshots.length + '/' + cap + ' pinned' : '';
+      }
+      return f;
+    }
+
+    /* ── animation: fly the projectile along its own trajectory ───────── */
+    function tick(ts) {
+      if (!anim.t0) anim.t0 = ts;
+      var e = (ts - anim.t0) / 1000;
+      if (anim.playing) {
+        anim.u = Math.min(1, e / anim.dur);
+        if (anim.u >= 1) { anim.playing = false; anim.u = 1; }
+      }
+      if (anim.burst > 0) anim.burst = Math.max(0, anim.burst - 0.018);
+      redraw();
+      if (anim.playing || anim.burst > 0) raf = requestAnimationFrame(tick);
+      else raf = null;
+    }
+    function play() {
+      var tof = frame().kernel.time_of_flight || 1;
+      anim.playing = true; anim.u = 0; anim.t0 = 0;
+      anim.dur = Math.min(2.2, Math.max(0.75, tof * 0.42));   // real-ish, never tedious
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+    function celebrate(msg) {
+      anim.burst = 1; anim.t0 = 0;
+      if (!raf) raf = requestAnimationFrame(tick);
+      if (opts.toast) {
+        opts.toast.innerHTML = R.SVG.check + '<span></span>';
+        opts.toast.lastChild.textContent = msg;
+        opts.toast.classList.add('on');
+        clearTimeout(timers._toast);
+        timers._toast = setTimeout(function () { opts.toast.classList.remove('on'); }, 3600);
+      }
+    }
+
+    /* ── evidence ─────────────────────────────────────────────────────── */
+
+    /* Students should not read `artifact.discovered_optimum`. Probes carry a
+       `note` for the agent; this turns an event into one plain sentence. */
+    function humanise(e) {
+      if (e.student_text) return e.student_text;
+      switch (e.event) {
+        case 'artifact.explored':
+          var k = Object.keys(e.payload);
+          return 'You tried ' + k.map(function (r) {
+            return r.split('.')[1] + ' ' + e.payload[r];
+          }).join(', ') + '.';
+        case 'artifact.discovered_optimum':
+          return 'You found the best setting by testing it yourself — that sticks better than being told.';
+        case 'artifact.misconception_behavior':
+          return 'You have been changing one thing only. Try the other slider and see what happens.';
+        case 'assessment.answered':
+          return e.payload.correct ? 'Checkpoint correct.' : 'Not quite — worth another look at the graph.';
+        default:
+          return e.note || e.event;
+      }
+    }
+
+    function emitEvidence(e) {
+      evidenceLog.push(e);
+      renderEvidence(e);
+      updateMastery();
+      if (e.event === 'artifact.discovered_optimum') celebrate('Nice — you worked that out yourself.');
+      if (e.event === 'assessment.answered' && e.payload.correct) celebrate('Checkpoint cleared.');
+      if (opts.onEvidence) opts.onEvidence(e);
+      console.log('[nityam:evidence]', e.event, e);
+      refreshGates();
+    }
+
+    function renderEvidence(e) {
+      var empty = R.feed.querySelector('.empty');
+      if (empty) empty.remove();
+      var row = document.createElement('div');
+      row.className = 'ev' + (e.misconception ? ' warn' : (/discovered|correct/.test(e.event) || (e.payload && e.payload.correct) ? ' good' : ''));
+      var ic = document.createElement('div');
+      ic.className = 'ev-ic';
+      ic.innerHTML = e.misconception ? R.SVG.idea : (/discovered/.test(e.event) ? R.SVG.check : '·');
+      row.appendChild(ic);
+      var b = document.createElement('div'); b.className = 'ev-b';
+      var t = document.createElement('div'); t.className = 'ev-t';
+      t.textContent = humanise(e);
+      b.appendChild(t);
+      var raw = document.createElement('div'); raw.className = 'ev-raw';
+      raw.textContent = e.event + ' ' + JSON.stringify(e.payload) +
+        (e.concept ? '  concept=' + e.concept : '') + (e.misconception ? '  misconception=' + e.misconception : '');
+      b.appendChild(raw);
+      row.appendChild(b);
+      R.feed.insertBefore(row, R.feed.firstChild);
+    }
+
+    /* A visible stand-in for update_student_memory(). In the real app the
+       agent owns this number; here we approximate it from the evidence. */
+    function updateMastery() {
+      var m = 0;
+      evidenceLog.forEach(function (e) {
+        if (e.event === 'artifact.explored') m += 8;
+        else if (e.event === 'artifact.discovered_optimum') m += 34;
+        else if (e.event === 'assessment.answered') m += e.payload.correct ? 30 : -6;
+        else if (e.event === 'artifact.misconception_behavior') m -= 5;
+      });
+      m = Math.max(0, Math.min(100, Math.round(m)));
+      R.bar.fill.style.width = m + '%';
+      R.bar.label.textContent = m + '%';
+    }
+
+    /* ── checkpoint ───────────────────────────────────────────────────── */
+    function refreshGates() {
+      if (!R.check) return;
+      var q = ir.assessment[0];
+      var open = !q.gate || probes.count(q.gate.probe) >= (q.gate.count_gte || 1);
+      if (!open || !R.check.classList.contains('hide')) return;
+      R.check.classList.remove('hide');
+      buildQuestion(q);
+      if (answered[q.id] !== undefined) markAnswer(q, answered[q.id], R.check.querySelector('.opts'));
+    }
+
+    function buildQuestion(q) {
+      R.check.innerHTML = '';
+      var t = document.createElement('div'); t.className = 'ttl'; t.textContent = 'Checkpoint';
+      R.check.appendChild(t);
+      var p = document.createElement('p'); p.className = 'q'; p.textContent = NS.fill(q.prompt, theme);
+      R.check.appendChild(p);
+      var row = document.createElement('div'); row.className = 'opts';
+      q.options.forEach(function (o) {
+        var b = document.createElement('button');
+        b.className = 'opt'; b.textContent = o + (q.unit || ''); b.dataset.v = o;
+        b.onclick = function () { answered[q.id] = o; markAnswer(q, o, row); emitAnswer(q, o); };
+        row.appendChild(b);
+      });
+      R.check.appendChild(row);
+      var fb = document.createElement('div'); fb.className = 'fb';
+      R.check.appendChild(fb);
+    }
+
+    function markAnswer(q, chosen, row) {
+      var correct = chosen === q.expected;
+      if (row) Array.prototype.forEach.call(row.children, function (b) {
+        b.disabled = true;
+        var v = parseFloat(b.dataset.v);
+        if (v === q.expected) b.classList.add('ok');
+        else if (v === chosen) b.classList.add('bad');
+      });
+      var fb = R.check.querySelector('.fb');
+      if (fb) {
+        fb.className = 'fb ' + (correct ? 'ok' : 'bad');
+        fb.innerHTML = (correct ? R.SVG.check : R.SVG.cross) + '<span></span>';
+        fb.lastChild.textContent = correct ? (q.explain_correct || 'Correct.') : (q.explain_wrong || 'Not quite.');
+      }
+      return correct;
+    }
+
+    function emitAnswer(q, chosen) {
+      var correct = chosen === q.expected;
+      emitEvidence({
+        t: Date.now(), probe: q.id, event: 'assessment.answered',
+        concept: q.concept || null,
+        misconception: correct ? null : (q.diagnose || {})[String(chosen)] || null,
+        note: correct ? 'Correct after exploration.' : 'Incorrect - diagnosis attached.',
+        payload: { chosen: chosen, expected: q.expected, correct: correct }
+      });
+    }
+
+    /* ── handlers ─────────────────────────────────────────────────────── */
+    var h = {
+      themes: themes, themeKey: themeKey, theme: theme,
+      eyebrow: ir.intent.eyebrow || 'Explore',
+
+      onControl: function (c, value) {
+        state[c.bind.split('.')[1]] = value;
+        anim.playing = false;
+        redraw();
+        clearTimeout(timers[c.id]);
+        timers[c.id] = setTimeout(function () { probes.onSettle(c.id, frame()); }, SETTLE_MS);
+      },
+
+      onAction: function (c) {
+        if (c.action === 'snapshot') {
+          snapshots.push({ frame: frame(), state: Object.assign({}, state) });
+          while (snapshots.length > (c.max || 3)) snapshots.shift();
+        } else if (c.action === 'clear_snapshots') {
+          snapshots = [];
+        }
+        redraw();
+      },
+
+      onPlay: play,
+
+      onTheme: function (k) {
+        themeKey = k; theme = themes[k]; h.theme = theme; h.themeKey = k;
+        R = NS.buildDOM(ir, container, h);
+        redraw();
+        evidenceLog.forEach(renderEvidence);   // oldest first -> newest ends up on top
+        updateMastery();
+        refreshGates();
+      }
+    };
+
+    R = NS.buildDOM(ir, container, h);
+    probes = NS.createProbeEngine(ir, emitEvidence);
+    redraw();
+    updateMastery();
+    window.addEventListener('resize', redraw);
+    setTimeout(play, 380);      // one launch on load, so the artifact reads as alive
+
+    /* Kernel parity: the JS kernel must reproduce what the Python kernel
+       produced at build time. Turns silent drift into a visible failure. */
+    if (opts.parity) {
+      var worst = 0;
+      opts.parity.forEach(function (v) {
+        var got = NS.KERNELS[ir.kernel](v.in);
+        for (var k in v.out) worst = Math.max(worst, Math.abs(got[k] - v.out[k]));
+      });
+      console.log('[nityam:parity] max |python - js| = ' + worst.toExponential(2) +
+                  (worst < 1e-9 ? '  OK' : '  *** KERNEL DRIFT ***'));
+      if (opts.onParity) opts.onParity(worst);
+    }
+
+    return {
+      destroy: function () {
+        window.removeEventListener('resize', redraw);
+        if (raf) cancelAnimationFrame(raf);
+        container.innerHTML = '';
+      },
+      play: play,
+      getState: function () { return Object.assign({}, state); },
+      getEvidence: function () { return evidenceLog.slice(); },
+      getProbeState: function () { return probes.state(); }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+</script>
+<script>
+//== generated data ==========================================================
+var IR={"ir_version": "0.1", "artifact_id": "art_projectile_max_range_v1", "kernel": "kinematics2d", "intent": {"concept_ids": ["projectile.max_range", "vector.decomposition"], "learning_outcome": "Range peaks at 45 degrees for a fixed launch speed.", "target_misconception": "misc.range_determined_by_speed_only", "eyebrow": "Investigate", "student_prompt": "Which angle sends {{theme.object}} the farthest?", "student_hint": "Keep the speed fixed and try a few angles. Pin the interesting ones so you can compare them side by side."}, "state": {"u": {"value": 20, "unit": "m/s", "min": 5, "max": 40, "step": 1}, "theta": {"value": 30, "unit": "deg", "min": 0, "max": 90, "step": 1}, "g": {"value": 9.8, "unit": "m/s^2", "locked": true}}, "kernel_inputs": {"speed": "state.u", "angle": "state.theta", "gravity": "state.g", "y0": 0}, "derived": {"range": "kernel.range", "peak": "kernel.max_height", "tof": "kernel.time_of_flight", "ux": "kernel.ux", "uy": "kernel.uy"}, "controls": [{"id": "c_theta", "widget": "slider", "bind": "state.theta", "label": "Launch angle", "display": "{{value}}°"}, {"id": "c_u", "widget": "slider", "bind": "state.u", "label": "{{theme.launch_verb}} speed", "display": "{{value}} m/s"}, {"id": "c_pin", "widget": "button", "action": "snapshot", "max": 3, "label": "Pin this attempt"}, {"id": "c_clear", "widget": "button", "action": "clear_snapshots", "label": "Clear pins"}], "layers": [{"type": "scene2d", "id": "stage", "ground_label": "{{theme.ground_label}}", "x_label": "horizontal distance (m)", "y_label": "height (m)"}, {"type": "trace_set", "in": "stage", "source": "snapshots"}, {"type": "trace", "in": "stage", "points": "kernel.path", "end_marker": "{{theme.projectile_icon}}"}, {"type": "vector", "in": "stage", "at": "kernel.launch_point", "components": {"x": "derived.ux", "y": "derived.uy"}, "decompose": true, "labels": {"resultant": "u", "x": "uₓ", "y": "uᵧ"}}, {"type": "readout_group", "items": [{"label": "Range", "value": "derived.range", "unit": "m", "precision": 1, "emphasis": true}, {"label": "Max height", "value": "derived.peak", "unit": "m", "precision": 1}, {"label": "Time of flight", "value": "derived.tof", "unit": "s", "precision": 2}, {"label": "uₓ (horizontal)", "value": "derived.ux", "unit": "m/s", "precision": 1, "swatch": "s3"}, {"label": "uᵧ (vertical)", "value": "derived.uy", "unit": "m/s", "precision": 1, "swatch": "s2"}]}, {"type": "annotation", "text": "{{theme.protagonist}} is at 45° — look at the range now.", "when": {"near": {"ref": "state.theta", "value": 45, "tol": 1}}}, {"type": "annotation", "text": "Notice: 30° and 60° give exactly the same range. Why might that be?", "when": {"any": [{"near": {"ref": "state.theta", "value": 30, "tol": 0.5}}, {"near": {"ref": "state.theta", "value": 60, "tol": 0.5}}]}}], "probes": [{"id": "p_explore", "on": "control_settle", "control": "c_theta", "emit": "artifact.explored", "concept": "projectile.max_range", "payload": ["state.theta", "derived.range"]}, {"id": "p_optimum", "on": "predicate", "once": true, "when": {"all": [{"distinct_settled": {"control": "c_theta", "gte": 3}}, {"near": {"ref": "state.theta", "value": 45, "tol": 5}}, {"is_max_seen": {"ref": "derived.range"}}]}, "emit": "artifact.discovered_optimum", "concept": "projectile.max_range", "note": "Student located the optimum by experiment rather than being told.", "payload": ["state.theta", "derived.range"]}, {"id": "p_speed_only", "on": "predicate", "once": true, "when": {"all": [{"distinct_settled": {"control": "c_u", "gte": 3}}, {"distinct_settled": {"control": "c_theta", "eq": 0}}]}, "emit": "artifact.misconception_behavior", "misconception": "misc.range_determined_by_speed_only", "note": "Student is varying speed only and never touching angle - behavioural evidence of the misconception, gathered without asking.", "payload": ["state.u", "derived.range"]}], "assessment": [{"id": "q1", "type": "choice", "gate": {"probe": "p_explore", "count_gte": 2}, "prompt": "At a fixed launch speed, which angle sends {{theme.object}} the farthest?", "options": [30, 45, 60, 75], "unit": "°", "expected": 45, "concept": "projectile.max_range", "diagnose": {"30": "misc.flatter_is_farther", "60": "misc.higher_is_farther", "75": "misc.higher_is_farther"}, "explain_correct": "Right. Range depends on uₓ × time of flight. Raising the angle grows the time but shrinks uₓ - 45° is where that trade-off balances.", "explain_wrong": "Try pinning 30°, 45° and 60° and compare the three traces."}], "invariants": [{"check": "finite_outputs", "sweep": ["state.theta", "state.u"], "samples": 15}, {"check": "argmax", "of": "derived.range", "over": "state.theta", "expect": 45, "tol": 0.5}, {"check": "control_affects", "control": "c_theta", "target": "derived.range", "min_relative_change": 0.05}, {"check": "control_affects", "control": "c_u", "target": "derived.range", "min_relative_change": 0.05}], "theme_slots": ["protagonist", "object", "projectile_icon", "ground_label", "launch_verb"]}, THEMES={"cricket": {"label": "Cricket", "protagonist": "Arjun", "object": "the cricket ball", "projectile_icon": "🔴", "ground_label": "pitch", "launch_verb": "Bat", "tint": "rgba(235,104,52,0.10)"}, "spiderman": {"label": "Spider-Man", "protagonist": "Spider-Man", "object": "the web", "projectile_icon": "🕸️", "ground_label": "street", "launch_verb": "Web", "tint": "rgba(42,120,214,0.11)"}, "plain": {"label": "Plain physics", "protagonist": "The projectile", "object": "the projectile", "projectile_icon": "⚫", "ground_label": "ground", "launch_verb": "Launch", "tint": "rgba(27,175,122,0.09)"}}, PARITY=[{"in": {"speed": 20, "angle": 30, "gravity": 9.8, "y0": 0}, "out": {"ux": 17.320508075688775, "uy": 9.999999999999998, "range": 35.34797566467096, "max_height": 5.102040816326529, "time_of_flight": 2.040816326530612}}, {"in": {"speed": 20, "angle": 45, "gravity": 9.8, "y0": 0}, "out": {"ux": 14.142135623730951, "uy": 14.14213562373095, "range": 40.816326530612244, "max_height": 10.20408163265306, "time_of_flight": 2.8861501272920305}}, {"in": {"speed": 20, "angle": 60, "gravity": 9.8, "y0": 0}, "out": {"ux": 10.000000000000002, "uy": 17.32050807568877, "range": 35.34797566467097, "max_height": 15.306122448979588, "time_of_flight": 3.534797566467096}}, {"in": {"speed": 35, "angle": 15, "gravity": 9.8, "y0": 0}, "out": {"ux": 33.80740392011739, "uy": 9.058666578588227, "range": 62.49999999999999, "max_height": 4.186706131736292, "time_of_flight": 1.8487074650180053}}, {"in": {"speed": 12, "angle": 75, "gravity": 9.8, "y0": 0}, "out": {"ux": 3.105828541230249, "uy": 11.59110991546882, "range": 7.346938775510204, "max_height": 6.85478719757549, "time_of_flight": 2.3655326358099633}}, {"in": {"speed": 25, "angle": 45, "gravity": 9.8, "y0": 10}, "out": {"ux": 17.67766952966369, "uy": 17.677669529663685, "range": 72.56433346709687, "max_height": 25.9438775510204, "time_of_flight": 4.104858581349291}}], BUILD={"source": "file (lesson1_max_range.json)", "theme": "cricket", "checks_passed": 12, "checks_total": 12, "spec": "spec_projectile.json"};
+
+window.nityam = Nityam.mountArtifact(IR, document.getElementById('art'), {
+  themes: THEMES, theme: BUILD.theme, parity: PARITY,
+  toast: document.getElementById('toast'),
+  onEvidence: function (e) {
+    /* In the Nityam app this is where the Learning Agent receives the event
+       and calls update_student_memory(). */
+  },
+  onParity: function (w) {
+    document.getElementById('foot').innerHTML =
+      ['artifact_id: '+IR.artifact_id, 'kernel: '+IR.kernel, 'ir v'+IR.ir_version,
+       'source: '+BUILD.source, 'validator: '+BUILD.checks_passed+'/'+BUILD.checks_total+' passed',
+       'kernel parity: '+(w<1e-9?'OK':'DRIFT '+w.toExponential(1))]
+      .map(function(s){return '<span>'+s+'</span>'}).join('');
+  }
+});
+</script>
+</body>
+</html>

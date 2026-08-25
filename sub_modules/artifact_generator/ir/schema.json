@@ -1,0 +1,471 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Nityam Artifact IR",
+  "description": "A declarative description of an interactive learning artifact. Emitted by the Learning Agent, interpreted by the deterministic runtime. The IR never contains code.",
+  "type": "object",
+  "required": [
+    "ir_version",
+    "artifact_id",
+    "kernel",
+    "intent",
+    "state",
+    "kernel_inputs",
+    "derived",
+    "controls",
+    "layers",
+    "probes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "ir_version": {
+      "const": "0.1"
+    },
+    "artifact_id": {
+      "type": "string"
+    },
+    "kernel": {
+      "description": "Which hand-written deterministic engine computes the model. The IR may only choose from the registry.",
+      "enum": [
+        "kinematics2d"
+      ]
+    },
+    "intent": {
+      "description": "What this artifact is pedagogically FOR. Read by the validator and the probe engine, not just documentation.",
+      "type": "object",
+      "required": [
+        "concept_ids",
+        "learning_outcome"
+      ],
+      "properties": {
+        "concept_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "learning_outcome": {
+          "type": "string"
+        },
+        "target_misconception": {
+          "type": "string"
+        },
+        "student_prompt": {
+          "type": "string",
+          "description": "The headline the STUDENT reads - a question in their language, not the internal learning outcome. May use {{theme.*}}."
+        },
+        "student_hint": {
+          "type": "string",
+          "description": "One supporting line under the headline telling them what to try."
+        },
+        "eyebrow": {
+          "type": "string",
+          "description": "Small label above the headline, e.g. 'Explore' or 'Investigate'."
+        }
+      }
+    },
+    "state": {
+      "description": "The free variables. Everything else in the artifact is a pure function of these.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "value",
+          "unit"
+        ],
+        "properties": {
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "step": {
+            "type": "number"
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "Not exposed as a control."
+          }
+        }
+      }
+    },
+    "kernel_inputs": {
+      "description": "Maps declared state variables onto the kernel's fixed input ports. Values are refs ('state.x') or literal numbers.",
+      "type": "object"
+    },
+    "derived": {
+      "description": "Named quantities pulled out of the kernel output or state, for use by layers and probes. v0.1 has no expression language: each value must be a plain ref.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(kernel|state)\\.[a-zA-Z_][a-zA-Z0-9_]*$"
+      }
+    },
+    "controls": {
+      "description": "A control is only a write-handle on one state variable (or a runtime action).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "widget",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "widget": {
+            "enum": [
+              "slider",
+              "button"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "bind": {
+            "type": "string",
+            "pattern": "^state\\.[a-zA-Z_][a-zA-Z0-9_]*$"
+          },
+          "action": {
+            "enum": [
+              "snapshot",
+              "clear_snapshots"
+            ]
+          },
+          "max": {
+            "type": "number",
+            "description": "For action=snapshot: how many pins are allowed."
+          },
+          "display": {
+            "type": "string",
+            "description": "Template for the value badge, e.g. '{{value}} deg'."
+          }
+        }
+      }
+    },
+    "layers": {
+      "description": "The visual stack. Each entry is a declarative primitive the renderer knows how to draw.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "scene2d",
+              "trace",
+              "trace_set",
+              "vector",
+              "vector_set",
+              "readout_group",
+              "annotation"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "ground_label": {
+            "type": "string"
+          },
+          "x_label": {
+            "type": "string"
+          },
+          "y_label": {
+            "type": "string"
+          },
+          "points": {
+            "type": "string",
+            "description": "trace: ref to a path array, e.g. 'kernel.path'."
+          },
+          "end_marker": {
+            "type": "string",
+            "description": "trace: theme token or literal glyph drawn at the landing point."
+          },
+          "source": {
+            "enum": [
+              "snapshots"
+            ],
+            "description": "trace_set: where the ghost traces come from."
+          },
+          "at": {
+            "type": "string",
+            "description": "vector: ref to the anchor point."
+          },
+          "components": {
+            "type": "object",
+            "description": "vector: { x: ref, y: ref }."
+          },
+          "decompose": {
+            "type": "boolean"
+          },
+          "labels": {
+            "type": "object"
+          },
+          "items": {
+            "type": "array",
+            "description": "readout_group entries.",
+            "items": {
+              "type": "object",
+              "required": [
+                "label",
+                "value"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": "string"
+                },
+                "precision": {
+                  "type": "integer"
+                },
+                "emphasis": {
+                  "type": "boolean"
+                },
+                "swatch": {
+                  "enum": [
+                    "s1",
+                    "s2",
+                    "s3"
+                  ],
+                  "description": "readout item: colour chip tying this number to its mark on the canvas."
+                }
+              }
+            }
+          },
+          "text": {
+            "type": "string",
+            "description": "annotation body. May contain {{theme.*}} tokens."
+          },
+          "when": {
+            "$ref": "#/definitions/condition"
+          },
+          "count": {
+            "type": "integer",
+            "description": "vector_set: how many sample points along the path."
+          },
+          "scale": {
+            "type": "number",
+            "description": "vector_set: arrow length in px at max speed."
+          }
+        }
+      }
+    },
+    "probes": {
+      "description": "Declarative telemetry. This is how an artifact produces concept-tagged evidence for the student model.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "on",
+          "emit"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "on": {
+            "enum": [
+              "control_settle",
+              "predicate"
+            ]
+          },
+          "control": {
+            "type": "string",
+            "description": "Required when on=control_settle."
+          },
+          "when": {
+            "$ref": "#/definitions/condition"
+          },
+          "once": {
+            "type": "boolean"
+          },
+          "emit": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "misconception": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Refs snapshotted into the evidence event."
+          },
+          "student_text": {
+            "type": "string",
+            "description": "One sentence the STUDENT reads when this probe fires. `note` is for the agent; this is for the learner."
+          }
+        }
+      }
+    },
+    "assessment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "prompt",
+          "options",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "choice"
+            ]
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "number"
+          },
+          "gate": {
+            "type": "object",
+            "description": "{ probe: id, count_gte: n } - question stays locked until the student has actually explored."
+          },
+          "diagnose": {
+            "type": "object",
+            "description": "option value -> misconception id"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "explain_correct": {
+            "type": "string"
+          },
+          "explain_wrong": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "invariants": {
+      "description": "Machine-checkable assertions run BEFORE the student sees the artifact. This is what generated HTML cannot offer.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "check"
+        ],
+        "properties": {
+          "check": {
+            "enum": [
+              "finite_outputs",
+              "argmax",
+              "control_affects"
+            ]
+          },
+          "sweep": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "samples": {
+            "type": "integer"
+          },
+          "of": {
+            "type": "string"
+          },
+          "over": {
+            "type": "string"
+          },
+          "expect": {
+            "type": "number"
+          },
+          "tol": {
+            "type": "number"
+          },
+          "control": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "min_relative_change": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "theme_slots": {
+      "description": "Which theme tokens this artifact's copy expects. Theme is resolved at RENDER time and is deliberately excluded from the artifact cache key, so one artifact serves every student.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "condition": {
+      "description": "Structured predicate. v0.1 has no expression language on purpose - conditions are data, so they can be validated.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/condition"
+          }
+        },
+        "near": {
+          "type": "object",
+          "description": "{ ref, value, tol }"
+        },
+        "distinct_settled": {
+          "type": "object",
+          "description": "{ control, gte } or { control, eq } - how many different values the student has parked this control on"
+        },
+        "is_max_seen": {
+          "type": "object",
+          "description": "{ ref } - current value is the largest this session"
+        }
+      }
+    }
+  }
+}

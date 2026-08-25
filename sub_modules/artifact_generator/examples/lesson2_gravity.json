@@ -1,0 +1,313 @@
+{
+  "ir_version": "0.1",
+  "artifact_id": "art_gravity_dependence_v1",
+  "kernel": "kinematics2d",
+  "intent": {
+    "concept_ids": [
+      "projectile.gravity_dependence"
+    ],
+    "learning_outcome": "Predicts that lower gravity increases range and time of flight.",
+    "target_misconception": "misc.gravity_does_not_affect_range",
+    "eyebrow": "Investigate",
+    "student_prompt": "What if {{theme.protagonist}} played on the Moon?",
+    "student_hint": "Same throw, different world. Drag gravity down to 1.6 (the Moon) and watch what happens to the range."
+  },
+  "state": {
+    "u": {
+      "value": 20,
+      "unit": "m/s",
+      "min": 5,
+      "max": 40,
+      "step": 1
+    },
+    "theta": {
+      "value": 45,
+      "unit": "deg",
+      "min": 0,
+      "max": 90,
+      "step": 1
+    },
+    "g": {
+      "value": 9.8,
+      "unit": "m/s^2",
+      "min": 1.6,
+      "max": 24.8,
+      "step": 0.1
+    }
+  },
+  "kernel_inputs": {
+    "speed": "state.u",
+    "angle": "state.theta",
+    "gravity": "state.g",
+    "y0": 0
+  },
+  "derived": {
+    "range": "kernel.range",
+    "peak": "kernel.max_height",
+    "tof": "kernel.time_of_flight",
+    "ux": "kernel.ux",
+    "uy": "kernel.uy"
+  },
+  "controls": [
+    {
+      "id": "c_g",
+      "widget": "slider",
+      "bind": "state.g",
+      "label": "Gravity",
+      "display": "{{value}} m/s²"
+    },
+    {
+      "id": "c_theta",
+      "widget": "slider",
+      "bind": "state.theta",
+      "label": "Launch angle",
+      "display": "{{value}}°"
+    },
+    {
+      "id": "c_u",
+      "widget": "slider",
+      "bind": "state.u",
+      "label": "{{theme.launch_verb}} speed",
+      "display": "{{value}} m/s"
+    },
+    {
+      "id": "c_pin",
+      "widget": "button",
+      "action": "snapshot",
+      "max": 3,
+      "label": "Pin this attempt"
+    },
+    {
+      "id": "c_clear",
+      "widget": "button",
+      "action": "clear_snapshots",
+      "label": "Clear"
+    }
+  ],
+  "layers": [
+    {
+      "type": "scene2d",
+      "id": "stage",
+      "ground_label": "{{theme.ground_label}}",
+      "x_label": "horizontal distance (m)",
+      "y_label": "height (m)"
+    },
+    {
+      "type": "trace_set",
+      "in": "stage",
+      "source": "snapshots"
+    },
+    {
+      "type": "trace",
+      "in": "stage",
+      "points": "kernel.path",
+      "end_marker": "{{theme.projectile_icon}}"
+    },
+    {
+      "type": "vector",
+      "in": "stage",
+      "at": "kernel.launch_point",
+      "components": {
+        "x": "derived.ux",
+        "y": "derived.uy"
+      },
+      "decompose": true,
+      "labels": {
+        "resultant": "u",
+        "x": "uₓ",
+        "y": "uᵧ"
+      }
+    },
+    {
+      "type": "readout_group",
+      "items": [
+        {
+          "label": "Range",
+          "value": "derived.range",
+          "unit": "m",
+          "precision": 1,
+          "emphasis": true
+        },
+        {
+          "label": "Max height",
+          "value": "derived.peak",
+          "unit": "m",
+          "precision": 1
+        },
+        {
+          "label": "Time of flight",
+          "value": "derived.tof",
+          "unit": "s",
+          "precision": 2
+        },
+        {
+          "label": "uₓ (horizontal)",
+          "value": "derived.ux",
+          "unit": "m/s",
+          "precision": 1,
+          "swatch": "s3"
+        },
+        {
+          "label": "uᵧ (vertical)",
+          "value": "derived.uy",
+          "unit": "m/s",
+          "precision": 1,
+          "swatch": "s2"
+        }
+      ]
+    },
+    {
+      "type": "annotation",
+      "text": "Moon gravity. Same {{theme.launch_verb}}, six times the distance.",
+      "when": {
+        "near": {
+          "ref": "state.g",
+          "value": 1.6,
+          "tol": 0.4
+        }
+      }
+    },
+    {
+      "type": "annotation",
+      "text": "This is roughly Jupiter. Everything falls out of the sky fast.",
+      "when": {
+        "near": {
+          "ref": "state.g",
+          "value": 24.8,
+          "tol": 1.5
+        }
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "p_explore_g",
+      "on": "control_settle",
+      "control": "c_g",
+      "emit": "artifact.explored",
+      "concept": "projectile.gravity_dependence",
+      "payload": [
+        "state.g",
+        "derived.range"
+      ]
+    },
+    {
+      "id": "p_moon",
+      "on": "predicate",
+      "once": true,
+      "when": {
+        "all": [
+          {
+            "distinct_settled": {
+              "control": "c_g",
+              "gte": 2
+            }
+          },
+          {
+            "near": {
+              "ref": "state.g",
+              "value": 1.6,
+              "tol": 0.4
+            }
+          },
+          {
+            "is_max_seen": {
+              "ref": "derived.range"
+            }
+          }
+        ]
+      },
+      "emit": "artifact.discovered_optimum",
+      "concept": "projectile.gravity_dependence",
+      "note": "Student took gravity to lunar values and saw the range grow ~6x.",
+      "student_text": "On the Moon the same throw goes about six times farther. Gravity is the only thing you changed.",
+      "payload": [
+        "state.g",
+        "derived.range"
+      ]
+    },
+    {
+      "id": "p_angle_only",
+      "on": "predicate",
+      "once": true,
+      "when": {
+        "all": [
+          {
+            "distinct_settled": {
+              "control": "c_theta",
+              "gte": 3
+            }
+          },
+          {
+            "distinct_settled": {
+              "control": "c_g",
+              "eq": 0
+            }
+          }
+        ]
+      },
+      "emit": "artifact.misconception_behavior",
+      "misconception": "misc.gravity_does_not_affect_range",
+      "note": "Student is tuning angle and ignoring gravity - the variable this lesson is about.",
+      "payload": [
+        "state.theta"
+      ]
+    }
+  ],
+  "assessment": [
+    {
+      "id": "q1",
+      "type": "choice",
+      "gate": {
+        "probe": "p_explore_g",
+        "count_gte": 2
+      },
+      "prompt": "On the Moon (g = 1.6 m/s²), the same throw travels about how many times farther?",
+      "options": [
+        1,
+        2,
+        4,
+        6
+      ],
+      "unit": "×",
+      "expected": 6,
+      "concept": "projectile.gravity_dependence",
+      "diagnose": {
+        "1": "misc.gravity_does_not_affect_range",
+        "2": "misc.gravity_scales_linearly_weak"
+      },
+      "explain_correct": "Range = u²sin(2θ)/g, so it scales as 1/g. Earth's 9.8 divided by the Moon's 1.6 is about 6.",
+      "explain_wrong": "Watch the Range readout as you drag gravity from 9.8 down to 1.6."
+    }
+  ],
+  "invariants": [
+    {
+      "check": "finite_outputs",
+      "sweep": [
+        "state.theta",
+        "state.g"
+      ],
+      "samples": 15
+    },
+    {
+      "check": "argmax",
+      "of": "derived.range",
+      "over": "state.theta",
+      "expect": 45,
+      "tol": 0.5
+    },
+    {
+      "check": "control_affects",
+      "control": "c_g",
+      "target": "derived.range",
+      "min_relative_change": 0.5
+    }
+  ],
+  "theme_slots": [
+    "protagonist",
+    "object",
+    "projectile_icon",
+    "ground_label",
+    "launch_verb"
+  ]
+}

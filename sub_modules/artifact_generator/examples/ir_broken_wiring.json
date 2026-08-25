@@ -1,0 +1,323 @@
+{
+  "ir_version": "0.1",
+  "artifact_id": "art_BROKEN_wiring",
+  "kernel": "kinematics2d",
+  "intent": {
+    "concept_ids": [
+      "projectile.max_range",
+      "vector.decomposition"
+    ],
+    "learning_outcome": "Range peaks at 45 degrees for a fixed launch speed.",
+    "target_misconception": "misc.range_determined_by_speed_only",
+    "eyebrow": "Investigate",
+    "student_prompt": "Which angle sends {{theme.object}} the farthest?",
+    "student_hint": "Keep the speed fixed and try a few angles. Pin the interesting ones so you can compare them side by side."
+  },
+  "state": {
+    "u": {
+      "value": 20,
+      "unit": "m/s",
+      "min": 5,
+      "max": 40,
+      "step": 1
+    },
+    "theta": {
+      "value": 30,
+      "unit": "deg",
+      "min": 0,
+      "max": 90,
+      "step": 1
+    },
+    "g": {
+      "value": 9.8,
+      "unit": "m/s^2",
+      "locked": true
+    }
+  },
+  "kernel_inputs": {
+    "speed": "state.u",
+    "angle": "state.angle",
+    "gravity": "state.g",
+    "y0": 0
+  },
+  "derived": {
+    "range": "kernel.distance",
+    "peak": "kernel.max_height",
+    "tof": "kernel.time_of_flight",
+    "ux": "kernel.ux",
+    "uy": "kernel.uy"
+  },
+  "controls": [
+    {
+      "id": "c_theta",
+      "widget": "slider",
+      "bind": "state.theta",
+      "label": "Launch angle",
+      "display": "{{value}}°"
+    },
+    {
+      "id": "c_u",
+      "widget": "slider",
+      "bind": "state.u",
+      "label": "{{theme.launch_verb}} speed",
+      "display": "{{value}} m/s"
+    },
+    {
+      "id": "c_pin",
+      "widget": "button",
+      "action": "snapshot",
+      "max": 3,
+      "label": "Pin this attempt"
+    },
+    {
+      "id": "c_clear",
+      "widget": "button",
+      "action": "clear_snapshots",
+      "label": "Clear pins"
+    }
+  ],
+  "layers": [
+    {
+      "type": "scene2d",
+      "id": "stage",
+      "ground_label": "{{theme.ground_label}}",
+      "x_label": "horizontal distance (m)",
+      "y_label": "height (m)"
+    },
+    {
+      "type": "trace_set",
+      "in": "stage",
+      "source": "snapshots"
+    },
+    {
+      "type": "trace",
+      "in": "stage",
+      "points": "kernel.path",
+      "end_marker": "{{theme.projectile_icon}}"
+    },
+    {
+      "type": "vector",
+      "in": "stage",
+      "at": "kernel.launch_point",
+      "components": {
+        "x": "derived.ux",
+        "y": "derived.uy"
+      },
+      "decompose": true,
+      "labels": {
+        "resultant": "u",
+        "x": "uₓ",
+        "y": "uᵧ"
+      }
+    },
+    {
+      "type": "readout_group",
+      "items": [
+        {
+          "label": "Range",
+          "value": "derived.range",
+          "unit": "m",
+          "precision": 1,
+          "emphasis": true
+        },
+        {
+          "label": "Max height",
+          "value": "derived.peak",
+          "unit": "m",
+          "precision": 1
+        },
+        {
+          "label": "Time of flight",
+          "value": "derived.tof",
+          "unit": "s",
+          "precision": 2
+        },
+        {
+          "label": "uₓ (horizontal)",
+          "value": "derived.ux",
+          "unit": "m/s",
+          "precision": 1,
+          "swatch": "s3"
+        },
+        {
+          "label": "uᵧ (vertical)",
+          "value": "derived.uy",
+          "unit": "m/s",
+          "precision": 1,
+          "swatch": "s2"
+        }
+      ]
+    },
+    {
+      "type": "annotation",
+      "text": "{{theme.protagonist}} is at 45° — look at the range now.",
+      "when": {
+        "near": {
+          "ref": "state.theta",
+          "value": 45,
+          "tol": 1
+        }
+      }
+    },
+    {
+      "type": "annotation",
+      "text": "Notice: 30° and 60° give exactly the same range. Why might that be?",
+      "when": {
+        "any": [
+          {
+            "near": {
+              "ref": "state.theta",
+              "value": 30,
+              "tol": 0.5
+            }
+          },
+          {
+            "near": {
+              "ref": "state.theta",
+              "value": 60,
+              "tol": 0.5
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "p_explore",
+      "on": "control_settle",
+      "control": "c_missing",
+      "emit": "artifact.explored",
+      "concept": "projectile.max_range",
+      "payload": [
+        "state.theta",
+        "derived.range"
+      ]
+    },
+    {
+      "id": "p_optimum",
+      "on": "predicate",
+      "once": true,
+      "when": {
+        "all": [
+          {
+            "distinct_settled": {
+              "control": "c_theta",
+              "gte": 3
+            }
+          },
+          {
+            "near": {
+              "ref": "state.theta",
+              "value": 45,
+              "tol": 5
+            }
+          },
+          {
+            "is_max_seen": {
+              "ref": "derived.range"
+            }
+          }
+        ]
+      },
+      "emit": "artifact.discovered_optimum",
+      "concept": "projectile.max_range",
+      "note": "Student located the optimum by experiment rather than being told.",
+      "payload": [
+        "state.theta",
+        "derived.range"
+      ]
+    },
+    {
+      "id": "p_speed_only",
+      "on": "predicate",
+      "once": true,
+      "when": {
+        "all": [
+          {
+            "distinct_settled": {
+              "control": "c_u",
+              "gte": 3
+            }
+          },
+          {
+            "distinct_settled": {
+              "control": "c_theta",
+              "eq": 0
+            }
+          }
+        ]
+      },
+      "emit": "artifact.misconception_behavior",
+      "misconception": "misc.range_determined_by_speed_only",
+      "note": "Student is varying speed only and never touching angle - behavioural evidence of the misconception, gathered without asking.",
+      "payload": [
+        "state.u",
+        "derived.range"
+      ]
+    }
+  ],
+  "assessment": [
+    {
+      "id": "q1",
+      "type": "choice",
+      "gate": {
+        "probe": "p_explore",
+        "count_gte": 2
+      },
+      "prompt": "At a fixed launch speed, which angle sends {{theme.object}} the farthest?",
+      "options": [
+        30,
+        45,
+        60,
+        75
+      ],
+      "unit": "°",
+      "expected": 45,
+      "concept": "projectile.max_range",
+      "diagnose": {
+        "30": "misc.flatter_is_farther",
+        "60": "misc.higher_is_farther",
+        "75": "misc.higher_is_farther"
+      },
+      "explain_correct": "Right. Range depends on uₓ × time of flight. Raising the angle grows the time but shrinks uₓ - 45° is where that trade-off balances.",
+      "explain_wrong": "Try pinning 30°, 45° and 60° and compare the three traces."
+    }
+  ],
+  "invariants": [
+    {
+      "check": "finite_outputs",
+      "sweep": [
+        "state.theta",
+        "state.u"
+      ],
+      "samples": 15
+    },
+    {
+      "check": "argmax",
+      "of": "derived.range",
+      "over": "state.theta",
+      "expect": 45,
+      "tol": 0.5
+    },
+    {
+      "check": "control_affects",
+      "control": "c_theta",
+      "target": "derived.range",
+      "min_relative_change": 0.05
+    },
+    {
+      "check": "control_affects",
+      "control": "c_u",
+      "target": "derived.range",
+      "min_relative_change": 0.05
+    }
+  ],
+  "theme_slots": [
+    "protagonist",
+    "object",
+    "projectile_icon",
+    "ground_label",
+    "launch_verb"
+  ]
+}
