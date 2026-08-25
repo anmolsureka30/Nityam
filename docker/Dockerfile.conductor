@@ -5,5 +5,6 @@ COPY pyproject.toml uv.lock ./
 RUN pip install uv && uv sync --frozen
 COPY shruti/ ./shruti/
 COPY infra/ ./infra/
+COPY opentelemetry.env ./
 ENV OTEL_SERVICE_NAME=shruti
 ENTRYPOINT ["uv", "run", "--env-file", "opentelemetry.env", "adk", "web", "--otel_to_cloud"]
