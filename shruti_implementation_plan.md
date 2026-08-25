@@ -14,11 +14,11 @@
 
 - Python 3.12+, dependency-managed with `uv`, not `pip` directly.
 - `google-adk==2.7.1` pinned exactly (see `wiki/adk-and-a2ui.md` — ADK 2.0 changed the session schema; know which side of the line you're on).
-- Never import `vertexai.generative_models`, `.language_models`, `.vision_models`, `.tuning`, `.caching`, or `vertexai.Client` — these are past their removal date. Use `google-genai` (`from google import genai`).
+- Never import `vertexai.generative_models`, `.language_models`, `.vision_models`, `.tuning`, or `.caching` for content generation — these are past their removal date. Use `google-genai` (`from google import genai`) for every extraction/generation call. **Exception**: `vertexai.Client` + `.agent_engines.*` remains the current, documented path specifically for Agent Engine/Runtime *deployment management* (create/get/delete) — see `wiki/platform-build.md`. Task 21's verification script uses it for exactly that narrow purpose; no other task should import `vertexai` at all.
 - Model IDs live only in `shruti/config.py` — never hardcode a model string in a stage module.
-- Every stage is independently re-runnable against cached upstream output — a stage module only imports from `shruti/contracts/`, never reaches into a sibling stage's internals.
+- Every stage is independently re-runnable against cached upstream output — a stage module only imports from `shruti/contracts/` plus its own stage, never a sibling stage's internals. **Narrow exception**: PULSE's `ink_curve` (Task 5) may import SLATE's pure, stateless `rectify()` (Task 7) — geometry rectification is shared infrastructure, not stage-specific state, and importing a pure function doesn't break either stage's independent re-runnability against cached data. No other cross-stage import is permitted without the same justification.
 - Cost ceiling: **$2.00 per recording** (enforced by `CostGuardPlugin`, Task 18).
-- Every offline Gemini call goes through the Batch API (Task 17) — there is no user waiting.
+- Batch API (Task 17: `submit_batch`/`poll_batch`/`collect_batch`) exists and must be used at the *orchestration* level once a full end-to-end run is wired up — collecting a whole recording's GLYPH/POINT/ATLAS calls into one job, per `shruti_architecture.md` §8. Individual stage functions (Tasks 9, 10, 11, 12, 13) correctly call `client.models.generate_content` directly and are tested that way — restructuring them to defer into a batch job is an orchestration-level integration explicitly **out of scope for the 48-hour build** (no task currently owns it; costs ~2x list price without the 50% batch discount, which does not change demo feasibility against the $2/recording ceiling). Do not treat a stage's direct call as a defect against this line.
 - SLATE must never invent occluded board content — the `unfilled` mask is always passed to GLYPH as an explicit no-guess instruction (Task 12).
 - Every `Concept`, `Edge`, and `Misconception` row must resolve ≥1 valid `BeatRef` to a real span — enforced as a CI-failing check (E4, Task 19), not just a quality metric.
 - Deployment target is `agent_engine`, not `cloud_run` (D4) — this is a config value in Task 21, not a late add-on; don't write deploy scripts that assume Cloud Run is final.
@@ -141,6 +141,7 @@ __pycache__/
 .env
 data/
 .pytest_cache/
+.superpowers/
 ```
 
 - [ ] **Step 8: Commit**
@@ -4167,14 +4168,27 @@ git commit -m "feat: add CLI (migrate, provenance-check) and justfile task runne
 This is D4 + D5 + D6 from `shruti_platform_alignment.md`. There is no new pipeline logic in this task — it is entirely configuration and one verification script, because that's the point: the highest-leverage platform-alignment change is a config flip, not a rewrite.
 
 **Files:**
+- Create: `shruti/agent.py`
 - Create: `docker/Dockerfile.conductor`
 - Create: `opentelemetry.env`
 - Create: `scripts/verify_platform_deployment.py`
 - Modify: `pyproject.toml` (add OTel dependencies)
 
 **Interfaces:**
-- Consumes: `build_pipeline()` (Task 18) as the entrypoint object the deploy step packages.
-- Produces: a deployed Agent Runtime instance (external to the repo — the "test" for this task is a live verification script, not a pytest unit test, since it depends on real GCP infrastructure).
+- Consumes: `build_pipeline()` (Task 18).
+- Produces: `shruti/agent.py` exposing module-level `root_agent = build_pipeline()` — this is the file `adk web`, `agents-cli`, and `agent_engines.AdkApp(agent=...)` all discover by ADK's standard convention (an `agent.py` exposing `root_agent`). No earlier task created this entrypoint file; without it, `agents-cli deploy` has nothing to package. A deployed Agent Runtime instance (external to the repo — the "test" for the deploy steps is the live verification script below, not a pytest unit test, since it depends on real GCP infrastructure).
+
+- [ ] **Step 0: Write the ADK entrypoint module**
+
+```python
+# shruti/agent.py
+from shruti.agents.pipeline import build_pipeline
+
+root_agent = build_pipeline()
+```
+
+Run: `uv run pytest -k "test_build_pipeline" -v` (re-runs Task 18's existing tests as a smoke check that `build_pipeline()` still constructs cleanly before wrapping it here)
+Expected: PASS — this step adds no new test of its own; it exposes an existing, already-tested object under the name ADK's tooling expects.
 
 - [ ] **Step 1: Add the OpenTelemetry dependencies**
 
@@ -4267,7 +4281,7 @@ Expected: both asserted checks pass; manually confirm the D6 trace reminder by t
 - [ ] **Step 7: Commit**
 
 ```bash
-git add docker/Dockerfile.conductor opentelemetry.env scripts/verify_platform_deployment.py pyproject.toml uv.lock
+git add shruti/agent.py docker/Dockerfile.conductor opentelemetry.env scripts/verify_platform_deployment.py pyproject.toml uv.lock
 git commit -m "feat: deploy to Agent Runtime, verify Agent Registry auto-registration, add OTel instrumentation"
 ```
 
