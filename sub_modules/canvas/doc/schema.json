@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Nityam CanvasDoc",
+  "description": "A notebook the tutor and the student share. Pages of typed blocks; every block registers the regions that MEAN something, so a highlight or a circle can be resolved back to a concept rather than a rectangle. Sibling of the Artifact IR: the agent writes this document, a hand-written runtime interprets it.",
+  "type": "object",
+  "required": ["doc_version", "notebook_id", "pages"],
+  "additionalProperties": false,
+  "properties": {
+    "doc_version": { "const": "0.1" },
+    "notebook_id": { "type": "string" },
+    "title":       { "type": "string" },
+    "subtitle":    { "type": "string" },
+
+    "concepts": {
+      "description": "Concept ids this notebook touches. Anchors tag themselves with these, which is how a gesture becomes evidence for the student model.",
+      "type": "array", "items": { "type": "string" }
+    },
+
+    "pages": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["page", "blocks"],
+        "properties": {
+          "page":   { "type": "integer", "minimum": 1 },
+          "label":  { "type": "string", "description": "Shown in the page rail, e.g. 'Why 45 degrees'." },
+          "blocks": { "type": "array", "items": { "$ref": "#/definitions/block" } }
+        }
+      }
+    }
+  },
+
+  "definitions": {
+    "anchor": {
+      "description": "A region with meaning. The unit of grounding: what a gesture resolves TO.",
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id":      { "type": "string", "description": "Unique across the whole document." },
+        "span":    { "type": "string", "description": "tutor_text / callout: the exact substring to wrap. Must occur in the block's text." },
+        "element": { "type": "string", "description": "diagram: a CSS selector into the block's own SVG, e.g. '#vec-ux'." },
+        "concept": { "type": "string", "description": "Concept id, so a gesture on this anchor is concept-tagged evidence." },
+        "note":    { "type": "string", "description": "One line the tutor can use when this anchor is pointed at." },
+        "misconception": { "type": "string", "description": "Marking THIS anchor is itself evidence of this misconception (e.g. circling u when asked about vertical velocity)." }
+      }
+    },
+
+    "block": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["tutor_text", "heading", "equation", "diagram", "image", "artifact", "callout", "student_work"] },
+        "id":   { "type": "string" },
+
+        "text":    { "type": "string", "description": "tutor_text / heading / callout." },
+        "tone":    { "enum": ["neutral", "prompt", "warning"], "description": "callout styling." },
+        "anchors": { "type": "array", "items": { "$ref": "#/definitions/anchor" } },
+
+        "terms": {
+          "description": "equation: rendered as spans, NOT a maths library. No external dependency, and every term is independently anchorable - which is the whole point.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "tex"],
+            "properties": {
+              "id":   { "type": "string" },
+              "tex":  { "type": "string", "description": "Display text for the term. Plain unicode; a few \\commands are mapped by the renderer." },
+              "sub":  { "type": "string" },
+              "sup":  { "type": "string" },
+              "over": { "type": "string", "description": "Numerator when this term is a fraction; `tex` is then the denominator." },
+              "role":    { "type": "string" },
+              "concept": { "type": "string" },
+              "note":    { "type": "string" },
+              "misconception": { "type": "string" },
+              "plain":   { "type": "boolean", "description": "Operators and brackets: rendered, but not anchorable." }
+            }
+          }
+        },
+
+        "svg":     { "type": "string", "description": "diagram: inline SVG markup. Elements carrying an id become anchor targets." },
+        "caption": { "type": "string" },
+
+        "src":  { "type": "string", "description": "image: a URL or data URI. Must be same-origin or inline for the crop fallback to work." },
+        "kind": { "enum": ["web", "generated", "photo"], "description": "image: where it came from. Shown to the student as provenance." },
+        "alt":  { "type": "string" },
+        "regions": {
+          "description": "image: anchorable hotspots in fractional coordinates [x, y, w, h] of the rendered image.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "rect"],
+            "properties": {
+              "id":      { "type": "string" },
+              "rect":    { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
+              "label":   { "type": "string" },
+              "concept": { "type": "string" },
+              "note":    { "type": "string" }
+            }
+          }
+        },
+
+        "artifact_ir": { "type": "string", "description": "artifact: filename of an Artifact IR, inlined at build time and mounted with Nityam.mountArtifact()." },
+        "theme":       { "type": "string", "description": "artifact: which theme token set to resolve it with." },
+
+        "prompt": { "type": "string", "description": "student_work: what the student is being asked to do in this space." },
+        "height": { "type": "integer", "description": "student_work: blank height in px." }
+      }
+    }
+  }
+}

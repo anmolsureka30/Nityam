@@ -1,0 +1,2369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projectile Motion - Nityam notebook</title>
+<style>
+/* Same token system as the artifact generator, so the two surfaces match.
+   Data-mark colours are fixed and CVD-validated; nothing here is per-student. */
+:root{
+  color-scheme: light;
+  --page:#eceae5; --paper:#ffffff; --card:#ffffff; --card-2:#faf9f7;
+  --ink:#1a1a19; --ink-2:#55534e; --ink-3:#8a8880;
+  --line:#e7e5e0; --line-2:#f0eeea;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#1a8f63; --good-bg:#e8f6f0; --warn:#b45b17; --warn-bg:#fdf0e6;
+  --mark:rgba(242,201,76,.46); --ink-stroke:#e0574a; --point:#f6c945;
+  --c-ux:#1baf7a; --c-uy:#eb6834;
+  --rule:rgba(42,120,214,.035);
+  --grid:rgba(26,26,25,.07); --ground:#e9e6df; --ground-line:#cfcbc1;
+  --shadow:0 1px 2px rgba(26,26,25,.05), 0 14px 34px -20px rgba(26,26,25,.30);
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#0f1013; --paper:#191b1f; --card:#1a1a19; --card-2:#1f1f1d;
+    --ink:#f0eeea; --ink-2:#b8b6ae; --ink-3:#83817a;
+    --line:#2c2c29; --line-2:#232321;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --good:#3fbc8a; --good-bg:#14261f; --warn:#e0894a; --warn-bg:#2a1e14;
+    --mark:rgba(242,201,76,.30); --ink-stroke:#e1735e; --point:#d8a441;
+    --c-ux:#199e70; --c-uy:#d95926;
+    --rule:rgba(120,170,255,.03);
+  --grid:rgba(255,255,255,.07); --ground:#232320; --ground-line:#33332f;
+    --grid:rgba(255,255,255,.07); --ground:#232320; --ground-line:#33332f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 34px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0f1013; --paper:#191b1f; --card:#1a1a19; --card-2:#1f1f1d;
+  --ink:#f0eeea; --ink-2:#b8b6ae; --ink-3:#83817a;
+  --line:#2c2c29; --line-2:#232321;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --good:#3fbc8a; --good-bg:#14261f; --warn:#e0894a; --warn-bg:#2a1e14;
+  --mark:rgba(242,201,76,.30); --ink-stroke:#e1735e; --point:#d8a441;
+  --c-ux:#199e70; --c-uy:#d95926;
+  --rule:rgba(120,170,255,.03);
+  --grid:rgba(255,255,255,.07); --ground:#232320; --ground-line:#33332f;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 34px -20px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--page); color:var(--ink); overflow:hidden;
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── app frame ───────────────────────────────────────────────────────── */
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+.bar{
+  display:flex;align-items:center;gap:14px;padding:11px 18px;
+  background:var(--card);border-bottom:1px solid var(--line);z-index:5;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;flex:none}
+.dot{width:24px;height:24px;border-radius:7px;background:linear-gradient(140deg,var(--s1),var(--s3))}
+.brand b{font-size:14.5px;font-weight:650;letter-spacing:-.01em}
+.brand span{font-size:12.5px;color:var(--ink-3)}
+.sep{width:1px;height:22px;background:var(--line);flex:none}
+.spacer{flex:1}
+
+.tools{display:flex;gap:5px}
+.tool{
+  display:inline-flex;align-items:center;gap:7px;background:transparent;color:var(--ink-2);
+  border:1px solid transparent;border-radius:9px;padding:7px 11px;font:inherit;font-size:13px;
+  cursor:pointer;min-height:34px;transition:background .12s,color .12s,border-color .12s;
+}
+.tool:hover{background:var(--card-2);color:var(--ink)}
+.tool[aria-pressed="true"]{background:var(--s1);border-color:var(--s1);color:#fff;font-weight:550}
+.tool svg{flex:none}
+.btn{
+  background:var(--card);color:var(--ink-2);border:1px solid var(--line);border-radius:9px;
+  padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;min-height:34px;
+}
+.btn:hover{background:var(--card-2);color:var(--ink)}
+.pageno{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pageno b{color:var(--ink);font-weight:600}
+.tool:focus-visible,.btn:focus-visible,select:focus-visible{outline:2.5px solid var(--s1);outline-offset:2px}
+
+/* ── layout ──────────────────────────────────────────────────────────── */
+.main{display:grid;grid-template-columns:1fr 380px;min-height:0}
+@media(max-width:1080px){.main{grid-template-columns:1fr 320px}}
+
+/* ── the notebook ────────────────────────────────────────────────────── */
+.nb-root{min-height:0;overflow:hidden}
+.nb-scroll{height:100%;overflow-y:auto;overflow-x:hidden;padding:26px 0 60px;scroll-behavior:smooth}
+.nb-page{
+  position:relative;width:min(760px,calc(100% - 48px));margin:0 auto 26px;
+  background:var(--paper);border:1px solid var(--line);border-radius:6px;
+  box-shadow:var(--shadow);min-height:520px;
+  background-image:linear-gradient(var(--rule) 1px, transparent 1px);
+  background-size:100% 30px;background-position:0 62px;
+}
+.nb-body{position:relative;padding:44px 52px 60px;z-index:1}
+.nb-overlay{position:absolute;inset:0;z-index:3;touch-action:none}
+.nb-root[data-tool="select"] .nb-overlay{pointer-events:none}
+.nb-root[data-tool="marker"] .nb-overlay{cursor:crosshair}
+.nb-root[data-tool="circle"] .nb-overlay,
+.nb-root[data-tool="lasso"] .nb-overlay{cursor:crosshair}
+.nb-foot{
+  position:absolute;left:52px;right:52px;bottom:18px;display:flex;justify-content:space-between;
+  font-size:11.5px;color:var(--ink-3);border-top:1px solid var(--line-2);padding-top:9px;z-index:1;
+}
+.nb-num{font-variant-numeric:tabular-nums}
+
+/* strokes */
+.stroke-marker polyline{stroke:var(--mark);mix-blend-mode:multiply}
+:root[data-theme="dark"] .stroke-marker polyline,
+:root:not([data-theme="light"]) .stroke-marker polyline{mix-blend-mode:screen}
+.stroke-circle polygon,.stroke-lasso polygon{
+  stroke:var(--ink-stroke);stroke-width:2.6;stroke-linejoin:round;
+  stroke-linecap:round;fill:none;
+}
+.stroke-lasso polygon{stroke-dasharray:7 5}
+
+/* ── blocks ──────────────────────────────────────────────────────────── */
+.blk{margin-bottom:22px}
+.blk:last-child{margin-bottom:0}
+.blk-h{font-size:23px;font-weight:640;letter-spacing:-.02em;margin:0 0 4px;line-height:1.25}
+.blk-p{margin:0;font-size:15.5px;line-height:1.72;color:var(--ink)}
+
+.anc{border-radius:3px;transition:background .15s,box-shadow .15s;cursor:text}
+.blk-p .anc{box-shadow:inset 0 -1px 0 rgba(42,120,214,.30)}
+.blk-p .anc:hover{background:rgba(42,120,214,.09)}
+.anc-svg{transition:opacity .15s}
+.tutor-point{
+  background:var(--point)!important;box-shadow:0 0 0 5px var(--point)!important;
+  border-radius:3px;animation:pulse 1.1s ease-in-out 3;
+}
+.anc-svg.tutor-point{background:none!important;box-shadow:none!important;outline:3px solid var(--point);outline-offset:4px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+.blk-eq{display:flex;justify-content:center;padding:16px 0 6px}
+.eq-row{display:flex;align-items:center;gap:11px;font-size:26px;line-height:1}
+.term{padding:5px 7px;border-radius:6px;cursor:default}
+.term.anc:hover{background:rgba(42,120,214,.10)}
+.term.plain{color:var(--ink-3);font-size:20px}
+.term sub,.term sup{font-size:.55em}
+.frac{display:inline-flex;flex-direction:column;align-items:center;gap:3px;font-size:20px}
+.frac .num{border-bottom:2px solid currentColor;padding:0 8px 4px}
+.frac .den{padding:2px 8px 0}
+
+.blk-fig{margin:0}
+.fig-box{
+  border:1px solid var(--line);border-radius:11px;padding:16px;background:var(--card-2);
+  color:var(--ink-2);overflow:hidden;
+}
+.fig-box svg{display:block;width:100%;height:auto}
+.img-box{padding:0;line-height:0}
+.blk-img{width:100%;height:auto;display:block;user-select:none}
+figcaption{margin-top:9px;font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;align-items:center}
+.prov{
+  font:10px ui-monospace,Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;
+  background:var(--card-2);border:1px solid var(--line);border-radius:5px;padding:2px 7px;color:var(--ink-3);
+}
+
+.blk-callout{
+  border-left:3px solid var(--s1);background:var(--card-2);border-radius:0 10px 10px 0;
+  padding:13px 17px;font-size:14.5px;line-height:1.6;
+}
+.blk-callout.tone-prompt{border-left-color:var(--s3)}
+.blk-callout.tone-warning{border-left-color:var(--warn)}
+
+.blk-artifact{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card-2)}
+.blk-missing{padding:22px;color:var(--ink-3);font-size:13.5px;text-align:center}
+
+.blk-work{border:1px dashed var(--line);border-radius:11px;padding:15px 17px;background:var(--card-2)}
+.work-label{font-size:13px;color:var(--ink-2);margin-bottom:10px}
+.work-area{position:relative;border-radius:8px}
+.work-input{
+  width:100%;border:none;background:transparent;resize:vertical;font:inherit;font-size:14.5px;
+  color:var(--ink);outline:none;line-height:30px;
+}
+.work-input::placeholder{color:var(--ink-3)}
+
+/* ── inspector ───────────────────────────────────────────────────────── */
+.side{
+  background:var(--card);border-left:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;
+}
+.side-h{
+  padding:14px 18px;border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.side-h b{font-size:11px;font-weight:640;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.side-h span{font-size:11.5px;color:var(--ink-3)}
+.side-body{flex:1;overflow-y:auto;padding:16px 18px}
+.hint{font-size:13.5px;color:var(--ink-3);line-height:1.6}
+.hint b{color:var(--ink-2);font-weight:600}
+
+.pk{margin-bottom:16px}
+.pk-top{display:flex;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap}
+.pill{
+  font:10.5px ui-monospace,Menlo,monospace;letter-spacing:.05em;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;border:1px solid var(--line);color:var(--ink-2);background:var(--card-2);
+}
+.pill.hi{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.pill.lo{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.res{
+  border:1px solid var(--line);border-left:3px solid var(--good);border-radius:8px;
+  padding:11px 13px;margin-bottom:8px;background:var(--card-2);
+}
+.res.near{border-left-color:var(--ink-3);opacity:.75}
+.res-t{font-size:14px;font-weight:600;margin-bottom:3px}
+.res-m{font:11px ui-monospace,Menlo,monospace;color:var(--ink-3);line-height:1.6}
+.res-n{font-size:12.5px;color:var(--ink-2);margin-top:5px;line-height:1.45}
+.bar-cov{height:4px;border-radius:99px;background:var(--line);margin-top:8px;overflow:hidden}
+.bar-cov i{display:block;height:100%;background:var(--good);border-radius:99px}
+.res.near .bar-cov i{background:var(--ink-3)}
+.crop{margin-top:11px}
+.crop img{max-width:100%;border:1px solid var(--line);border-radius:8px;display:block}
+.crop-l{font:10.5px ui-monospace,Menlo,monospace;color:var(--ink-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+pre.raw{
+  font:11px ui-monospace,Menlo,monospace;background:var(--card-2);border:1px solid var(--line);
+  border-radius:9px;padding:12px;overflow-x:auto;color:var(--ink-2);margin:12px 0 0;max-height:220px;
+}
+.empty{font-size:13px;color:var(--ink-3);font-style:italic;padding:8px 0}
+
+.devbar{padding:13px 18px;border-top:1px solid var(--line);background:var(--card-2)}
+.devbar b{display:block;font:10.5px ui-monospace,Menlo,monospace;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+.devrow{display:flex;gap:7px;align-items:center}
+.devrow select{
+  flex:1;min-width:0;background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px;
+}
+.devnote{font-size:11.5px;color:var(--ink-3);margin-top:8px;line-height:1.5}
+
+.foot{
+  padding:9px 18px;border-top:1px solid var(--line);background:var(--card);
+  font:10.5px ui-monospace,Menlo,monospace;color:var(--ink-3);
+  display:flex;flex-wrap:wrap;gap:6px 16px;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}
+  .nb-scroll{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <div class="brand">
+      <div class="dot"></div>
+      <div><b>Nityam</b> <span id="nbtitle"></span></div>
+    </div>
+    <div class="sep"></div>
+    <div class="tools" id="tools" role="group" aria-label="Annotation tools"></div>
+    <div class="sep"></div>
+    <button class="btn" id="undo">Undo</button>
+    <button class="btn" id="clear">Clear page</button>
+    <div class="spacer"></div>
+    <button class="btn" id="prev" aria-label="Previous page">&larr;</button>
+    <span class="pageno">Page <b id="pnum">1</b> / <span id="ptot">1</span></span>
+    <button class="btn" id="next" aria-label="Next page">&rarr;</button>
+  </div>
+
+  <div class="main">
+    <div id="nb"></div>
+
+    <aside class="side">
+      <div class="side-h">
+        <b>Context packet</b>
+        <span id="tier"></span>
+      </div>
+      <div class="side-body" id="panel">
+        <p class="hint">Pick up the <b>marker</b> and swipe over a phrase, or use <b>circle</b> around part of the diagram — then watch what the tutor would actually receive.<br><br>Selecting text with the cursor works too, and resolves exactly.</p>
+      </div>
+      <div class="devbar">
+        <b>Tutor side (stub)</b>
+        <div class="devrow">
+          <select id="anchorsel" aria-label="Anchor to point at"></select>
+          <button class="btn" id="pointbtn">Point at it</button>
+        </div>
+        <div class="devnote">Stands in for the agent calling <code>nb.pointAt(id)</code>. Nothing else drives it yet.</div>
+      </div>
+      <div class="foot" id="foot"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+//== runtime =================================================================
+/* ---- artifact_generator/runtime/kernel.js ---- */
+/* kinematics2d - the trusted physics (JS twin of generate/kernel_py.py).
+ *
+ * Hand-written. Never generated. The IR chooses a kernel; it does not author one.
+ * Kept in sync with the Python twin by the parity vectors embedded at build time. */
+(function (NS) {
+  var N = 90;
+
+  function kinematics2d(inp) {
+    var speed = inp.speed, angleDeg = inp.angle;
+    var g = inp.gravity == null ? 9.8 : inp.gravity;
+    var y0 = inp.y0 == null ? 0 : inp.y0;
+
+    var rad = angleDeg * Math.PI / 180;
+    var ux = speed * Math.cos(rad);
+    var uy = speed * Math.sin(rad);
+
+    var disc = uy * uy + 2 * g * y0;
+    var tof = g > 0 ? (uy + Math.sqrt(Math.max(disc, 0))) / g : 0;
+
+    var range = ux * tof;
+    var maxHeight = uy > 0 ? y0 + (uy * uy) / (2 * g) : y0;
+
+    var path = new Array(N + 1);
+    for (var i = 0; i <= N; i++) {
+      var t = tof * i / N;
+      path[i] = { t: t, x: ux * t, y: y0 + uy * t - 0.5 * g * t * t, vx: ux, vy: uy - g * t };
+    }
+
+    return {
+      ux: ux, uy: uy,
+      range: range,
+      max_height: maxHeight,
+      time_of_flight: tof,
+      path: path,
+      launch_point: { x: 0, y: y0 }
+    };
+  }
+
+  NS.KERNELS = { kinematics2d: kinematics2d };
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- artifact_generator/runtime/evaluate.js ---- */
+/* One evaluation cycle: state -> frame.
+ *
+ * Pure and cheap (closed-form kinematics is microseconds), so we just re-run it
+ * on every slider tick. No animation loop, no diffing.
+ *
+ *   frame = { state, kernel, derived, theme }
+ *
+ * Everything the renderer and the probes read comes out of exactly this object. */
+(function (NS) {
+
+  NS.resolveRef = function (ref, ctx) {
+    if (typeof ref === 'number') return ref;
+    if (typeof ref !== 'string') return undefined;
+    var i = ref.indexOf('.');
+    if (i < 0) return undefined;
+    var ns = ref.slice(0, i), name = ref.slice(i + 1);
+    return ctx[ns] ? ctx[ns][name] : undefined;
+  };
+
+  NS.defaultState = function (ir) {
+    var s = {};
+    for (var k in ir.state) s[k] = ir.state[k].value;
+    return s;
+  };
+
+  NS.evaluate = function (ir, state, theme) {
+    var kfn = NS.KERNELS[ir.kernel];
+    if (!kfn) throw new Error('unknown kernel: ' + ir.kernel);
+
+    var inputs = {};
+    for (var port in ir.kernel_inputs) {
+      inputs[port] = NS.resolveRef(ir.kernel_inputs[port], { state: state });
+    }
+    var kernel = kfn(inputs);
+
+    var derived = {};
+    for (var name in ir.derived) {
+      derived[name] = NS.resolveRef(ir.derived[name], { state: state, kernel: kernel });
+    }
+
+    return { state: state, kernel: kernel, derived: derived, theme: theme };
+  };
+
+  /* {{theme.x}} and {{value}} token substitution for labels and copy. */
+  NS.fill = function (tpl, theme, value) {
+    if (typeof tpl !== 'string') return tpl;
+    return tpl
+      .replace(/\{\{\s*theme\.([a-zA-Z_]+)\s*\}\}/g, function (_, k) { return theme[k] != null ? theme[k] : ''; })
+      .replace(/\{\{\s*value\s*\}\}/g, value != null ? String(value) : '');
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- artifact_generator/runtime/probes.js ---- */
+/* The probe engine: turns interaction into concept-tagged evidence.
+ *
+ * This is the part that makes an artifact a diagnostic instrument rather than a
+ * visualisation. In the real product `emit` posts to the Learning Agent, which
+ * calls update_student_memory(). Here it renders into the evidence stream so
+ * you can watch it happen. */
+(function (NS) {
+
+  NS.createProbeEngine = function (ir, emit) {
+    var settled = {};    // controlId -> { value: true }  (distinct parked values)
+    var maxSeen = {};    // "derived.range" -> number
+    var fired = {};      // probeId -> true
+    var counts = {};     // probeId -> how many times it emitted
+
+    function distinctSettled(cid) { return Object.keys(settled[cid] || {}).length; }
+
+    function refValue(ref, frame) {
+      var i = ref.indexOf('.');
+      return NS.resolveRef(ref, frame);
+    }
+
+    function noteMax(ref, frame) {
+      var v = refValue(ref, frame);
+      if (typeof v !== 'number') return;
+      if (maxSeen[ref] === undefined || v > maxSeen[ref]) maxSeen[ref] = v;
+    }
+
+    /* Structured conditions - data, not code, so they were validated at build time. */
+    function evalCondition(cond, frame) {
+      if (!cond) return false;
+      if (cond.all) return cond.all.every(function (c) { return evalCondition(c, frame); });
+      if (cond.any) return cond.any.some(function (c) { return evalCondition(c, frame); });
+
+      if (cond.near) {
+        var v = refValue(cond.near.ref, frame);
+        return typeof v === 'number' && Math.abs(v - cond.near.value) <= (cond.near.tol == null ? 1e-9 : cond.near.tol);
+      }
+      if (cond.distinct_settled) {
+        var d = cond.distinct_settled, n = distinctSettled(d.control);
+        if (d.gte != null) return n >= d.gte;
+        if (d.eq != null) return n === d.eq;
+        return false;
+      }
+      if (cond.is_max_seen) {
+        var r = cond.is_max_seen.ref, cur = refValue(r, frame);
+        return typeof cur === 'number' && maxSeen[r] !== undefined && cur >= maxSeen[r] - 1e-9;
+      }
+      return false;
+    }
+    NS.evalCondition = evalCondition;   // reused by annotation layers
+
+    function fire(probe, frame) {
+      var payload = {};
+      (probe.payload || []).forEach(function (ref) {
+        var v = refValue(ref, frame);
+        payload[ref] = typeof v === 'number' ? Math.round(v * 100) / 100 : v;
+      });
+      counts[probe.id] = (counts[probe.id] || 0) + 1;
+      if (probe.once) fired[probe.id] = true;
+
+      emit({
+        t: Date.now(),
+        probe: probe.id,
+        event: probe.emit,
+        concept: probe.concept || null,
+        misconception: probe.misconception || null,
+        note: probe.note || null,
+        student_text: probe.student_text || null,
+        payload: payload
+      });
+    }
+
+    function evaluatePredicates(frame) {
+      ir.probes.forEach(function (p) {
+        if (p.on !== 'predicate' || fired[p.id]) return;
+        if (evalCondition(p.when, frame)) fire(p, frame);
+      });
+    }
+
+    return {
+      /* Called ~400ms after the student stops dragging a control. */
+      onSettle: function (controlId, frame) {
+        settled[controlId] = settled[controlId] || {};
+        var ctrl = ir.controls.filter(function (c) { return c.id === controlId; })[0];
+        if (ctrl && ctrl.bind) settled[controlId][NS.resolveRef(ctrl.bind, frame)] = true;
+
+        ir.probes.forEach(function (p) { if (p.payload) p.payload.forEach(function (r) { noteMax(r, frame); }); });
+
+        ir.probes.forEach(function (p) {
+          if (p.on === 'control_settle' && p.control === controlId && !fired[p.id]) fire(p, frame);
+        });
+        evaluatePredicates(frame);
+      },
+      count: function (probeId) { return counts[probeId] || 0; },
+      state: function () { return { settled: settled, maxSeen: maxSeen, counts: counts }; }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- artifact_generator/runtime/render.js ---- */
+/* The renderer: frame -> pixels + DOM.
+ *
+ * Hand-written, deterministic, identical for every artifact. The IR chooses
+ * which layers to stack and what to bind them to; it has no say over layout,
+ * colour or type. That is a deliberate trade - less visual variety, total
+ * predictability, and one place to make everything look good.
+ *
+ * Colour rule: data marks use fixed, CVD-validated colours (categorical slots
+ * 1-3). The THEME tints the world - sky, story, icon - and never the data. */
+(function (NS) {
+
+  var SVG = {
+    play:  '<svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M3.5 1.8v9.4a.6.6 0 0 0 .92.5l7.2-4.7a.6.6 0 0 0 0-1L4.42 1.3a.6.6 0 0 0-.92.5z"/></svg>',
+    pin:   '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M7 8.5V13"/><path d="M4 1h6l-.8 4.2L11 7.2v1.3H3V7.2l1.8-2z"/></svg>',
+    idea:  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 13h4M6.5 15h3"/><path d="M8 1a4.5 4.5 0 0 0-2.6 8.2c.4.3.6.7.6 1.1v.2h4v-.2c0-.4.2-.8.6-1.1A4.5 4.5 0 0 0 8 1z"/></svg>',
+    check: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4.5L6.2 11.5 3 8.3"/></svg>',
+    cross: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M11.5 4.5l-7 7M4.5 4.5l7 7"/></svg>'
+  };
+
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
+  }
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
+  }
+  function niceStep(span, target) {
+    var raw = span / (target || 4), mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), n = raw / mag;
+    return (n >= 5 ? 5 : n >= 2 ? 2 : 1) * mag;
+  }
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+
+  /* ─────────────────────────────────────────────────────────── the scene */
+
+  NS.drawScene = function (canvas, ir, frame, snapshots, theme, anim) {
+    var dpr = window.devicePixelRatio || 1;
+    var W = canvas.clientWidth, H = canvas.clientHeight;
+    if (!W || !H) return;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    var g = canvas.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var C = {
+      s1: cssVar('--s1'), s2: cssVar('--s2'), s3: cssVar('--s3'),
+      ink: cssVar('--ink'), ink2: cssVar('--ink-2'), ink3: cssVar('--ink-3'),
+      grid: cssVar('--grid'), ground: cssVar('--ground'), groundLine: cssVar('--ground-line'),
+      card: cssVar('--card')
+    };
+    var FONT = '-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif';
+
+    var scene = ir.layers.filter(function (l) { return l.type === 'scene2d'; })[0] || {};
+    var traceLayer = ir.layers.filter(function (l) { return l.type === 'trace'; })[0];
+    var ghosts = ir.layers.some(function (l) { return l.type === 'trace_set'; }) ? snapshots : [];
+    var vecLayer = ir.layers.filter(function (l) { return l.type === 'vector'; })[0];
+    var vecSet = ir.layers.filter(function (l) { return l.type === 'vector_set'; })[0];
+
+    /* world bounds across the live path and every pinned ghost */
+    var live = traceLayer ? (NS.resolveRef(traceLayer.points, frame) || []) : [];
+    var xmax = 1, ymax = 1;
+    [live].concat(ghosts.map(function (s) { return s.frame.kernel.path; })).forEach(function (p) {
+      p.forEach(function (pt) { if (pt.x > xmax) xmax = pt.x; if (pt.y > ymax) ymax = pt.y; });
+    });
+    xmax *= 1.07;
+    ymax = Math.max(ymax * 1.25, xmax * 0.30);   // headroom so the scene fills the frame
+
+    var M = { l: 58, r: 24, t: 14, b: 42 };
+    var scale = Math.min((W - M.l - M.r) / xmax, (H - M.t - M.b) / ymax);  // equal aspect
+    var ox = M.l, oy = H - M.b;
+    function px(x, y) { return [ox + x * scale, oy - y * scale]; }
+    var right = ox + xmax * scale;
+
+    /* sky - a whisper of the theme's colour, the only place theme touches paint */
+    g.clearRect(0, 0, W, H);
+    var sky = g.createLinearGradient(0, 0, 0, oy);
+    sky.addColorStop(0, (theme.tint || 'rgba(42,120,214,0.07)'));
+    sky.addColorStop(1, 'rgba(0,0,0,0)');
+    roundRect(g, 0, 0, W, H, 9); g.fillStyle = sky; g.fill();
+
+    /* grid + axis labels - recessive */
+    g.font = '11px ' + FONT; g.lineWidth = 1;
+    var sx = niceStep(xmax, 5), sy = niceStep(ymax, 4);
+    g.strokeStyle = C.grid;
+    for (var x = sx; x <= xmax; x += sx) {
+      var a = px(x, 0); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(a[0], M.t); g.stroke();
+      g.fillStyle = C.ink3; g.textAlign = 'center'; g.fillText(Math.round(x), a[0], oy + 18);
+    }
+    for (var y = sy; y <= ymax; y += sy) {
+      var c = px(0, y); g.beginPath(); g.moveTo(ox, c[1]); g.lineTo(right, c[1]); g.stroke();
+      g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText(Math.round(y), ox - 9, c[1] + 4);
+    }
+    if (scene.x_label) { g.fillStyle = C.ink3; g.textAlign = 'right'; g.fillText(scene.x_label, right, oy + 33); }
+    if (scene.y_label) { g.save(); g.translate(13, oy); g.rotate(-Math.PI / 2);
+      g.fillStyle = C.ink3; g.textAlign = 'left'; g.fillText(scene.y_label, 4, 0); g.restore(); }
+
+    /* ground */
+    g.fillStyle = C.ground; g.fillRect(0, oy, W, H - oy);
+    g.strokeStyle = C.groundLine; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, oy + .5); g.lineTo(W, oy + .5); g.stroke();
+    if (scene.ground_label) {
+      g.fillStyle = C.ink3; g.textAlign = 'left'; g.font = '11px ' + FONT;
+      g.fillText(NS.fill(scene.ground_label, theme), 6, oy + 18);
+    }
+
+    /* pinned ghosts - neutral, dashed, DIRECT-LABELLED (identity never colour-alone) */
+    ghosts.forEach(function (s) {
+      g.strokeStyle = C.ink3; g.globalAlpha = .45; g.lineWidth = 1.5; g.setLineDash([5, 5]);
+      g.beginPath();
+      s.frame.kernel.path.forEach(function (pt, i) { var q = px(pt.x, pt.y); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+      g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+
+      var last = s.frame.kernel.path[s.frame.kernel.path.length - 1], lp = px(last.x, last.y);
+      var lbl = Math.round(s.frame.state.theta) + '°';
+      g.font = '600 11px ' + FONT; g.textAlign = 'center';
+      var w = g.measureText(lbl).width + 13;
+      g.fillStyle = C.card; g.strokeStyle = C.groundLine; g.lineWidth = 1;
+      roundRect(g, lp[0] - w / 2, lp[1] - 25, w, 18, 9); g.fill(); g.stroke();
+      g.fillStyle = C.ink2; g.fillText(lbl, lp[0], lp[1] - 12);
+    });
+
+    /* the live trajectory */
+    if (live.length) {
+      g.strokeStyle = C.s1; g.lineWidth = 2.6; g.lineJoin = 'round'; g.lineCap = 'round';
+      g.beginPath();
+      live.forEach(function (pt, i) { var q = px(pt.x, pt.y); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+      g.stroke();
+
+      /* range dimension line along the ground */
+      var end = live[live.length - 1], e = px(end.x, end.y);
+      g.strokeStyle = C.s1; g.globalAlpha = .32; g.lineWidth = 1.5; g.setLineDash([3, 4]);
+      g.beginPath(); g.moveTo(ox, oy + 9); g.lineTo(e[0], oy + 9); g.stroke();
+      g.setLineDash([]); g.globalAlpha = 1;
+      [ox, e[0]].forEach(function (t) {
+        g.strokeStyle = C.s1; g.globalAlpha = .5; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(t, oy + 5); g.lineTo(t, oy + 13); g.stroke(); g.globalAlpha = 1;
+      });
+
+      /* the projectile - animated along the path, or resting at the landing point */
+      var p = end;
+      if (anim && anim.playing) {
+        var i = Math.min(live.length - 1, Math.floor(anim.u * (live.length - 1)));
+        p = live[i];
+        /* motion trail */
+        g.strokeStyle = C.s1; g.globalAlpha = .22; g.lineWidth = 6; g.lineCap = 'round';
+        g.beginPath();
+        for (var j = Math.max(0, i - 9); j <= i; j++) { var q = px(live[j].x, live[j].y); j === Math.max(0, i - 9) ? g.moveTo(q[0], q[1]) : g.lineTo(q[0], q[1]); }
+        g.stroke(); g.globalAlpha = 1;
+      }
+      var bp = px(p.x, p.y);
+      var glyph = NS.fill(traceLayer.end_marker || '', theme);
+      g.globalAlpha = .18; g.fillStyle = C.ink;
+      g.beginPath(); g.ellipse(bp[0], oy - 1.5, 7, 2.5, 0, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+      if (glyph) { g.font = '19px ' + FONT + ',"Apple Color Emoji"'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, bp[0], bp[1] - 7); g.textBaseline = 'alphabetic'; }
+      else { g.fillStyle = C.s1; g.strokeStyle = C.card; g.lineWidth = 2;
+             g.beginPath(); g.arc(bp[0], bp[1] - 6, 6.5, 0, Math.PI * 2); g.fill(); g.stroke(); }
+
+      /* celebration burst */
+      if (anim && anim.burst > 0) {
+        var lp2 = px(end.x, end.y);
+        for (var k = 0; k < 12; k++) {
+          var ang = (k / 12) * Math.PI * 2, d = (1 - anim.burst) * 34;
+          g.globalAlpha = anim.burst * .85; g.fillStyle = k % 2 ? C.s3 : C.s1;
+          g.beginPath(); g.arc(lp2[0] + Math.cos(ang) * d, lp2[1] - 6 + Math.sin(ang) * d, 2.6 * anim.burst + .6, 0, Math.PI * 2); g.fill();
+        }
+        g.globalAlpha = 1;
+      }
+    }
+
+    /* velocity arrows */
+    function arrow(x1, y1, x2, y2, col, dash, lbl, lw) {
+      if (Math.abs(x2 - x1) < .8 && Math.abs(y2 - y1) < .8) return;
+      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = lw || 2; g.lineCap = 'round';
+      g.setLineDash(dash || []);
+      var ang = Math.atan2(y2 - y1, x2 - x1);
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2 - 6 * Math.cos(ang), y2 - 6 * Math.sin(ang)); g.stroke();
+      g.setLineDash([]);
+      g.beginPath(); g.moveTo(x2, y2);
+      g.lineTo(x2 - 8 * Math.cos(ang - .38), y2 - 8 * Math.sin(ang - .38));
+      g.lineTo(x2 - 8 * Math.cos(ang + .38), y2 - 8 * Math.sin(ang + .38));
+      g.closePath(); g.fill();
+      if (lbl) {
+        g.font = '600 11.5px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+        var lx = x2 + 15 * Math.cos(ang), ly = y2 + 15 * Math.sin(ang);
+        lx = Math.max(lx, ox + 12);            // never collide with the y-axis gutter
+        var w = g.measureText(lbl).width + 9;
+        g.fillStyle = C.card; g.globalAlpha = .9; roundRect(g, lx - w / 2, ly - 8, w, 16, 6); g.fill(); g.globalAlpha = 1;
+        g.fillStyle = col; g.fillText(lbl, lx, ly); g.textBaseline = 'alphabetic';
+      }
+    }
+
+    var umax = (ir.state.u && ir.state.u.max) || 40;
+    /* arrows are schematic - size them against the drawn scene, not the world */
+    var K = Math.min(132, (right - ox) * 0.34) / umax;
+
+    if (vecLayer) {
+      var at = NS.resolveRef(vecLayer.at, frame) || { x: 0, y: 0 }, o = px(at.x, at.y);
+      var vx = NS.resolveRef(vecLayer.components.x, frame) || 0;
+      var vy = NS.resolveRef(vecLayer.components.y, frame) || 0;
+      var L = vecLayer.labels || {};
+      if (vecLayer.decompose) {
+        arrow(o[0], o[1], o[0] + vx * K, o[1], C.s3, [4, 3], L.x || 'uₓ', 1.8);
+        arrow(o[0], o[1], o[0], o[1] - vy * K, C.s2, [4, 3], L.y || 'uᵧ', 1.8);
+      }
+      arrow(o[0], o[1], o[0] + vx * K, o[1] - vy * K, C.ink, [], L.resultant || 'u', 2.2);
+    }
+
+    /* vector_set - velocity arrows sampled along the flight. This is what makes
+       "horizontal velocity never changes" visible rather than asserted. */
+    if (vecSet && live.length) {
+      var n = vecSet.count || 5, K2 = (vecSet.scale || 52) / umax;
+      for (var m = 0; m < n; m++) {
+        var pt = live[Math.round((m + 0.5) / n * (live.length - 1))];
+        var q = px(pt.x, pt.y);
+        var cx = NS.resolveRef(vecSet.components.x, { state: frame.state, kernel: frame.kernel, derived: frame.derived, point: pt });
+        var cy = NS.resolveRef(vecSet.components.y, { state: frame.state, kernel: frame.kernel, derived: frame.derived, point: pt });
+        if (cx == null) cx = pt.vx; if (cy == null) cy = pt.vy;
+        g.globalAlpha = .95;
+        if (vecSet.decompose) {
+          arrow(q[0], q[1], q[0] + cx * K2, q[1], C.s3, [], m === 0 ? (vecSet.labels || {}).x || 'vₓ' : '', 1.6);
+          arrow(q[0], q[1], q[0], q[1] - cy * K2, C.s2, [], m === 0 ? (vecSet.labels || {}).y || 'vᵧ' : '', 1.6);
+        } else {
+          arrow(q[0], q[1], q[0] + cx * K2, q[1] - cy * K2, C.ink, [], '', 1.6);
+        }
+        g.globalAlpha = 1;
+        g.fillStyle = C.s1; g.beginPath(); g.arc(q[0], q[1], 2.5, 0, Math.PI * 2); g.fill();
+      }
+    }
+  };
+
+  /* ────────────────────────────────────────────────────────── DOM build */
+
+  NS.buildDOM = function (ir, root, h) {
+    root.innerHTML = '';
+    var R = { sliders: {}, stats: [], hero: null, annos: null, feed: null, check: null, bar: null, pins: null };
+    var q0 = (ir.assessment || [])[0];
+
+    /* top bar */
+    var top = el('div', 'top');
+    var brand = el('div', 'brand');
+    brand.appendChild(el('div', 'dot'));
+    brand.appendChild(el('b', null, 'Nityam'));
+    brand.appendChild(el('i', null, '/'));
+    brand.appendChild(el('span', null, (ir.intent.concept_ids[0] || '').split('.')[0].replace(/_/g, ' ')
+      .replace(/^./, function (s) { return s.toUpperCase(); }) + ' · Class 11 Physics'));
+    top.appendChild(brand);
+
+    var pick = el('div', 'picker');
+    pick.appendChild(el('label', null, 'Story'));
+    var sel = el('select');
+    Object.keys(h.themes).forEach(function (k) {
+      var o = el('option', null, h.themes[k].label || k); o.value = k; sel.appendChild(o);
+    });
+    sel.value = h.themeKey;
+    sel.onchange = function () { h.onTheme(sel.value); };
+    pick.appendChild(sel);
+    top.appendChild(pick);
+    root.appendChild(top);
+
+    /* lesson header - the learning outcome, in student language */
+    var lesson = el('div', 'lesson');
+    lesson.appendChild(el('div', 'eyebrow', h.eyebrow || 'Explore'));
+    lesson.appendChild(el('h1', null, NS.fill(ir.intent.student_prompt || ir.intent.learning_outcome, h.theme)));
+    if (ir.intent.student_hint) lesson.appendChild(el('p', null, NS.fill(ir.intent.student_hint, h.theme)));
+    root.appendChild(lesson);
+
+    /* stage + side */
+    var grid = el('div', 'grid');
+    var leftCol = el('div');
+    var stage = el('div', 'card stage');
+    var canvas = el('canvas');
+    stage.appendChild(canvas);
+
+    var bar = el('div', 'stagebar');
+    var play = el('button', 'btn btn-primary');
+    play.innerHTML = SVG.play + '<span>Launch</span>';
+    play.onclick = function () { h.onPlay(); };
+    bar.appendChild(play);
+
+    ir.controls.filter(function (c) { return c.widget === 'button'; }).forEach(function (c) {
+      var b = el('button', 'btn');
+      b.innerHTML = (c.action === 'snapshot' ? SVG.pin : '') + '<span>' + c.label + '</span>';
+      b.onclick = function () { h.onAction(c); };
+      bar.appendChild(b);
+      if (c.action === 'snapshot') { R.pins = el('span', 'pincount'); bar.appendChild(R.pins); }
+    });
+    bar.appendChild(el('div', 'spacer'));
+    stage.appendChild(bar);
+    leftCol.appendChild(stage);
+
+    R.annos = el('div', 'annos');
+    leftCol.appendChild(R.annos);
+    grid.appendChild(leftCol);
+
+    /* side panel */
+    var side = el('aside', 'side');
+    var rg = ir.layers.filter(function (l) { return l.type === 'readout_group'; })[0];
+    if (rg) {
+      var card = el('div', 'card pad');
+      var items = rg.items.slice();
+      var heroSpec = items.filter(function (i) { return i.emphasis; })[0] || items[0];
+      items = items.filter(function (i) { return i !== heroSpec; });
+
+      var hero = el('div', 'hero');
+      hero.appendChild(el('div', 'hero-l', heroSpec.label));
+      var hv = el('div', 'hero-v');
+      hv.innerHTML = '<span>—</span>' + (heroSpec.unit ? '<u>' + heroSpec.unit + '</u>' : '');
+      hero.appendChild(hv);
+      card.appendChild(hero);
+      R.hero = { spec: heroSpec, node: hv, num: hv.firstChild };
+
+      items.forEach(function (it) {
+        var row = el('div', 'stat');
+        var l = el('span', 'stat-l');
+        if (it.swatch) { var sw = el('span', 'swatch'); sw.style.background = 'var(--' + it.swatch + ')'; l.appendChild(sw); }
+        l.appendChild(el('span', null, it.label));
+        row.appendChild(l);
+        var v = el('span', 'stat-v', '—');
+        row.appendChild(v);
+        card.appendChild(row);
+        R.stats.push({ spec: it, node: v });
+      });
+      side.appendChild(card);
+    }
+
+    var cc = el('div', 'card pad');
+    cc.appendChild(el('div', 'ttl', 'Controls'));
+    ir.controls.filter(function (c) { return c.widget === 'slider'; }).forEach(function (c) {
+      var nm = c.bind.split('.')[1], sv = ir.state[nm];
+      var w = el('div', 'ctl');
+      var t = el('div', 'ctl-top');
+      t.appendChild(el('span', 'ctl-l', NS.fill(c.label, h.theme)));
+      var badge = el('span', 'ctl-v');
+      t.appendChild(badge); w.appendChild(t);
+      var inp = el('input');
+      inp.type = 'range'; inp.min = sv.min; inp.max = sv.max; inp.step = sv.step || 1; inp.value = sv.value;
+      inp.setAttribute('aria-label', NS.fill(c.label, h.theme));
+      inp.oninput = function () { h.onControl(c, parseFloat(inp.value)); };
+      w.appendChild(inp);
+      cc.appendChild(w);
+      R.sliders[c.id] = { input: inp, badge: badge, spec: c };
+    });
+    side.appendChild(cc);
+    grid.appendChild(side);
+    root.appendChild(grid);
+
+    /* checkpoint */
+    if (q0) { R.check = el('div', 'card check hide'); root.appendChild(R.check); }
+
+    /* what Nityam noticed */
+    var nt = el('div', 'card noticed');
+    var ttl = el('div', 'ttl');
+    ttl.appendChild(el('span', null, 'What Nityam noticed'));
+    var tog = el('label', 'toggle');
+    var cb = el('input'); cb.type = 'checkbox';
+    cb.onchange = function () { R.feed.classList.toggle('showraw', cb.checked); };
+    tog.appendChild(cb); tog.appendChild(el('span', null, 'raw events'));
+    ttl.appendChild(tog);
+    nt.appendChild(ttl);
+
+    var mw = el('div', 'mastery');
+    var mt = el('div', 'mastery-top');
+    mt.appendChild(el('span', null, (ir.intent.concept_ids[0] || '').replace(/[._]/g, ' ')));
+    var mv = el('b', null, '0%');
+    mt.appendChild(mv); mw.appendChild(mt);
+    var barw = el('div', 'bar'); var fill = el('i'); barw.appendChild(fill); mw.appendChild(barw);
+    nt.appendChild(mw);
+    R.bar = { fill: fill, label: mv };
+
+    R.feed = el('div', 'feed');
+    R.feed.appendChild(el('div', 'empty', 'Move a slider and let go — Nityam is watching how you explore.'));
+    nt.appendChild(R.feed);
+    root.appendChild(nt);
+
+    R.canvas = canvas;
+    R.SVG = SVG;
+    return R;
+  };
+
+  NS.updateReadouts = function (R, frame) {
+    function fmt(spec) {
+      var v = NS.resolveRef(spec.value, frame);
+      var p = spec.precision == null ? 1 : spec.precision;
+      return typeof v === 'number' ? v.toFixed(p) : '—';
+    }
+    if (R.hero) {
+      var t = fmt(R.hero.spec);
+      if (R.hero.num.textContent !== t) {
+        R.hero.num.textContent = t;
+        R.hero.node.classList.remove('bump'); void R.hero.node.offsetWidth; R.hero.node.classList.add('bump');
+      }
+    }
+    R.stats.forEach(function (s) {
+      s.node.textContent = fmt(s.spec) + (s.spec.unit ? ' ' + s.spec.unit : '');
+    });
+  };
+
+  NS.updateAnnotations = function (ir, R, frame, theme) {
+    var want = ir.layers.filter(function (l) { return l.type === 'annotation' && NS.evalCondition(l.when, frame); })
+                        .map(function (l) { return NS.fill(l.text, theme); });
+    var have = Array.prototype.map.call(R.annos.children, function (c) { return c.dataset.t; });
+    if (want.join('|') === have.join('|')) return;      // don't re-animate on every tick
+    R.annos.innerHTML = '';
+    want.forEach(function (t) {
+      var d = el('div', 'anno'); d.dataset.t = t;
+      d.innerHTML = SVG.idea + '<span></span>';
+      d.lastChild.textContent = t;
+      R.annos.appendChild(d);
+    });
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- artifact_generator/runtime/mount.js ---- */
+/* mountArtifact(ir, container, options) -> handle
+ *
+ * The single entry point. This proof of concept calls it from a standalone HTML
+ * shell; the Nityam app calls the identical function from React:
+ *
+ *     useEffect(() => {
+ *       const a = Nityam.mountArtifact(ir, ref.current, {
+ *         themes, theme: student.interest,
+ *         onEvidence: e => agent.updateStudentMemory(e)
+ *       });
+ *       return () => a.destroy();
+ *     }, [ir]);
+ *
+ * Same runtime, same IR, two shells. */
+(function (NS) {
+
+  var SETTLE_MS = 380;
+
+  NS.mountArtifact = function (ir, container, opts) {
+    opts = opts || {};
+    var themes = opts.themes || { plain: { label: 'Plain' } };
+    var themeKey = themes[opts.theme] ? opts.theme : Object.keys(themes)[0];
+    var theme = themes[themeKey];
+
+    var state = NS.defaultState(ir);
+    var snapshots = [];
+    var timers = {};
+    var R, probes;
+    var answered = {};          // questionId -> chosen option (survives a rebuild)
+    var evidenceLog = [];       // every event this session, so a rebuild can restore it
+    var anim = { playing: false, u: 0, burst: 0, t0: 0, dur: 1 };
+    var raf = null;
+
+    function frame() { return NS.evaluate(ir, state, theme); }
+
+    /* ── draw ─────────────────────────────────────────────────────────── */
+    function redraw() {
+      var f = frame();
+      NS.drawScene(R.canvas, ir, f, snapshots, theme, anim);
+      NS.updateReadouts(R, f);
+      NS.updateAnnotations(ir, R, f, theme);
+      for (var id in R.sliders) {
+        var s = R.sliders[id], v = state[s.spec.bind.split('.')[1]];
+        if (parseFloat(s.input.value) !== v) s.input.value = v;
+        s.badge.textContent = NS.fill(s.spec.display || '{{value}}', theme, v);
+      }
+      if (R.pins) {
+        var cap = (ir.controls.filter(function (c) { return c.action === 'snapshot'; })[0] || {}).max || 3;
+        R.pins.textContent = snapshots.length ? snapshots.length + '/' + cap + ' pinned' : '';
+      }
+      return f;
+    }
+
+    /* ── animation: fly the projectile along its own trajectory ───────── */
+    function tick(ts) {
+      if (!anim.t0) anim.t0 = ts;
+      var e = (ts - anim.t0) / 1000;
+      if (anim.playing) {
+        anim.u = Math.min(1, e / anim.dur);
+        if (anim.u >= 1) { anim.playing = false; anim.u = 1; }
+      }
+      if (anim.burst > 0) anim.burst = Math.max(0, anim.burst - 0.018);
+      redraw();
+      if (anim.playing || anim.burst > 0) raf = requestAnimationFrame(tick);
+      else raf = null;
+    }
+    function play() {
+      var tof = frame().kernel.time_of_flight || 1;
+      anim.playing = true; anim.u = 0; anim.t0 = 0;
+      anim.dur = Math.min(2.2, Math.max(0.75, tof * 0.42));   // real-ish, never tedious
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+    function celebrate(msg) {
+      anim.burst = 1; anim.t0 = 0;
+      if (!raf) raf = requestAnimationFrame(tick);
+      if (opts.toast) {
+        opts.toast.innerHTML = R.SVG.check + '<span></span>';
+        opts.toast.lastChild.textContent = msg;
+        opts.toast.classList.add('on');
+        clearTimeout(timers._toast);
+        timers._toast = setTimeout(function () { opts.toast.classList.remove('on'); }, 3600);
+      }
+    }
+
+    /* ── evidence ─────────────────────────────────────────────────────── */
+
+    /* Students should not read `artifact.discovered_optimum`. Probes carry a
+       `note` for the agent; this turns an event into one plain sentence. */
+    function humanise(e) {
+      if (e.student_text) return e.student_text;
+      switch (e.event) {
+        case 'artifact.explored':
+          var k = Object.keys(e.payload);
+          return 'You tried ' + k.map(function (r) {
+            return r.split('.')[1] + ' ' + e.payload[r];
+          }).join(', ') + '.';
+        case 'artifact.discovered_optimum':
+          return 'You found the best setting by testing it yourself — that sticks better than being told.';
+        case 'artifact.misconception_behavior':
+          return 'You have been changing one thing only. Try the other slider and see what happens.';
+        case 'assessment.answered':
+          return e.payload.correct ? 'Checkpoint correct.' : 'Not quite — worth another look at the graph.';
+        default:
+          return e.note || e.event;
+      }
+    }
+
+    function emitEvidence(e) {
+      evidenceLog.push(e);
+      renderEvidence(e);
+      updateMastery();
+      if (e.event === 'artifact.discovered_optimum') celebrate('Nice — you worked that out yourself.');
+      if (e.event === 'assessment.answered' && e.payload.correct) celebrate('Checkpoint cleared.');
+      if (opts.onEvidence) opts.onEvidence(e);
+      console.log('[nityam:evidence]', e.event, e);
+      refreshGates();
+    }
+
+    function renderEvidence(e) {
+      var empty = R.feed.querySelector('.empty');
+      if (empty) empty.remove();
+      var row = document.createElement('div');
+      row.className = 'ev' + (e.misconception ? ' warn' : (/discovered|correct/.test(e.event) || (e.payload && e.payload.correct) ? ' good' : ''));
+      var ic = document.createElement('div');
+      ic.className = 'ev-ic';
+      ic.innerHTML = e.misconception ? R.SVG.idea : (/discovered/.test(e.event) ? R.SVG.check : '·');
+      row.appendChild(ic);
+      var b = document.createElement('div'); b.className = 'ev-b';
+      var t = document.createElement('div'); t.className = 'ev-t';
+      t.textContent = humanise(e);
+      b.appendChild(t);
+      var raw = document.createElement('div'); raw.className = 'ev-raw';
+      raw.textContent = e.event + ' ' + JSON.stringify(e.payload) +
+        (e.concept ? '  concept=' + e.concept : '') + (e.misconception ? '  misconception=' + e.misconception : '');
+      b.appendChild(raw);
+      row.appendChild(b);
+      R.feed.insertBefore(row, R.feed.firstChild);
+    }
+
+    /* A visible stand-in for update_student_memory(). In the real app the
+       agent owns this number; here we approximate it from the evidence. */
+    function updateMastery() {
+      var m = 0;
+      evidenceLog.forEach(function (e) {
+        if (e.event === 'artifact.explored') m += 8;
+        else if (e.event === 'artifact.discovered_optimum') m += 34;
+        else if (e.event === 'assessment.answered') m += e.payload.correct ? 30 : -6;
+        else if (e.event === 'artifact.misconception_behavior') m -= 5;
+      });
+      m = Math.max(0, Math.min(100, Math.round(m)));
+      R.bar.fill.style.width = m + '%';
+      R.bar.label.textContent = m + '%';
+    }
+
+    /* ── checkpoint ───────────────────────────────────────────────────── */
+    function refreshGates() {
+      if (!R.check) return;
+      var q = ir.assessment[0];
+      var open = !q.gate || probes.count(q.gate.probe) >= (q.gate.count_gte || 1);
+      if (!open || !R.check.classList.contains('hide')) return;
+      R.check.classList.remove('hide');
+      buildQuestion(q);
+      if (answered[q.id] !== undefined) markAnswer(q, answered[q.id], R.check.querySelector('.opts'));
+    }
+
+    function buildQuestion(q) {
+      R.check.innerHTML = '';
+      var t = document.createElement('div'); t.className = 'ttl'; t.textContent = 'Checkpoint';
+      R.check.appendChild(t);
+      var p = document.createElement('p'); p.className = 'q'; p.textContent = NS.fill(q.prompt, theme);
+      R.check.appendChild(p);
+      var row = document.createElement('div'); row.className = 'opts';
+      q.options.forEach(function (o) {
+        var b = document.createElement('button');
+        b.className = 'opt'; b.textContent = o + (q.unit || ''); b.dataset.v = o;
+        b.onclick = function () { answered[q.id] = o; markAnswer(q, o, row); emitAnswer(q, o); };
+        row.appendChild(b);
+      });
+      R.check.appendChild(row);
+      var fb = document.createElement('div'); fb.className = 'fb';
+      R.check.appendChild(fb);
+    }
+
+    function markAnswer(q, chosen, row) {
+      var correct = chosen === q.expected;
+      if (row) Array.prototype.forEach.call(row.children, function (b) {
+        b.disabled = true;
+        var v = parseFloat(b.dataset.v);
+        if (v === q.expected) b.classList.add('ok');
+        else if (v === chosen) b.classList.add('bad');
+      });
+      var fb = R.check.querySelector('.fb');
+      if (fb) {
+        fb.className = 'fb ' + (correct ? 'ok' : 'bad');
+        fb.innerHTML = (correct ? R.SVG.check : R.SVG.cross) + '<span></span>';
+        fb.lastChild.textContent = correct ? (q.explain_correct || 'Correct.') : (q.explain_wrong || 'Not quite.');
+      }
+      return correct;
+    }
+
+    function emitAnswer(q, chosen) {
+      var correct = chosen === q.expected;
+      emitEvidence({
+        t: Date.now(), probe: q.id, event: 'assessment.answered',
+        concept: q.concept || null,
+        misconception: correct ? null : (q.diagnose || {})[String(chosen)] || null,
+        note: correct ? 'Correct after exploration.' : 'Incorrect - diagnosis attached.',
+        payload: { chosen: chosen, expected: q.expected, correct: correct }
+      });
+    }
+
+    /* ── handlers ─────────────────────────────────────────────────────── */
+    var h = {
+      themes: themes, themeKey: themeKey, theme: theme,
+      eyebrow: ir.intent.eyebrow || 'Explore',
+
+      onControl: function (c, value) {
+        state[c.bind.split('.')[1]] = value;
+        anim.playing = false;
+        redraw();
+        clearTimeout(timers[c.id]);
+        timers[c.id] = setTimeout(function () { probes.onSettle(c.id, frame()); }, SETTLE_MS);
+      },
+
+      onAction: function (c) {
+        if (c.action === 'snapshot') {
+          snapshots.push({ frame: frame(), state: Object.assign({}, state) });
+          while (snapshots.length > (c.max || 3)) snapshots.shift();
+        } else if (c.action === 'clear_snapshots') {
+          snapshots = [];
+        }
+        redraw();
+      },
+
+      onPlay: play,
+
+      onTheme: function (k) {
+        themeKey = k; theme = themes[k]; h.theme = theme; h.themeKey = k;
+        R = NS.buildDOM(ir, container, h);
+        redraw();
+        evidenceLog.forEach(renderEvidence);   // oldest first -> newest ends up on top
+        updateMastery();
+        refreshGates();
+      }
+    };
+
+    R = NS.buildDOM(ir, container, h);
+    probes = NS.createProbeEngine(ir, emitEvidence);
+    redraw();
+    updateMastery();
+    window.addEventListener('resize', redraw);
+    setTimeout(play, 380);      // one launch on load, so the artifact reads as alive
+
+    /* Kernel parity: the JS kernel must reproduce what the Python kernel
+       produced at build time. Turns silent drift into a visible failure. */
+    if (opts.parity) {
+      var worst = 0;
+      opts.parity.forEach(function (v) {
+        var got = NS.KERNELS[ir.kernel](v.in);
+        for (var k in v.out) worst = Math.max(worst, Math.abs(got[k] - v.out[k]));
+      });
+      console.log('[nityam:parity] max |python - js| = ' + worst.toExponential(2) +
+                  (worst < 1e-9 ? '  OK' : '  *** KERNEL DRIFT ***'));
+      if (opts.onParity) opts.onParity(worst);
+    }
+
+    return {
+      destroy: function () {
+        window.removeEventListener('resize', redraw);
+        if (raf) cancelAnimationFrame(raf);
+        container.innerHTML = '';
+      },
+      play: play,
+      getState: function () { return Object.assign({}, state); },
+      getEvidence: function () { return evidenceLog.slice(); },
+      getProbeState: function () { return probes.state(); }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- canvas/runtime/anchors.js ---- */
+/* The anchor registry — the index that turns pixels back into meaning.
+ *
+ * Every block, as it renders, registers the regions of itself that MEAN
+ * something: a phrase, an equation term, an SVG group, a hotspot in an image.
+ * A gesture is then resolved by intersecting it with this index.
+ *
+ * Rects are measured lazily and cached, because measuring is the expensive part
+ * and the layout only moves on resize. */
+(function (NS) {
+
+  NS.createAnchorRegistry = function () {
+    var byId = {};        // anchorId -> record
+    var order = [];       // registration order, for stable output
+    var dirty = true;
+
+    function register(rec) {
+      if (byId[rec.id]) {
+        console.warn('[nityam:canvas] duplicate anchor id: ' + rec.id);
+        return byId[rec.id];
+      }
+      byId[rec.id] = rec;
+      order.push(rec.id);
+      dirty = true;
+      return rec;
+    }
+
+    /* Measure every anchor's box in PAGE coordinates, not viewport coordinates,
+       so a scroll does not invalidate anything. */
+    function measure() {
+      order.forEach(function (id) {
+        var rec = byId[id];
+        var el = rec.el;
+        if (!el || !rec.pageEl) { rec.rect = null; return; }
+
+        var pb = rec.pageEl.getBoundingClientRect();
+        var boxes = [];
+
+        if (rec.kind === 'image_region') {
+          /* fractional coords against the rendered image */
+          var ib = el.getBoundingClientRect();
+          var f = rec.frac;
+          boxes.push({
+            x: ib.left - pb.left + f[0] * ib.width,
+            y: ib.top - pb.top + f[1] * ib.height,
+            w: f[2] * ib.width,
+            h: f[3] * ib.height
+          });
+        } else if (rec.kind === 'text_span') {
+          /* a phrase can wrap across lines — keep every client rect */
+          var rects = el.getClientRects();
+          for (var i = 0; i < rects.length; i++) {
+            var r = rects[i];
+            if (r.width < 1 || r.height < 1) continue;
+            boxes.push({ x: r.left - pb.left, y: r.top - pb.top, w: r.width, h: r.height });
+          }
+        } else {
+          var b = el.getBoundingClientRect();
+          boxes.push({ x: b.left - pb.left, y: b.top - pb.top, w: b.width, h: b.height });
+        }
+
+        rec.boxes = boxes;
+        rec.rect = boxes.length ? union(boxes) : null;
+      });
+      dirty = false;
+    }
+
+    function union(boxes) {
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      boxes.forEach(function (b) {
+        x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+        x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h);
+      });
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+
+    return {
+      register: register,
+      invalidate: function () { dirty = true; },
+      get: function (id) { return byId[id]; },
+      all: function () { return order.map(function (id) { return byId[id]; }); },
+
+      /* Anchors on one page, measured. The only entry point the resolver uses. */
+      onPage: function (pageNo) {
+        if (dirty) measure();
+        return order.map(function (id) { return byId[id]; })
+                    .filter(function (r) { return r.page === pageNo && r.boxes && r.boxes.length; });
+      },
+
+      /* Public shape of an anchor once it leaves the registry. */
+      describe: function (rec, coverage) {
+        var out = {
+          anchor: rec.id,
+          kind: rec.kind,
+          text: rec.text || null,
+          block: rec.blockId,
+          coverage: Math.round(coverage * 100) / 100
+        };
+        if (rec.concept) out.concept = rec.concept;
+        if (rec.note) out.note = rec.note;
+        if (rec.misconception) out.misconception = rec.misconception;
+        return out;
+      }
+    };
+  };
+
+  NS.union = function (boxes) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    boxes.forEach(function (b) {
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h);
+    });
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  };
+
+})(typeof window !== 'undefined' ? (window.Nityam = window.Nityam || {}) : (module.exports = {}));
+
+
+/* ---- canvas/runtime/resolve.js ---- */
+/* The grounding resolver: a gesture becomes a ContextPacket.
+ *
+ * This is the point of the whole sub-module. A bounding box at (340,210) is
+ * useless to a tutor; "you circled (u sinθ)², the vertical component squared"
+ * is a conversation.
+ *
+ * Three tiers, tried in order:
+ *   1  text selection  → exact DOM Range, no geometry involved
+ *   2  geometry        → stroke/polygon vs the anchor rect index, scored by coverage
+ *   3  crop            → for image blocks, an actual pixel crop for a vision call
+ *
+ * Coverage becomes confidence. A sloppy circle across two terms should degrade
+ * into "probably this, possibly that" rather than one confident wrong answer,
+ * so anchors below RESOLVE_FLOOR are reported as `nearby` instead of `resolved`. */
+(function (NS) {
+
+  var RESOLVE_FLOOR = 0.35;    // below this, an anchor is context, not the referent
+  var NEARBY_FLOOR  = 0.05;    // below this, ignore entirely
+
+  /* ── geometry ─────────────────────────────────────────────────────── */
+
+  function overlap1d(a0, a1, b0, b1) {
+    return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+  }
+
+  /* A highlighter swipe is a BAND along a line, so plain area-intersection
+     scores it badly: swiping across a tall stacked fraction covers maybe a
+     quarter of its area and would fall below the resolve floor, even though
+     the student unambiguously meant that term.
+     Score a marker by how much of the anchor's WIDTH was swept, gated on the
+     band actually meeting the anchor vertically. */
+  function markerCoverage(box, band) {
+    var vo = overlap1d(box.y, box.y + box.h, band.y, band.y + band.h);
+    if (vo <= 0 || box.w <= 0) return 0;
+    var vFactor = Math.min(1, vo / Math.max(1, Math.min(band.h, box.h)));
+    var ho = overlap1d(box.x, box.x + box.w, band.x, band.x + band.w);
+    return (ho / box.w) * vFactor;
+  }
+  NS.markerCoverage = markerCoverage;
+
+  function pointInPolygon(px, py, poly) {
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  /* Fraction of `box` covered by a closed polygon, by sampling. Exact clipping
+     is not worth it here: a 6x6 grid separates "circled it" from "clipped its
+     corner" perfectly well, and the number only has to rank anchors. */
+  function polygonCoverage(box, poly) {
+    if (box.w <= 0 || box.h <= 0) return 0;
+    var N = 6, hit = 0;
+    for (var i = 0; i < N; i++) {
+      for (var j = 0; j < N; j++) {
+        var px = box.x + (i + 0.5) / N * box.w;
+        var py = box.y + (j + 0.5) / N * box.h;
+        if (pointInPolygon(px, py, poly)) hit++;
+      }
+    }
+    return hit / (N * N);
+  }
+  NS.polygonCoverage = polygonCoverage;
+
+  function polyBBox(poly) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    poly.forEach(function (p) {
+      x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]);
+      x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]);
+    });
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+  NS.polyBBox = polyBBox;
+
+  /* How much of an anchor did this gesture cover?
+     marker  → band intersection, because a highlight is a swipe not an enclosure
+     circle  → polygon containment
+     lasso   → polygon containment */
+  function scoreAnchor(rec, gesture) {
+    var best = 0, total = 0, covered = 0;
+    rec.boxes.forEach(function (box) {
+      var area = box.w * box.h;
+      if (area <= 0) return;
+      var c;
+      if (gesture.type === 'marker') {
+        c = markerCoverage(box, gesture.bbox);
+      } else {
+        c = polygonCoverage(box, gesture.points);
+      }
+      total += area;
+      covered += c * area;
+      best = Math.max(best, c);
+    });
+    /* area-weighted across a wrapped phrase, but a single strongly-hit line
+       should still count — take the more generous of the two */
+    var weighted = total > 0 ? covered / total : 0;
+    return Math.max(weighted, best * 0.85);
+  }
+  NS.scoreAnchor = scoreAnchor;
+
+  /* ── tier 3: crop ─────────────────────────────────────────────────── */
+
+  /* Only image blocks can be cropped for real. Text and diagram blocks would
+     need a DOM rasteriser, which this proof of concept deliberately does not
+     add — the packet says crop:null and reports the block instead. */
+  function cropImage(imgEl, pageEl, bbox) {
+    try {
+      var ib = imgEl.getBoundingClientRect(), pb = pageEl.getBoundingClientRect();
+      var ix = ib.left - pb.left, iy = ib.top - pb.top;
+
+      var sx = (bbox.x - ix) / ib.width, sy = (bbox.y - iy) / ib.height;
+      var sw = bbox.w / ib.width,        sh = bbox.h / ib.height;
+      sx = Math.max(0, Math.min(1, sx)); sy = Math.max(0, Math.min(1, sy));
+      sw = Math.max(0.01, Math.min(1 - sx, sw)); sh = Math.max(0.01, Math.min(1 - sy, sh));
+
+      var nw = imgEl.naturalWidth || ib.width, nh = imgEl.naturalHeight || ib.height;
+      var c = document.createElement('canvas');
+      c.width = Math.round(sw * nw); c.height = Math.round(sh * nh);
+      if (!c.width || !c.height) return null;
+      c.getContext('2d').drawImage(imgEl, sx * nw, sy * nh, sw * nw, sh * nh, 0, 0, c.width, c.height);
+      return c.toDataURL('image/png');
+    } catch (e) {
+      console.warn('[nityam:canvas] crop failed:', e.message);
+      return null;
+    }
+  }
+
+  /* ── the resolver ─────────────────────────────────────────────────── */
+
+  /* gesture = { type:'marker'|'circle'|'lasso'|'selection', page, points[], bbox,
+                 selectedAnchors[] (selection only), selectedText }            */
+  NS.resolveGesture = function (gesture, registry, ctx) {
+    ctx = ctx || {};
+    var packet = {
+      gesture: gesture.type,
+      page: gesture.page,
+      utterance: gesture.utterance || null,
+      resolved: [],
+      nearby: [],
+      block: null,
+      bbox: gesture.bbox ? [
+        Math.round(gesture.bbox.x), Math.round(gesture.bbox.y),
+        Math.round(gesture.bbox.w), Math.round(gesture.bbox.h)
+      ] : null,
+      confidence: 0,
+      crop: null,
+      tier: null
+    };
+
+    /* ── tier 1: a real text selection is exact, skip the geometry ── */
+    if (gesture.type === 'selection') {
+      packet.tier = 'selection';
+      packet.selected_text = gesture.selectedText || null;
+      (gesture.selectedAnchors || []).forEach(function (id) {
+        var rec = registry.get(id);
+        if (rec) packet.resolved.push(registry.describe(rec, 1));
+      });
+      packet.confidence = packet.resolved.length ? 1 : 0;
+      if (packet.resolved.length) packet.block = packet.resolved[0].block;
+      return packet;
+    }
+
+    /* ── tier 2: geometry against the anchor index ── */
+    packet.tier = 'geometry';
+    var scored = registry.onPage(gesture.page).map(function (rec) {
+      return { rec: rec, c: scoreAnchor(rec, gesture) };
+    }).filter(function (s) {
+      return s.c >= NEARBY_FLOOR;
+    }).sort(function (a, b) { return b.c - a.c; });
+
+    scored.forEach(function (s) {
+      var d = registry.describe(s.rec, s.c);
+      if (s.c >= RESOLVE_FLOOR) packet.resolved.push(d);
+      else packet.nearby.push(d);
+    });
+
+    packet.confidence = packet.resolved.length ? packet.resolved[0].coverage : 0;
+    packet.block = packet.resolved.length ? packet.resolved[0].block
+                 : (packet.nearby.length ? packet.nearby[0].block : null);
+
+    /* ── tier 3: crop, when the gesture landed on an image ── */
+    var blockId = packet.block || (ctx.blockAt ? ctx.blockAt(gesture) : null);
+    if (blockId && ctx.imageOf) {
+      var imgEl = ctx.imageOf(blockId);
+      if (imgEl && ctx.pageEl) {
+        packet.crop = cropImage(imgEl, ctx.pageEl, gesture.bbox);
+        if (packet.crop) packet.tier = 'geometry+crop';
+      }
+    }
+    if (!packet.block && blockId) packet.block = blockId;
+
+    return packet;
+  };
+
+  NS.RESOLVE_FLOOR = RESOLVE_FLOOR;
+  NS.NEARBY_FLOOR = NEARBY_FLOOR;
+
+})(typeof window !== 'undefined' ? (window.Nityam = window.Nityam || {}) : (module.exports = {}));
+
+
+/* ---- canvas/runtime/blocks.js ---- */
+/* Block renderers: CanvasDoc block -> DOM, registering anchors as they go.
+ *
+ * Every renderer has the same job twice over: draw the thing, and tell the
+ * registry which parts of it mean something. A block that renders but registers
+ * nothing is invisible to the tutor. */
+(function (NS) {
+
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
+  }
+
+  /* Wrap each declared `span` of a text block in an anchorable element.
+     Sequential scan: earlier anchors win an overlap, and a span that isn't
+     found is reported rather than silently dropped. */
+  function anchorText(text, anchors, host, reg, meta) {
+    var marks = [];
+    (anchors || []).forEach(function (a) {
+      if (!a.span) return;
+      var at = text.indexOf(a.span);
+      if (at < 0) {
+        console.warn('[nityam:canvas] anchor "' + a.id + '" span not found in ' + meta.blockId);
+        return;
+      }
+      marks.push({ start: at, end: at + a.span.length, a: a });
+    });
+    marks.sort(function (x, y) { return x.start - y.start; });
+
+    var cursor = 0;
+    marks.forEach(function (m) {
+      if (m.start < cursor) return;                       // overlap: skip the later one
+      if (m.start > cursor) host.appendChild(document.createTextNode(text.slice(cursor, m.start)));
+      var span = el('span', 'anc', text.slice(m.start, m.end));
+      span.dataset.anchor = m.a.id;
+      host.appendChild(span);
+      reg.register({
+        id: m.a.id, kind: 'text_span', el: span, pageEl: meta.pageEl, page: meta.page,
+        blockId: meta.blockId, text: m.a.span,
+        concept: m.a.concept, note: m.a.note, misconception: m.a.misconception
+      });
+      cursor = m.end;
+    });
+    if (cursor < text.length) host.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
+  /* Equation terms are spans, not a maths library. No external dependency, the
+     page runs offline, and every term is independently anchorable — which is
+     the entire reason for the choice. */
+  function renderTerm(t) {
+    var span = el('span', 'term' + (t.plain ? ' plain' : ''));
+    if (t.over != null) {
+      span.classList.add('frac');
+      var num = el('span', 'num', t.over);
+      var den = el('span', 'den', t.tex);
+      span.appendChild(num); span.appendChild(den);
+    } else {
+      span.appendChild(document.createTextNode(t.tex));
+      if (t.sub) span.appendChild(el('sub', null, t.sub));
+      if (t.sup) span.appendChild(el('sup', null, t.sup));
+    }
+    return span;
+  }
+
+  function termText(t) {
+    if (t.over != null) return t.over + ' / ' + t.tex;
+    return t.tex + (t.sub ? '_' + t.sub : '') + (t.sup ? '^' + t.sup : '');
+  }
+
+  var R = {};
+
+  R.heading = function (b, host) { host.appendChild(el('h2', 'blk-h', b.text)); };
+
+  R.tutor_text = function (b, host, reg, meta) {
+    var p = el('p', 'blk-p');
+    anchorText(b.text, b.anchors, p, reg, meta);
+    host.appendChild(p);
+  };
+
+  R.callout = function (b, host, reg, meta) {
+    var d = el('div', 'blk-callout tone-' + (b.tone || 'neutral'));
+    var body = el('div', 'callout-body');
+    anchorText(b.text, b.anchors, body, reg, meta);
+    d.appendChild(body);
+    host.appendChild(d);
+  };
+
+  R.equation = function (b, host, reg, meta) {
+    var wrap = el('div', 'blk-eq');
+    var row = el('div', 'eq-row');
+    (b.terms || []).forEach(function (t) {
+      var span = renderTerm(t);
+      row.appendChild(span);
+      if (t.plain) return;
+      span.dataset.anchor = t.id;
+      span.classList.add('anc');
+      reg.register({
+        id: t.id, kind: 'equation_term', el: span, pageEl: meta.pageEl, page: meta.page,
+        blockId: meta.blockId, text: termText(t),
+        concept: t.concept, note: t.note, misconception: t.misconception
+      });
+    });
+    wrap.appendChild(row);
+    host.appendChild(wrap);
+  };
+
+  R.diagram = function (b, host, reg, meta) {
+    var wrap = el('figure', 'blk-fig');
+    var box = el('div', 'fig-box');
+    box.innerHTML = b.svg;
+    wrap.appendChild(box);
+    if (b.caption) wrap.appendChild(el('figcaption', null, b.caption));
+    host.appendChild(wrap);
+
+    (b.anchors || []).forEach(function (a) {
+      if (!a.element) return;
+      var target = box.querySelector(a.element);
+      if (!target) {
+        console.warn('[nityam:canvas] anchor "' + a.id + '" selector ' + a.element + ' not found');
+        return;
+      }
+      target.classList.add('anc-svg');
+      target.dataset.anchor = a.id;
+      reg.register({
+        id: a.id, kind: 'diagram_element', el: target, pageEl: meta.pageEl, page: meta.page,
+        blockId: meta.blockId, text: a.element,
+        concept: a.concept, note: a.note, misconception: a.misconception
+      });
+    });
+  };
+
+  R.image = function (b, host, reg, meta) {
+    var wrap = el('figure', 'blk-fig');
+    var box = el('div', 'fig-box img-box');
+    var img = el('img', 'blk-img');
+    img.src = b.src;
+    img.alt = b.alt || '';
+    img.draggable = false;
+    box.appendChild(img);
+    wrap.appendChild(box);
+
+    var cap = el('figcaption');
+    if (b.kind) {
+      var chip = el('span', 'prov', b.kind === 'generated' ? 'AI-generated'
+                                : b.kind === 'web' ? 'from the web' : 'photo');
+      cap.appendChild(chip);
+    }
+    if (b.caption) cap.appendChild(document.createTextNode(b.caption));
+    wrap.appendChild(cap);
+    host.appendChild(wrap);
+
+    meta.images[b.id] = img;
+
+    (b.regions || []).forEach(function (rg) {
+      reg.register({
+        id: rg.id, kind: 'image_region', el: img, pageEl: meta.pageEl, page: meta.page,
+        blockId: meta.blockId, text: rg.label || rg.id, frac: rg.rect,
+        concept: rg.concept, note: rg.note
+      });
+    });
+    /* re-measure once the bitmap has actually laid out */
+    img.addEventListener('load', function () { reg.invalidate(); if (meta.onRelayout) meta.onRelayout(); });
+  };
+
+  /* The notebook can hold a LIVE artifact, not a picture of one. Same runtime,
+     same namespace — this is the whole integration with artifact_generator. */
+  /* The notebook can hold a LIVE artifact, not a picture of one. Same runtime,
+     same namespace — this is the whole integration with artifact_generator.
+     `host` here is already the .blk.blk-artifact wrapper renderBlock made. */
+  R.artifact = function (b, host, reg, meta) {
+    var ir = (meta.artifacts || {})[b.artifact_ir];
+    if (!ir) {
+      host.appendChild(el('div', 'blk-missing', 'Artifact not bundled: ' + b.artifact_ir));
+      return;
+    }
+    if (!NS.mountArtifact) {
+      host.appendChild(el('div', 'blk-missing', 'Artifact runtime not loaded.'));
+      return;
+    }
+
+    /* Shadow root, deliberately. The artifact ships its own stylesheet whose
+       class names (.card, .btn, .top) are generic enough to collide with the
+       notebook's in both directions. Encapsulation is one line and settles it;
+       CSS custom properties still inherit through, so the two surfaces keep
+       sharing one design system. */
+    var mountTarget = host;
+    if (host.attachShadow && meta.artifactCSS) {
+      var shadow = host.attachShadow({ mode: 'open' });
+      var st = document.createElement('style');
+      st.textContent = meta.artifactCSS;
+      shadow.appendChild(st);
+      mountTarget = document.createElement('div');
+      mountTarget.className = 'nty-artifact-host';
+      shadow.appendChild(mountTarget);
+    }
+
+    var handle = NS.mountArtifact(ir, mountTarget, {
+      themes: meta.themes || {},
+      theme: b.theme,
+      onEvidence: function (e) { if (meta.onArtifactEvidence) meta.onArtifactEvidence(e, b.id); }
+    });
+    meta.artifactHandles.push(handle);
+
+    reg.register({
+      id: b.id + '__artifact', kind: 'artifact', el: host, pageEl: meta.pageEl, page: meta.page,
+      blockId: b.id,
+      text: 'the ' + (ir.intent && ir.intent.concept_ids ? ir.intent.concept_ids[0] : '') + ' simulator',
+      note: 'A live interactive artifact; it reports its own evidence separately.'
+    });
+  };
+
+  R.student_work = function (b, host, reg, meta) {
+    var wrap = el('div', 'blk-work');
+    wrap.appendChild(el('div', 'work-label', b.prompt || 'Your working'));
+    var area = el('div', 'work-area');
+    area.style.minHeight = (b.height || 140) + 'px';
+    var ta = el('textarea', 'work-input');
+    ta.placeholder = 'Type here, or use the marker to write on the page.';
+    ta.rows = 3;
+    area.appendChild(ta);
+    wrap.appendChild(area);
+    host.appendChild(wrap);
+
+    reg.register({
+      id: b.id + '__work', kind: 'student_work', el: area, pageEl: meta.pageEl, page: meta.page,
+      blockId: b.id, text: b.prompt || 'the student working area',
+      note: "The student's own working space."
+    });
+  };
+
+  NS.BLOCKS = R;
+
+  NS.renderBlock = function (b, host, reg, meta) {
+    var fn = R[b.type];
+    if (!fn) {
+      console.warn('[nityam:canvas] unknown block type: ' + b.type);
+      return;
+    }
+    var wrap = el('div', 'blk blk-' + b.type);
+    wrap.dataset.block = b.id;
+    host.appendChild(wrap);
+    try {
+      fn(b, wrap, reg, Object.assign({}, meta, { blockId: b.id }));
+    } catch (e) {
+      /* one bad block must not take the rest of the notebook down with it */
+      console.error('[nityam:canvas] block "' + b.id + '" (' + b.type + ') failed:', e);
+      wrap.appendChild(el('div', 'blk-missing', 'This block could not be rendered.'));
+    }
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- canvas/runtime/annotate.js ---- */
+/* The annotation layer: marker, circle, lasso — drawn on one SVG per page.
+ *
+ * Deliberately small. Three tools, an undo stack, and serialisation. No pen
+ * pressure, no shape recognition, no object dragging: on a desktop with a
+ * mouse, highlight / circle / type is the whole vocabulary a student needs to
+ * point at something and ask about it.
+ *
+ * Strokes live in PAGE coordinates so they survive scrolling and reflow of the
+ * surrounding chrome. */
+(function (NS) {
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var SIMPLIFY_PX = 2.4;      // drop points closer than this; keeps paths light
+  var CLOSE_PX = 44;          // circle auto-closes if the ends come back this near
+
+  function svgEl(tag, attrs) {
+    var n = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  NS.createAnnotator = function (opts) {
+    var tool = 'select';
+    var strokes = [];           // {id, page, tool, points, colour}
+    var undone = [];
+    var drawing = null;
+    var seq = 0;
+
+    /* ── drawing a stroke into a page's overlay ──────────────────────── */
+
+    function pointsAttr(pts) {
+      return pts.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    }
+
+    function draw(stroke, overlay) {
+      var g = svgEl('g', { 'class': 'stroke stroke-' + stroke.tool, 'data-stroke': stroke.id });
+      if (stroke.tool === 'marker') {
+        g.appendChild(svgEl('polyline', {
+          points: pointsAttr(stroke.points), fill: 'none',
+          'stroke-width': 17, 'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+        }));
+      } else {
+        g.appendChild(svgEl('polygon', { points: pointsAttr(stroke.points), fill: 'none' }));
+      }
+      overlay.appendChild(g);
+      stroke.el = g;
+      return g;
+    }
+
+    function redrawPage(pageNo, overlay) {
+      while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
+      strokes.filter(function (s) { return s.page === pageNo; })
+             .forEach(function (s) { draw(s, overlay); });
+    }
+
+    /* ── pointer handling ────────────────────────────────────────────── */
+
+    function attach(pageEl, overlay, pageNo) {
+      overlay.addEventListener('pointerdown', function (e) {
+        if (tool === 'select') return;
+        /* let the student use the artifact and the textarea normally */
+        if (e.target.closest && e.target.closest('.blk-artifact, .work-input')) return;
+        e.preventDefault();
+        try { overlay.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
+
+        var pb = pageEl.getBoundingClientRect();
+        drawing = {
+          id: 'st' + (++seq), page: pageNo, tool: tool,
+          points: [[e.clientX - pb.left, e.clientY - pb.top]]
+        };
+        draw(drawing, overlay);
+      });
+
+      overlay.addEventListener('pointermove', function (e) {
+        if (!drawing || drawing.page !== pageNo) return;
+        var pb = pageEl.getBoundingClientRect();
+        var x = e.clientX - pb.left, y = e.clientY - pb.top;
+        var last = drawing.points[drawing.points.length - 1];
+        if (Math.hypot(x - last[0], y - last[1]) < SIMPLIFY_PX) return;
+        drawing.points.push([x, y]);
+        var shape = drawing.el.firstChild;
+        shape.setAttribute('points', pointsAttr(drawing.points));
+      });
+
+      function finish(e) {
+        if (!drawing || drawing.page !== pageNo) return;
+        var s = drawing;
+        drawing = null;
+        try { overlay.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+
+        if (s.points.length < 3) {                 // a click, not a gesture
+          if (s.el && s.el.parentNode) s.el.parentNode.removeChild(s.el);
+          return;
+        }
+        /* a circle whose ends come back near the start is treated as closed */
+        if (s.tool !== 'marker') {
+          var a = s.points[0], b = s.points[s.points.length - 1];
+          if (Math.hypot(b[0] - a[0], b[1] - a[1]) < CLOSE_PX) s.closed = true;
+        }
+        strokes.push(s);
+        undone.length = 0;
+        if (opts.onStroke) opts.onStroke(s, pageEl);
+      }
+
+      overlay.addEventListener('pointerup', finish);
+      overlay.addEventListener('pointercancel', finish);
+    }
+
+    /* ── selection (tier 1) ──────────────────────────────────────────── */
+
+    function anchorsInSelection(sel, pageEl) {
+      if (!sel || sel.isCollapsed) return null;
+      var range = sel.getRangeAt(0);
+      if (!pageEl.contains(range.commonAncestorContainer)) return null;
+
+      var hits = [];
+      var spans = pageEl.querySelectorAll('[data-anchor]');
+      for (var i = 0; i < spans.length; i++) {
+        if (sel.containsNode ? sel.containsNode(spans[i], true)
+                             : range.intersectsNode(spans[i])) {
+          hits.push(spans[i].dataset.anchor);
+        }
+      }
+      return { text: sel.toString().trim(), anchors: hits };
+    }
+
+    return {
+      setTool: function (t) { tool = t; },
+      getTool: function () { return tool; },
+      attach: attach,
+      redrawPage: redrawPage,
+      anchorsInSelection: anchorsInSelection,
+
+      strokes: function () { return strokes.slice(); },
+      strokesOn: function (p) { return strokes.filter(function (s) { return s.page === p; }); },
+
+      undo: function () {
+        var s = strokes.pop();
+        if (!s) return null;
+        undone.push(s);
+        if (s.el && s.el.parentNode) s.el.parentNode.removeChild(s.el);
+        return s;
+      },
+      redo: function (overlayFor) {
+        var s = undone.pop();
+        if (!s) return null;
+        strokes.push(s);
+        var ov = overlayFor(s.page);
+        if (ov) draw(s, ov);
+        return s;
+      },
+      clearPage: function (pageNo, overlay) {
+        strokes = strokes.filter(function (s) { return s.page !== pageNo; });
+        while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
+      },
+
+      /* Serialise without the DOM nodes, so a notebook survives a reload. */
+      serialise: function () {
+        return strokes.map(function (s) {
+          return { id: s.id, page: s.page, tool: s.tool, closed: !!s.closed,
+                   points: s.points.map(function (p) { return [Math.round(p[0]), Math.round(p[1])]; }) };
+        });
+      },
+      restore: function (list) {
+        strokes = (list || []).map(function (s) { return Object.assign({}, s); });
+        strokes.forEach(function (s) {
+          var n = parseInt(String(s.id).replace(/\D/g, ''), 10);
+          if (n > seq) seq = n;
+        });
+      }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- canvas/runtime/pager.js ---- */
+/* The notebook surface: discrete pages in one scroller, read like a PDF.
+ *
+ * Not an infinite canvas. Pages have edges, they come in order, and a scroll
+ * position means something — which is what makes a notebook feel like a
+ * notebook, and what makes annotations easy to anchor. */
+(function (NS) {
+
+  function el(tag, cls, txt) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (txt != null) n.textContent = txt;
+    return n;
+  }
+
+  NS.createPager = function (doc, host, opts) {
+    var pages = [];             // { no, label, pageEl, bodyEl, overlay }
+    var current = 1;
+
+    var scroller = el('div', 'nb-scroll');
+    host.appendChild(scroller);
+
+    doc.pages.forEach(function (p) {
+      var pageEl = el('section', 'nb-page');
+      pageEl.dataset.page = p.page;
+      pageEl.setAttribute('aria-label', 'Page ' + p.page + (p.label ? ': ' + p.label : ''));
+
+      var body = el('div', 'nb-body');
+      pageEl.appendChild(body);
+
+      /* one transparent SVG per page, on top of the content, in page coords */
+      var overlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      overlay.setAttribute('class', 'nb-overlay');
+      overlay.dataset.page = p.page;
+      pageEl.appendChild(overlay);
+
+      var foot = el('div', 'nb-foot');
+      foot.appendChild(el('span', 'nb-lab', p.label || ''));
+      foot.appendChild(el('span', 'nb-num', String(p.page)));
+      pageEl.appendChild(foot);
+
+      scroller.appendChild(pageEl);
+      pages.push({ no: p.page, label: p.label || '', pageEl: pageEl, bodyEl: body, overlay: overlay });
+    });
+
+    /* Which page is the reader actually looking at? The one covering the most
+       of the viewport, not merely the first one intersecting it. */
+    var io = null;
+    if (typeof IntersectionObserver !== 'undefined') {
+      var ratios = {};
+      io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { ratios[e.target.dataset.page] = e.intersectionRatio; });
+        var best = current, bestR = -1;
+        Object.keys(ratios).forEach(function (k) {
+          if (ratios[k] > bestR) { bestR = ratios[k]; best = parseInt(k, 10); }
+        });
+        if (best !== current) {
+          current = best;
+          if (opts.onPageChange) opts.onPageChange(current);
+        }
+      }, { root: scroller, threshold: [0, 0.25, 0.5, 0.75, 1] });
+      pages.forEach(function (p) { io.observe(p.pageEl); });
+    }
+
+    function goTo(n, behavior) {
+      var p = pages.filter(function (x) { return x.no === n; })[0];
+      if (!p) return false;
+      p.pageEl.scrollIntoView({ behavior: behavior || 'smooth', block: 'start' });
+      current = n;
+      if (opts.onPageChange) opts.onPageChange(n);
+      return true;
+    }
+
+    return {
+      scroller: scroller,
+      pages: pages,
+      page: function (n) { return pages.filter(function (p) { return p.no === n; })[0]; },
+      overlayFor: function (n) { var p = this.page(n); return p && p.overlay; },
+      current: function () { return current; },
+      goTo: goTo,
+      next: function () { return goTo(Math.min(current + 1, pages.length)); },
+      prev: function () { return goTo(Math.max(current - 1, 1)); },
+
+      /* the overlay's coordinate system must track the page box exactly */
+      syncOverlays: function () {
+        pages.forEach(function (p) {
+          var r = p.pageEl.getBoundingClientRect();
+          p.overlay.setAttribute('viewBox', '0 0 ' + Math.round(r.width) + ' ' + Math.round(r.height));
+          p.overlay.setAttribute('width', Math.round(r.width));
+          p.overlay.setAttribute('height', Math.round(r.height));
+        });
+      },
+
+      destroy: function () { if (io) io.disconnect(); }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+
+/* ---- canvas/runtime/mount.js ---- */
+/* mountCanvas(doc, container, options) -> handle
+ *
+ * The single entry point, mirroring mountArtifact in the artifact_generator.
+ * In the real product:
+ *
+ *     const nb = Nityam.mountCanvas(canvasDoc, ref.current, {
+ *       artifacts, themes,
+ *       onGesture: packet => agent.ask(packet),   // <- the whole interface
+ *     });
+ *     nb.pointAt('t_frac');                        // <- and the tutor points back
+ *
+ * Everything the tutor needs is on the returned handle. Nothing drives it in
+ * this proof of concept; the dev panel in the shell stands in for the agent. */
+(function (NS) {
+
+  var STORAGE_KEY = 'nityam.canvas.';
+
+  NS.mountCanvas = function (doc, container, opts) {
+    opts = opts || {};
+    container.innerHTML = '';
+    container.classList.add('nb-root');
+
+    var reg = NS.createAnchorRegistry();
+    var artifactHandles = [];
+    var images = {};
+    var lastPacket = null;
+
+    /* ── surface ──────────────────────────────────────────────────────── */
+    var pager = NS.createPager(doc, container, {
+      onPageChange: function (n) { if (opts.onPageChange) opts.onPageChange(n); }
+    });
+
+    var annot = NS.createAnnotator({
+      onStroke: function (stroke, pageEl) { onGesture(strokeToGesture(stroke), pageEl); }
+    });
+
+    /* ── content ──────────────────────────────────────────────────────── */
+    doc.pages.forEach(function (p) {
+      var page = pager.page(p.page);
+      var meta = {
+        page: p.page, pageEl: page.pageEl, images: images,
+        artifacts: opts.artifacts || {}, themes: opts.themes || {},
+        artifactCSS: opts.artifactCSS || '',
+        artifactHandles: artifactHandles,
+        onArtifactEvidence: opts.onArtifactEvidence,
+        onRelayout: relayout
+      };
+      p.blocks.forEach(function (b) { NS.renderBlock(b, page.bodyEl, reg, meta); });
+      annot.attach(page.pageEl, page.overlay, p.page);
+    });
+
+    function relayout() {
+      pager.syncOverlays();
+      reg.invalidate();
+    }
+    relayout();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(relayout);
+      ro.observe(container);
+    }
+    window.addEventListener('resize', relayout);
+
+    /* ── gestures ─────────────────────────────────────────────────────── */
+
+    function strokeToGesture(s) {
+      var bbox = NS.polyBBox(s.points);
+      /* a marker swipe is a band, not a line — thicken it to what the eye saw */
+      if (s.tool === 'marker') {
+        bbox = { x: bbox.x, y: bbox.y - 8, w: Math.max(bbox.w, 6), h: Math.max(bbox.h, 0) + 16 };
+      }
+      return { type: s.tool, page: s.page, points: s.points, bbox: bbox, strokeId: s.id };
+    }
+
+    function onGesture(gesture, pageEl) {
+      var packet = NS.resolveGesture(gesture, reg, {
+        pageEl: pageEl,
+        imageOf: function (blockId) { return images[blockId]; },
+        blockAt: function (g) {
+          var b = pageEl.querySelector('[data-block]');
+          var found = null;
+          pageEl.querySelectorAll('[data-block]').forEach(function (n) {
+            var r = n.getBoundingClientRect(), pb = pageEl.getBoundingClientRect();
+            var top = r.top - pb.top, bot = top + r.height;
+            var cy = g.bbox.y + g.bbox.h / 2;
+            if (cy >= top && cy <= bot) found = n.dataset.block;
+          });
+          return found;
+        }
+      });
+      emit(packet);
+    }
+
+    function emit(packet) {
+      lastPacket = packet;
+      if (opts.onGesture) opts.onGesture(packet);
+      console.log('[nityam:canvas]', packet.gesture, packet);
+      persist();
+    }
+
+    /* text selection is tier 1 — exact, and worth catching separately */
+    function onSelection() {
+      if (annot.getTool() !== 'select') return;
+      var sel = window.getSelection();
+      var page = pager.page(pager.current());
+      if (!page) return;
+      var hit = annot.anchorsInSelection(sel, page.pageEl);
+      if (!hit || !hit.text) return;
+      emit(NS.resolveGesture({
+        type: 'selection', page: page.no,
+        selectedText: hit.text, selectedAnchors: hit.anchors
+      }, reg, {}));
+    }
+    document.addEventListener('mouseup', function () { setTimeout(onSelection, 0); });
+
+    /* ── persistence: a notebook should survive a reload ──────────────── */
+    function persist() {
+      try {
+        localStorage.setItem(STORAGE_KEY + doc.notebook_id,
+          JSON.stringify({ strokes: annot.serialise() }));
+      } catch (e) { /* private window, blocked storage — not worth failing over */ }
+    }
+    function restore() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY + doc.notebook_id);
+        if (!raw) return 0;
+        var saved = JSON.parse(raw);
+        annot.restore(saved.strokes);
+        pager.pages.forEach(function (p) { annot.redrawPage(p.no, p.overlay); });
+        return (saved.strokes || []).length;
+      } catch (e) { return 0; }
+    }
+    var restored = restore();
+
+    /* ── the agent-facing surface ─────────────────────────────────────── */
+    var pointTimer = null;
+    function pointAt(anchorId, style) {
+      var rec = reg.get(anchorId);
+      if (!rec || !rec.el) return false;
+      pager.goTo(rec.page);
+      document.querySelectorAll('.tutor-point').forEach(function (n) { n.classList.remove('tutor-point'); });
+      rec.el.classList.add('tutor-point');
+      rec.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      clearTimeout(pointTimer);
+      if (style !== 'sticky') {
+        pointTimer = setTimeout(function () { rec.el.classList.remove('tutor-point'); }, 4200);
+      }
+      return true;
+    }
+
+    return {
+      pointAt: pointAt,
+      goToPage: function (n) { return pager.goTo(n); },
+      nextPage: pager.next,
+      prevPage: pager.prev,
+      currentPage: pager.current,
+
+      setTool: function (t) { annot.setTool(t); },
+      getTool: annot.getTool,
+      undo: function () { annot.undo(); persist(); },
+      redo: function () { annot.redo(function (n) { return pager.overlayFor(n); }); persist(); },
+      clearPage: function () {
+        var p = pager.page(pager.current());
+        if (p) { annot.clearPage(p.no, p.overlay); persist(); }
+      },
+
+      anchors: function () { return reg.all().map(function (r) {
+        return { id: r.id, kind: r.kind, page: r.page, block: r.blockId, text: r.text, concept: r.concept };
+      }); },
+      getAnnotations: annot.serialise,
+      lastPacket: function () { return lastPacket; },
+      restoredCount: restored,
+
+      /* Insert a block into a page after mount — how the agent will grow the
+         notebook turn by turn. */
+      addBlock: function (pageNo, block) {
+        var page = pager.page(pageNo);
+        if (!page) return false;
+        NS.renderBlock(block, page.bodyEl, reg, {
+          page: pageNo, pageEl: page.pageEl, images: images,
+          artifacts: opts.artifacts || {}, themes: opts.themes || {},
+          artifactCSS: opts.artifactCSS || '',
+          artifactHandles: artifactHandles, onRelayout: relayout
+        });
+        relayout();
+        return true;
+      },
+
+      destroy: function () {
+        window.removeEventListener('resize', relayout);
+        artifactHandles.forEach(function (h) { try { h.destroy(); } catch (e) {} });
+        pager.destroy();
+        container.innerHTML = '';
+      }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+</script>
+<script>
+//== generated data ==========================================================
+var DOC={"doc_version": "0.1", "notebook_id": "nb_projectile_session1", "title": "Projectile Motion", "subtitle": "Session notebook · Class 11 Physics", "concepts": ["projectile.max_height", "projectile.max_range", "vector.decomposition"], "pages": [{"page": 1, "label": "Splitting the velocity", "blocks": [{"type": "heading", "id": "b_h1", "text": "Where the vertical component comes in"}, {"type": "tutor_text", "id": "b_t1", "text": "When you throw something at an angle, its speed is doing two jobs at once. The vertical component decides how high it goes and how long it stays up. The horizontal component decides how far it travels in that time. Nothing pushes it sideways, so the horizontal component never changes.", "anchors": [{"id": "a_vertcomp", "span": "vertical component", "concept": "vector.decomposition", "note": "u sinθ — the part of the launch speed pointing straight up."}, {"id": "a_horizcomp", "span": "horizontal component", "concept": "vector.decomposition", "note": "u cosθ — constant for the whole flight."}, {"id": "a_never", "span": "never changes", "concept": "projectile.independence_xy", "note": "The independence of x and y motion."}]}, {"type": "diagram", "id": "b_d1", "svg": "<svg viewBox=\"0 0 560 220\" role=\"img\" aria-label=\"A launch velocity arrow decomposed into a horizontal and a vertical component.\">\n  <defs>\n    <marker id=\"ah-u\"  viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6.5\" markerHeight=\"6.5\" orient=\"auto\"><path d=\"M0 0 L10 5 L0 10 z\" fill=\"var(--ink)\"/></marker>\n    <marker id=\"ah-ux\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6.5\" markerHeight=\"6.5\" orient=\"auto\"><path d=\"M0 0 L10 5 L0 10 z\" fill=\"var(--c-ux)\"/></marker>\n    <marker id=\"ah-uy\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6.5\" markerHeight=\"6.5\" orient=\"auto\"><path d=\"M0 0 L10 5 L0 10 z\" fill=\"var(--c-uy)\"/></marker>\n  </defs>\n\n  <line id=\"axis-ground\" x1=\"40\" y1=\"172\" x2=\"530\" y2=\"172\" stroke=\"currentColor\" stroke-width=\"1.5\" opacity=\".3\"/>\n\n  <g id=\"vec-ux\">\n    <line x1=\"70\" y1=\"172\" x2=\"256\" y2=\"172\" stroke=\"var(--c-ux)\" stroke-width=\"2.4\" stroke-dasharray=\"6 4\" marker-end=\"url(#ah-ux)\"/>\n    <text x=\"158\" y=\"196\" font-size=\"15\" font-weight=\"600\" fill=\"var(--c-ux)\" text-anchor=\"middle\">u<tspan dy=\"4\" font-size=\"10.5\">x</tspan></text>\n  </g>\n\n  <g id=\"vec-uy\">\n    <line x1=\"262\" y1=\"172\" x2=\"262\" y2=\"56\" stroke=\"var(--c-uy)\" stroke-width=\"2.4\" stroke-dasharray=\"6 4\" marker-end=\"url(#ah-uy)\"/>\n    <text x=\"288\" y=\"118\" font-size=\"15\" font-weight=\"600\" fill=\"var(--c-uy)\" text-anchor=\"middle\">u<tspan dy=\"4\" font-size=\"10.5\">y</tspan></text>\n  </g>\n\n  <g id=\"vec-u\">\n    <line x1=\"70\" y1=\"172\" x2=\"256\" y2=\"58\" stroke=\"var(--ink)\" stroke-width=\"2.8\" marker-end=\"url(#ah-u)\"/>\n    <text x=\"146\" y=\"100\" font-size=\"17\" font-weight=\"700\" fill=\"var(--ink)\" text-anchor=\"middle\">u</text>\n  </g>\n\n  <g id=\"angle-theta\">\n    <path d=\"M118 172 A 48 48 0 0 0 106 143\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" opacity=\".55\"/>\n    <text x=\"128\" y=\"158\" font-size=\"15\" fill=\"currentColor\" opacity=\".75\">&#952;</text>\n  </g>\n</svg>", "caption": "The launch velocity u, split into its two components.", "anchors": [{"id": "a_vec_u", "element": "#vec-u", "concept": "vector.decomposition", "note": "The full launch velocity."}, {"id": "a_vec_ux", "element": "#vec-ux", "concept": "vector.decomposition", "note": "u cosθ, the horizontal component."}, {"id": "a_vec_uy", "element": "#vec-uy", "concept": "vector.decomposition", "note": "u sinθ, the vertical component."}, {"id": "a_theta", "element": "#angle-theta", "note": "The launch angle."}]}, {"type": "equation", "id": "b_e1", "terms": [{"id": "t_H", "tex": "H", "role": "maximum height", "concept": "projectile.max_height", "note": "How high it gets."}, {"id": "t_eq", "tex": "=", "plain": true}, {"id": "t_frac", "over": "(u sinθ)²", "tex": "2g", "concept": "projectile.max_height", "note": "The vertical component squared, over twice gravity.", "misconception": "misc.confuses_u_with_uy"}]}, {"type": "callout", "id": "b_c1", "tone": "prompt", "text": "Try it: highlight the part of that equation you are least sure about, then ask what it means.", "anchors": []}]}, {"page": 2, "label": "Comparing angles", "blocks": [{"type": "heading", "id": "b_h2", "text": "Three launches, same speed"}, {"type": "tutor_text", "id": "b_t2", "text": "These three were thrown at exactly the same speed — only the angle differs. Two of them land in the same place. One of them goes highest. Circle the apex if you want to talk about it.", "anchors": [{"id": "a_sameplace", "span": "land in the same place", "concept": "projectile.max_range", "note": "30° and 60° are complementary — identical range."}, {"id": "a_highest", "span": "goes highest", "concept": "projectile.max_height"}]}, {"type": "image", "id": "b_i1", "kind": "generated", "src": "data:image/png;base64,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", "alt": "Three projectile trajectories launched at 30, 45 and 60 degrees from the same speed.", "caption": "Generated for this session · u = 22 m/s", "regions": [{"id": "r_apex", "rect": [0.48, 0.154, 0.128, 0.267], "label": "the apex of the 45° launch", "concept": "projectile.max_height", "note": "Highest point of the middle trajectory."}, {"id": "r_land", "rect": [0.72, 0.62, 0.24, 0.3], "label": "where they land", "concept": "projectile.max_range", "note": "The 30° and 60° curves land together."}, {"id": "r_launch", "rect": [0.02, 0.55, 0.16, 0.38], "label": "the launch point", "concept": "vector.decomposition"}]}, {"type": "callout", "id": "b_c2", "tone": "neutral", "text": "Circling inside the picture also returns a cropped image of exactly what you circled, so the tutor can look at it directly."}]}, {"page": 3, "label": "Try it yourself", "blocks": [{"type": "heading", "id": "b_h3", "text": "Now move it yourself"}, {"type": "tutor_text", "id": "b_t3", "text": "The notebook can hold a live artifact, not just a picture of one. This is the same projectile simulator from the artifact generator, running inside the page.", "anchors": [{"id": "a_live", "span": "live artifact", "note": "Mounted with Nityam.mountArtifact()."}]}, {"type": "artifact", "id": "b_a1", "artifact_ir": "lesson1_max_range.json", "theme": "cricket"}, {"type": "student_work", "id": "b_w1", "height": 150, "prompt": "Work out the maximum height for a 45° launch at 20 m/s. Write or sketch it here."}]}]}, ARTIFACTS={"lesson1_max_range.json": {"ir_version": "0.1", "artifact_id": "art_projectile_max_range_v1", "kernel": "kinematics2d", "intent": {"concept_ids": ["projectile.max_range", "vector.decomposition"], "learning_outcome": "Range peaks at 45 degrees for a fixed launch speed.", "target_misconception": "misc.range_determined_by_speed_only", "eyebrow": "Investigate", "student_prompt": "Which angle sends {{theme.object}} the farthest?", "student_hint": "Keep the speed fixed and try a few angles. Pin the interesting ones so you can compare them side by side."}, "state": {"u": {"value": 20, "unit": "m/s", "min": 5, "max": 40, "step": 1}, "theta": {"value": 30, "unit": "deg", "min": 0, "max": 90, "step": 1}, "g": {"value": 9.8, "unit": "m/s^2", "locked": true}}, "kernel_inputs": {"speed": "state.u", "angle": "state.theta", "gravity": "state.g", "y0": 0}, "derived": {"range": "kernel.range", "peak": "kernel.max_height", "tof": "kernel.time_of_flight", "ux": "kernel.ux", "uy": "kernel.uy"}, "controls": [{"id": "c_theta", "widget": "slider", "bind": "state.theta", "label": "Launch angle", "display": "{{value}}°"}, {"id": "c_u", "widget": "slider", "bind": "state.u", "label": "{{theme.launch_verb}} speed", "display": "{{value}} m/s"}, {"id": "c_pin", "widget": "button", "action": "snapshot", "max": 3, "label": "Pin this attempt"}, {"id": "c_clear", "widget": "button", "action": "clear_snapshots", "label": "Clear pins"}], "layers": [{"type": "scene2d", "id": "stage", "ground_label": "{{theme.ground_label}}", "x_label": "horizontal distance (m)", "y_label": "height (m)"}, {"type": "trace_set", "in": "stage", "source": "snapshots"}, {"type": "trace", "in": "stage", "points": "kernel.path", "end_marker": "{{theme.projectile_icon}}"}, {"type": "vector", "in": "stage", "at": "kernel.launch_point", "components": {"x": "derived.ux", "y": "derived.uy"}, "decompose": true, "labels": {"resultant": "u", "x": "uₓ", "y": "uᵧ"}}, {"type": "readout_group", "items": [{"label": "Range", "value": "derived.range", "unit": "m", "precision": 1, "emphasis": true}, {"label": "Max height", "value": "derived.peak", "unit": "m", "precision": 1}, {"label": "Time of flight", "value": "derived.tof", "unit": "s", "precision": 2}, {"label": "uₓ (horizontal)", "value": "derived.ux", "unit": "m/s", "precision": 1, "swatch": "s3"}, {"label": "uᵧ (vertical)", "value": "derived.uy", "unit": "m/s", "precision": 1, "swatch": "s2"}]}, {"type": "annotation", "text": "{{theme.protagonist}} is at 45° — look at the range now.", "when": {"near": {"ref": "state.theta", "value": 45, "tol": 1}}}, {"type": "annotation", "text": "Notice: 30° and 60° give exactly the same range. Why might that be?", "when": {"any": [{"near": {"ref": "state.theta", "value": 30, "tol": 0.5}}, {"near": {"ref": "state.theta", "value": 60, "tol": 0.5}}]}}], "probes": [{"id": "p_explore", "on": "control_settle", "control": "c_theta", "emit": "artifact.explored", "concept": "projectile.max_range", "payload": ["state.theta", "derived.range"]}, {"id": "p_optimum", "on": "predicate", "once": true, "when": {"all": [{"distinct_settled": {"control": "c_theta", "gte": 3}}, {"near": {"ref": "state.theta", "value": 45, "tol": 5}}, {"is_max_seen": {"ref": "derived.range"}}]}, "emit": "artifact.discovered_optimum", "concept": "projectile.max_range", "note": "Student located the optimum by experiment rather than being told.", "payload": ["state.theta", "derived.range"]}, {"id": "p_speed_only", "on": "predicate", "once": true, "when": {"all": [{"distinct_settled": {"control": "c_u", "gte": 3}}, {"distinct_settled": {"control": "c_theta", "eq": 0}}]}, "emit": "artifact.misconception_behavior", "misconception": "misc.range_determined_by_speed_only", "note": "Student is varying speed only and never touching angle - behavioural evidence of the misconception, gathered without asking.", "payload": ["state.u", "derived.range"]}], "assessment": [{"id": "q1", "type": "choice", "gate": {"probe": "p_explore", "count_gte": 2}, "prompt": "At a fixed launch speed, which angle sends {{theme.object}} the farthest?", "options": [30, 45, 60, 75], "unit": "°", "expected": 45, "concept": "projectile.max_range", "diagnose": {"30": "misc.flatter_is_farther", "60": "misc.higher_is_farther", "75": "misc.higher_is_farther"}, "explain_correct": "Right. Range depends on uₓ × time of flight. Raising the angle grows the time but shrinks uₓ - 45° is where that trade-off balances.", "explain_wrong": "Try pinning 30°, 45° and 60° and compare the three traces."}], "invariants": [{"check": "finite_outputs", "sweep": ["state.theta", "state.u"], "samples": 15}, {"check": "argmax", "of": "derived.range", "over": "state.theta", "expect": 45, "tol": 0.5}, {"check": "control_affects", "control": "c_theta", "target": "derived.range", "min_relative_change": 0.05}, {"check": "control_affects", "control": "c_u", "target": "derived.range", "min_relative_change": 0.05}], "theme_slots": ["protagonist", "object", "projectile_icon", "ground_label", "launch_verb"]}}, THEMES={"cricket": {"label": "Cricket", "protagonist": "Arjun", "object": "the cricket ball", "projectile_icon": "🔴", "ground_label": "pitch", "launch_verb": "Bat", "tint": "rgba(235,104,52,0.10)"}, "spiderman": {"label": "Spider-Man", "protagonist": "Spider-Man", "object": "the web", "projectile_icon": "🕸️", "ground_label": "street", "launch_verb": "Web", "tint": "rgba(42,120,214,0.11)"}, "plain": {"label": "Plain physics", "protagonist": "The projectile", "object": "the projectile", "projectile_icon": "⚫", "ground_label": "ground", "launch_verb": "Launch", "tint": "rgba(27,175,122,0.09)"}},
+    ARTIFACT_CSS=":host{display:block;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}\n.nty-artifact-host .wrap{max-width:none;padding:16px 18px 22px}\n.nty-artifact-host .grid{grid-template-columns:minmax(0,1fr)}\n.nty-artifact-host .side{flex-direction:row;align-items:stretch;gap:12px}\n.nty-artifact-host .side>.card{flex:1;min-width:0}\n.nty-artifact-host canvas{height:300px}\n.nty-artifact-host .lesson h1{font-size:22px}\n*{box-sizing:border-box}\n\n\n.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 56px}\n\n/* \u2500\u2500 top bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:26px}\n.brand{display:flex;align-items:center;gap:11px;min-width:0}\n.dot{width:26px;height:26px;border-radius:8px;flex:none;\n     background:linear-gradient(140deg,var(--s1),var(--s3));\n     box-shadow:0 2px 8px -2px color-mix(in srgb,var(--s1) 60%,transparent)}\n.brand b{font-size:15px;font-weight:650;letter-spacing:-.01em}\n.brand span{font-size:13px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.brand i{font-style:normal;color:var(--line);margin:0 2px}\n.picker{display:flex;align-items:center;gap:8px;flex:none}\n.picker label{font-size:12px;color:var(--ink-3)}\nselect{\n  appearance:none;background:var(--card);color:var(--ink);border:1px solid var(--line);\n  border-radius:9px;padding:7px 30px 7px 11px;font-size:13.5px;font-family:inherit;cursor:pointer;\n  background-image:url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a8880' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E\");\n  background-repeat:no-repeat;background-position:right 11px center;\n}\nselect:hover{border-color:var(--ink-3)}\n\n/* \u2500\u2500 lesson header \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.lesson{margin-bottom:20px}\n.eyebrow{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;\n         letter-spacing:.07em;text-transform:uppercase;color:var(--s1);margin-bottom:9px}\n.eyebrow::before{content:\"\";width:5px;height:5px;border-radius:50%;background:var(--s1)}\n.lesson h1{margin:0 0 7px;font-size:26px;line-height:1.25;font-weight:660;letter-spacing:-.022em;max-width:34ch}\n.lesson p{margin:0;font-size:15px;color:var(--ink-2);max-width:56ch}\n\n/* \u2500\u2500 layout \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}\n@media(max-width:900px){.grid{grid-template-columns:1fr}}\n\n.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}\n.stage{padding:12px 12px 0;overflow:hidden}\ncanvas{width:100%;height:340px;display:block;border-radius:9px}\n@media(max-width:900px){canvas{height:290px}}\n\n.stagebar{display:flex;align-items:center;gap:9px;padding:11px 4px 13px;flex-wrap:wrap}\n.spacer{flex:1}\n\n/* \u2500\u2500 buttons \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.btn{\n  display:inline-flex;align-items:center;justify-content:center;gap:7px;\n  background:var(--card);color:var(--ink);border:1px solid var(--line);\n  border-radius:10px;padding:9px 15px;font:inherit;font-size:13.5px;font-weight:530;\n  cursor:pointer;min-height:38px;transition:background .13s,border-color .13s,transform .08s;\n}\n.btn:hover{background:var(--card-2);border-color:var(--ink-3)}\n.btn:active{transform:translateY(1px)}\n.btn:disabled{opacity:.42;cursor:default;transform:none}\n.btn-primary{background:var(--s1);border-color:var(--s1);color:#fff;font-weight:580}\n.btn-primary:hover{background:color-mix(in srgb,var(--s1) 86%,#000);border-color:color-mix(in srgb,var(--s1) 86%,#000)}\n.btn svg{flex:none}\n.pincount{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}\n\n/* \u2500\u2500 side panel \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.side{display:flex;flex-direction:column;gap:14px}\n.pad{padding:16px}\n.ttl{font-size:11px;font-weight:640;letter-spacing:.08em;text-transform:uppercase;\n     color:var(--ink-3);margin-bottom:13px;display:flex;justify-content:space-between;align-items:center;gap:8px}\n\n.hero{margin-bottom:14px}\n.hero-l{font-size:12px;color:var(--ink-3);margin-bottom:2px}\n.hero-v{font-size:38px;line-height:1.05;font-weight:640;letter-spacing:-.028em;\n        font-variant-numeric:tabular-nums;transition:color .2s}\n.hero-v u{font-style:normal;text-decoration:none;font-size:17px;font-weight:500;color:var(--ink-3);margin-left:4px}\n.hero-v.bump{animation:bump .34s cubic-bezier(.34,1.56,.64,1)}\n@keyframes bump{0%{transform:scale(1)}42%{transform:scale(1.07)}100%{transform:scale(1)}}\n\n.stat{display:flex;justify-content:space-between;align-items:baseline;gap:12px;\n      padding:7px 0;border-top:1px solid var(--line-2);font-size:13.5px}\n.stat-l{color:var(--ink-2);display:flex;align-items:center;gap:7px;min-width:0}\n.swatch{width:9px;height:9px;border-radius:2.5px;flex:none}\n.stat-v{font-variant-numeric:tabular-nums;font-weight:540;white-space:nowrap}\n\n/* \u2500\u2500 sliders \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.ctl{margin-bottom:17px}\n.ctl:last-of-type{margin-bottom:12px}\n.ctl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:10px}\n.ctl-l{font-size:13.5px;color:var(--ink-2)}\n.ctl-v{font-size:15px;font-weight:620;font-variant-numeric:tabular-nums;letter-spacing:-.01em}\ninput[type=range]{\n  -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;cursor:grab;margin:0;display:block;\n}\ninput[type=range]:active{cursor:grabbing}\ninput[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:var(--line);border:none}\ninput[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--line);border:none}\ninput[type=range]::-webkit-slider-thumb{\n  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;margin-top:-8px;\n  background:var(--card);border:2.5px solid var(--s1);\n  box-shadow:0 1px 4px rgba(26,26,25,.22);transition:transform .12s;\n}\ninput[type=range]::-moz-range-thumb{\n  width:22px;height:22px;border-radius:50%;background:var(--card);border:2.5px solid var(--s1);\n  box-shadow:0 1px 4px rgba(26,26,25,.22);\n}\ninput[type=range]:hover::-webkit-slider-thumb{transform:scale(1.12)}\ninput[type=range]:focus-visible::-webkit-slider-thumb{outline:3px solid color-mix(in srgb,var(--s1) 34%,transparent);outline-offset:2px}\n\n/* \u2500\u2500 annotation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.annos{display:flex;flex-direction:column;gap:8px;margin-top:12px}\n.anno{\n  display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;\n  background:var(--card);border:1px solid var(--line);border-left:3px solid var(--s1);\n  border-radius:10px;padding:11px 14px;color:var(--ink);box-shadow:var(--shadow);\n  animation:slide .26s ease-out;\n}\n.anno svg{flex:none;margin-top:2px;color:var(--s1)}\n@keyframes slide{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}\n\n/* \u2500\u2500 checkpoint \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.check{margin-top:18px;padding:20px}\n.hide{display:none}\n.q{font-size:19px;font-weight:600;letter-spacing:-.015em;margin:0 0 15px;max-width:46ch;line-height:1.35}\n.opts{display:flex;gap:9px;flex-wrap:wrap}\n.opt{\n  background:var(--card);border:1.5px solid var(--line);border-radius:11px;\n  padding:12px 22px;font:inherit;font-size:16px;font-weight:580;font-variant-numeric:tabular-nums;\n  color:var(--ink);cursor:pointer;min-width:74px;min-height:46px;transition:all .13s;\n}\n.opt:hover:not(:disabled){border-color:var(--s1);background:color-mix(in srgb,var(--s1) 6%,var(--card));transform:translateY(-1px)}\n.opt:disabled{cursor:default}\n.opt.ok{background:var(--good-bg);border-color:var(--good);color:var(--good)}\n.opt.bad{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}\n.fb{margin-top:14px;font-size:14.5px;line-height:1.55;display:flex;gap:9px;align-items:flex-start;max-width:62ch}\n.fb svg{flex:none;margin-top:2px}\n.fb.ok{color:var(--good)} .fb.bad{color:var(--warn)}\n\n/* \u2500\u2500 noticed / evidence \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.noticed{margin-top:18px;padding:16px 18px}\n.toggle{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);\n        cursor:pointer;user-select:none;text-transform:none;letter-spacing:0;font-weight:500}\n.toggle input{accent-color:var(--s1);margin:0;cursor:pointer}\n\n.mastery{margin-bottom:14px}\n.mastery-top{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-2);margin-bottom:7px}\n.mastery-top b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}\n.bar{height:7px;border-radius:99px;background:var(--line);overflow:hidden}\n.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--s1),var(--s3));\n       width:0;transition:width .6s cubic-bezier(.22,1,.36,1)}\n\n.feed{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding-right:2px}\n.empty{font-size:13.5px;color:var(--ink-3);padding:6px 0}\n.ev{display:flex;gap:11px;align-items:flex-start;background:var(--card-2);\n    border:1px solid var(--line-2);border-radius:10px;padding:11px 13px;animation:slide .26s ease-out}\n.ev-ic{width:22px;height:22px;border-radius:7px;flex:none;display:flex;align-items:center;\n       justify-content:center;background:var(--line);color:var(--ink-2);font-size:12px}\n.ev.good .ev-ic{background:var(--good-bg);color:var(--good)}\n.ev.warn .ev-ic{background:var(--warn-bg);color:var(--warn)}\n.ev-b{min-width:0;flex:1}\n.ev-t{font-size:13.5px;line-height:1.45}\n.ev-raw{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-3);\n        margin-top:5px;word-break:break-all;display:none}\n.showraw .ev-raw{display:block}\n\n/* \u2500\u2500 toast \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.toast{\n  position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);\n  background:var(--ink);color:var(--page);padding:13px 20px;border-radius:12px;\n  font-size:14.5px;font-weight:540;box-shadow:0 12px 32px -8px rgba(0,0,0,.42);\n  opacity:0;pointer-events:none;transition:opacity .28s,transform .28s;z-index:50;\n  display:flex;align-items:center;gap:9px;max-width:calc(100vw - 40px);\n}\n.toast.on{opacity:1;transform:translate(-50%,0)}\n\n/* \u2500\u2500 footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */\n.foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);\n      font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-3);\n      display:flex;flex-wrap:wrap;gap:7px 16px}\n\n@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}\n", BUILD={"doc": "notebook_projectile.json", "checks_passed": 10, "checks_total": 10};
+
+var ICON = {
+  select:'<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M3 1.6l9.4 5.7-4 .9-1.9 4.2z"/></svg>',
+  marker:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14h12"/><path d="M4.5 11.2l6-6.7 2.6 2.4-6.2 6.4H4.5z"/></svg>',
+  circle:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="8" cy="8" rx="6.4" ry="5"/></svg>',
+  lasso:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 2c3.3 0 6 1.8 6 4s-2.7 4-6 4-6-1.8-6-4 2.7-4 6-4z" stroke-dasharray="3 2.4"/><path d="M6 10v2.5a1.6 1.6 0 1 0 3.2 0"/></svg>'
+};
+var TOOLS=[['select','Select'],['marker','Marker'],['circle','Circle'],['lasso','Lasso']];
+
+var root = document.getElementById('nb');
+var nb = Nityam.mountCanvas(DOC, root, {
+  artifacts: ARTIFACTS, themes: THEMES, artifactCSS: ARTIFACT_CSS,
+  onGesture: render,
+  onPageChange: function(n){ document.getElementById('pnum').textContent = n; }
+});
+window.nb = nb;
+
+document.getElementById('nbtitle').textContent = (DOC.title||'') + ' · ' + (DOC.subtitle||'');
+document.getElementById('ptot').textContent = DOC.pages.length;
+
+/* toolbar */
+var tw = document.getElementById('tools');
+TOOLS.forEach(function(t){
+  var b=document.createElement('button');
+  b.className='tool'; b.dataset.tool=t[0];
+  b.innerHTML = ICON[t[0]] + '<span>'+t[1]+'</span>';
+  b.setAttribute('aria-pressed', t[0]==='select');
+  b.onclick=function(){ setTool(t[0]); };
+  tw.appendChild(b);
+});
+function setTool(t){
+  nb.setTool(t);
+  root.dataset.tool = t;
+  tw.querySelectorAll('.tool').forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.tool===t); });
+}
+setTool('select');
+
+document.getElementById('undo').onclick=function(){ nb.undo(); };
+document.getElementById('clear').onclick=function(){ nb.clearPage(); };
+document.getElementById('prev').onclick=function(){ nb.prevPage(); };
+document.getElementById('next').onclick=function(){ nb.nextPage(); };
+document.addEventListener('keydown', function(e){
+  if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return;
+  if(e.key==='ArrowRight') nb.nextPage();
+  if(e.key==='ArrowLeft')  nb.prevPage();
+  if((e.metaKey||e.ctrlKey) && e.key==='z'){ e.preventDefault(); nb.undo(); }
+  var i='1234'.indexOf(e.key);
+  if(i>=0) setTool(TOOLS[i][0]);
+});
+
+/* tutor stub */
+var sel = document.getElementById('anchorsel');
+nb.anchors().forEach(function(a){
+  var o=document.createElement('option'); o.value=a.id;
+  o.textContent='p'+a.page+' · '+(a.text||a.id).slice(0,38);
+  sel.appendChild(o);
+});
+document.getElementById('pointbtn').onclick=function(){ nb.pointAt(sel.value); };
+
+/* the packet inspector */
+function render(p){
+  document.getElementById('tier').textContent = p.tier || '';
+  var el=document.getElementById('panel');
+  el.innerHTML='';
+
+  var top=document.createElement('div'); top.className='pk-top';
+  function pill(t,c){ var s=document.createElement('span'); s.className='pill'+(c?' '+c:''); s.textContent=t; top.appendChild(s); }
+  pill(p.gesture);
+  pill('page '+p.page);
+  pill('confidence '+p.confidence.toFixed(2), p.confidence>=0.6?'hi':(p.confidence>0?'lo':''));
+  if(p.block) pill(p.block);
+  el.appendChild(top);
+
+  if(!p.resolved.length && !p.nearby.length){
+    var e=document.createElement('div'); e.className='empty';
+    e.textContent='Nothing resolved — the tutor would get a region with no meaning attached.';
+    el.appendChild(e);
+  }
+  function row(r, near){
+    var d=document.createElement('div'); d.className='res'+(near?' near':'');
+    var t=document.createElement('div'); t.className='res-t'; t.textContent=r.text||r.anchor; d.appendChild(t);
+    var m=document.createElement('div'); m.className='res-m';
+    m.textContent=r.kind+' · '+r.anchor+(r.concept?'\n'+r.concept:'')+(r.misconception?'\n! '+r.misconception:'');
+    d.appendChild(m);
+    if(r.note){ var n=document.createElement('div'); n.className='res-n'; n.textContent=r.note; d.appendChild(n); }
+    var b=document.createElement('div'); b.className='bar-cov';
+    var i=document.createElement('i'); i.style.width=Math.round(r.coverage*100)+'%'; b.appendChild(i); d.appendChild(b);
+    el.appendChild(d);
+  }
+  p.resolved.forEach(function(r){ row(r,false); });
+  p.nearby.forEach(function(r){ row(r,true); });
+
+  if(p.crop){
+    var c=document.createElement('div'); c.className='crop';
+    var l=document.createElement('div'); l.className='crop-l'; l.textContent='crop sent to vision';
+    var im=document.createElement('img'); im.src=p.crop; im.alt='Cropped region of what was circled';
+    c.appendChild(l); c.appendChild(im); el.appendChild(c);
+  }
+
+  var raw=document.createElement('pre'); raw.className='raw';
+  var slim=JSON.parse(JSON.stringify(p));
+  if(slim.crop) slim.crop='data:image/png;base64,…('+Math.round(p.crop.length/1024)+' KB)';
+  raw.textContent=JSON.stringify(slim,null,2);
+  el.appendChild(raw);
+}
+
+document.getElementById('foot').innerHTML =
+  ['notebook: '+DOC.notebook_id, 'pages: '+DOC.pages.length,
+   'anchors: '+nb.anchors().length, 'doc v'+DOC.doc_version,
+   'validator: '+BUILD.checks_passed+'/'+BUILD.checks_total+' passed',
+   nb.restoredCount?('restored '+nb.restoredCount+' strokes'):'no saved strokes']
+  .map(function(s){return '<span>'+s+'</span>';}).join('');
+</script>
+</body>
+</html>

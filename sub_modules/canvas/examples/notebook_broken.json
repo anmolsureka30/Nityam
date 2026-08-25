@@ -1,0 +1,228 @@
+{
+  "doc_version": "0.1",
+  "notebook_id": "nb_broken",
+  "title": "Projectile Motion",
+  "subtitle": "Session notebook · Class 11 Physics",
+  "concepts": [
+    "projectile.max_height",
+    "projectile.max_range",
+    "vector.decomposition"
+  ],
+  "pages": [
+    {
+      "page": 1,
+      "label": "Splitting the velocity",
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "b_h1",
+          "text": "Where the vertical component comes in"
+        },
+        {
+          "type": "tutor_text",
+          "id": "b_t1",
+          "text": "When you throw something at an angle, its speed is doing two jobs at once. The vertical component decides how high it goes and how long it stays up. The horizontal component decides how far it travels in that time. Nothing pushes it sideways, so the horizontal component never changes.",
+          "anchors": [
+            {
+              "id": "a_vertcomp",
+              "span": "sideways velocity",
+              "concept": "vector.decomposition",
+              "note": "u sinθ — the part of the launch speed pointing straight up."
+            },
+            {
+              "id": "a_horizcomp",
+              "span": "horizontal component",
+              "concept": "vector.decomposition",
+              "note": "u cosθ — constant for the whole flight."
+            },
+            {
+              "id": "a_never",
+              "span": "never changes",
+              "concept": "projectile.independence_xy",
+              "note": "The independence of x and y motion."
+            }
+          ]
+        },
+        {
+          "type": "diagram",
+          "id": "b_d1",
+          "svg": "<svg viewBox=\"0 0 560 220\" role=\"img\" aria-label=\"A launch velocity arrow decomposed into a horizontal and a vertical component.\">\n  <defs>\n    <marker id=\"ah-u\"  viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6.5\" markerHeight=\"6.5\" orient=\"auto\"><path d=\"M0 0 L10 5 L0 10 z\" fill=\"var(--ink)\"/></marker>\n    <marker id=\"ah-ux\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6.5\" markerHeight=\"6.5\" orient=\"auto\"><path d=\"M0 0 L10 5 L0 10 z\" fill=\"var(--c-ux)\"/></marker>\n    <marker id=\"ah-uy\" viewBox=\"0 0 10 10\" refX=\"9\" refY=\"5\" markerWidth=\"6.5\" markerHeight=\"6.5\" orient=\"auto\"><path d=\"M0 0 L10 5 L0 10 z\" fill=\"var(--c-uy)\"/></marker>\n  </defs>\n\n  <line id=\"axis-ground\" x1=\"40\" y1=\"172\" x2=\"530\" y2=\"172\" stroke=\"currentColor\" stroke-width=\"1.5\" opacity=\".3\"/>\n\n  <g id=\"vec-ux\">\n    <line x1=\"70\" y1=\"172\" x2=\"256\" y2=\"172\" stroke=\"var(--c-ux)\" stroke-width=\"2.4\" stroke-dasharray=\"6 4\" marker-end=\"url(#ah-ux)\"/>\n    <text x=\"158\" y=\"196\" font-size=\"15\" font-weight=\"600\" fill=\"var(--c-ux)\" text-anchor=\"middle\">u<tspan dy=\"4\" font-size=\"10.5\">x</tspan></text>\n  </g>\n\n  <g id=\"vec-uy\">\n    <line x1=\"262\" y1=\"172\" x2=\"262\" y2=\"56\" stroke=\"var(--c-uy)\" stroke-width=\"2.4\" stroke-dasharray=\"6 4\" marker-end=\"url(#ah-uy)\"/>\n    <text x=\"288\" y=\"118\" font-size=\"15\" font-weight=\"600\" fill=\"var(--c-uy)\" text-anchor=\"middle\">u<tspan dy=\"4\" font-size=\"10.5\">y</tspan></text>\n  </g>\n\n  <g id=\"vec-u\">\n    <line x1=\"70\" y1=\"172\" x2=\"256\" y2=\"58\" stroke=\"var(--ink)\" stroke-width=\"2.8\" marker-end=\"url(#ah-u)\"/>\n    <text x=\"146\" y=\"100\" font-size=\"17\" font-weight=\"700\" fill=\"var(--ink)\" text-anchor=\"middle\">u</text>\n  </g>\n\n  <g id=\"angle-theta\">\n    <path d=\"M118 172 A 48 48 0 0 0 106 143\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" opacity=\".55\"/>\n    <text x=\"128\" y=\"158\" font-size=\"15\" fill=\"currentColor\" opacity=\".75\">&#952;</text>\n  </g>\n</svg>",
+          "caption": "The launch velocity u, split into its two components.",
+          "anchors": [
+            {
+              "id": "a_vec_u",
+              "element": "#vec-u",
+              "concept": "vector.decomposition",
+              "note": "The full launch velocity."
+            },
+            {
+              "id": "a_vec_ux",
+              "element": "#vec-nope",
+              "concept": "vector.decomposition",
+              "note": "u cosθ, the horizontal component."
+            },
+            {
+              "id": "a_vec_uy",
+              "element": "#vec-uy",
+              "concept": "vector.decomposition",
+              "note": "u sinθ, the vertical component."
+            },
+            {
+              "id": "a_theta",
+              "element": "#angle-theta",
+              "note": "The launch angle."
+            }
+          ]
+        },
+        {
+          "type": "equation",
+          "id": "b_e1",
+          "terms": [
+            {
+              "id": "t_H",
+              "tex": "H",
+              "role": "maximum height",
+              "concept": "projectile.max_height",
+              "note": "How high it gets."
+            },
+            {
+              "id": "t_eq",
+              "tex": "=",
+              "plain": true
+            },
+            {
+              "id": "t_frac",
+              "over": "(u sinθ)²",
+              "tex": "2g",
+              "concept": "projectile.max_height",
+              "note": "The vertical component squared, over twice gravity.",
+              "misconception": "misc.confuses_u_with_uy"
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "id": "b_c1",
+          "tone": "prompt",
+          "text": "Try it: highlight the part of that equation you are least sure about, then ask what it means.",
+          "anchors": []
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "label": "Comparing angles",
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "b_h2",
+          "text": "Three launches, same speed"
+        },
+        {
+          "type": "tutor_text",
+          "id": "b_t2",
+          "text": "These three were thrown at exactly the same speed — only the angle differs. Two of them land in the same place. One of them goes highest. Circle the apex if you want to talk about it.",
+          "anchors": [
+            {
+              "id": "a_sameplace",
+              "span": "land in the same place",
+              "concept": "projectile.max_range",
+              "note": "30° and 60° are complementary — identical range."
+            },
+            {
+              "id": "a_highest",
+              "span": "goes highest",
+              "concept": "projectile.max_height"
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "id": "b_i1",
+          "kind": "generated",
+          "src": "data:image/png;base64,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",
+          "alt": "Three projectile trajectories launched at 30, 45 and 60 degrees from the same speed.",
+          "caption": "Generated for this session · u = 22 m/s",
+          "regions": [
+            {
+              "id": "r_apex",
+              "rect": [
+                0.48,
+                0.154,
+                0.128,
+                0.267
+              ],
+              "label": "the apex of the 45° launch",
+              "concept": "projectile.max_height",
+              "note": "Highest point of the middle trajectory."
+            },
+            {
+              "id": "r_land",
+              "rect": [
+                0.72,
+                0.62,
+                0.24,
+                0.3
+              ],
+              "label": "where they land",
+              "concept": "projectile.max_range",
+              "note": "The 30° and 60° curves land together."
+            },
+            {
+              "id": "r_launch",
+              "rect": [
+                0.02,
+                0.55,
+                0.16,
+                0.38
+              ],
+              "label": "the launch point",
+              "concept": "vector.decomposition"
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "id": "b_c2",
+          "tone": "neutral",
+          "text": "Circling inside the picture also returns a cropped image of exactly what you circled, so the tutor can look at it directly."
+        }
+      ]
+    },
+    {
+      "page": 3,
+      "label": "Try it yourself",
+      "blocks": [
+        {
+          "type": "heading",
+          "id": "b_h3",
+          "text": "Now move it yourself"
+        },
+        {
+          "type": "tutor_text",
+          "id": "b_t3",
+          "text": "The notebook can hold a live artifact, not just a picture of one. This is the same projectile simulator from the artifact generator, running inside the page.",
+          "anchors": [
+            {
+              "id": "a_live",
+              "span": "live artifact",
+              "note": "Mounted with Nityam.mountArtifact()."
+            }
+          ]
+        },
+        {
+          "type": "artifact",
+          "id": "b_a1",
+          "artifact_ir": "lesson1_max_range.json",
+          "theme": "cricket"
+        },
+        {
+          "type": "student_work",
+          "id": "b_w1",
+          "height": 150,
+          "prompt": "Work out the maximum height for a 45° launch at 20 m/s. Write or sketch it here."
+        }
+      ]
+    }
+  ]
+}
