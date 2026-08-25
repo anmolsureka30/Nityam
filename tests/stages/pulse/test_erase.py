@@ -32,3 +32,17 @@ def test_dedupe_within_merges_close_events():
     ]
     deduped = dedupe_within(events, min_gap_s=10.0)
     assert [e.at_s for e in deduped] == [10.0, 30.0]
+
+
+def test_dedupe_within_with_zero_gap_disables_merging():
+    """Test that min_gap_s=0 disables merging (each event is separate)."""
+    events = [
+        EraseEvent(at_s=10.0, before=1000, after=50),
+        EraseEvent(at_s=10.5, before=1000, after=50),
+        EraseEvent(at_s=11.0, before=1000, after=50),
+    ]
+    deduped = dedupe_within(events, min_gap_s=0)
+    # With min_gap_s=0, no events merge (gap must be >= 0)
+    # Each event becomes its own singleton cluster
+    assert len(deduped) == 3
+    assert [e.at_s for e in deduped] == [10.0, 10.5, 11.0]

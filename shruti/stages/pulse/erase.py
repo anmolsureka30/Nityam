@@ -30,7 +30,7 @@ def dedupe_within(events: list[EraseEvent], min_gap_s: float = 10.0) -> list[Era
     i = 0
     while i < len(events):
         # Find all events within min_gap_s of current event
-        j = i
+        j = i + 1  # Always advance at least one position
         while j < len(events) and events[j].at_s - events[i].at_s < min_gap_s:
             j += 1
         # Keep the median event in this gap
