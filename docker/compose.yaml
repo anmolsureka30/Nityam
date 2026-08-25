@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: shruti
       POSTGRES_PASSWORD: shruti
       POSTGRES_DB: shruti
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
   gcs-emulator:
     image: fsouza/fake-gcs-server:latest
