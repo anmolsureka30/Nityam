@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from app.memory import store
+from app.memory import instrumentation, store
 from app.memory.schemas import DPMProfile, GroundingChunk, SessionLog, TeachingMemory, Turn, Weakness
 
 
@@ -141,7 +141,6 @@ def test_semantic_search_ranks_similar_chunk_first(firestore_db):
             firestore_db.collection("grounding_chunks").document(chunk_id).delete()
 
 
-from app.memory import instrumentation
 
 
 def test_put_dpm_publishes_event_scoped_by_context(firestore_db, redis_client):
