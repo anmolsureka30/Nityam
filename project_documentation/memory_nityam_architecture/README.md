@@ -1,6 +1,6 @@
 # Nityam / SMRITI — Architecture Wiki
 
-Five documents. Read them in this order the first time; after that, treat them as reference.
+Six documents. Read them in this order the first time; after that, treat them as reference.
 Every document is a living artifact — corrections and refinements get appended in place with a
 version bump, not silently rewritten.
 
@@ -17,6 +17,11 @@ Storage for artifacts) — no local database anywhere in the design now. A fifth
 `google_cloud_storage_integration.md`, carries the full research and the file-by-file
 implementation plan behind that move; nothing in the four schemas or the three-tier split
 changed, only where each tier physically lives.
+
+**v2.1 note (2026-08-27):** the ported memory layer was run for real against five multi-session
+student personas and the real `TutorAgent` — not just unit-tested. `memory_layer_eval_report.md`
+(now the sixth document) has the results: the core mechanics held up end to end, and one real,
+significant gap was found in how `search_grounding` matches concept ids, not yet fixed.
 
 ---
 
@@ -35,9 +40,16 @@ changed, only where each tier physically lives.
    findings, the Firestore embedding-dimension conflict still open, and exact per-file code for
    the Firestore/GCS/Memorystore migration (`app/memory/store.py` rewritten function-for-function,
    what changes in `app/memory/tools.py`, what doesn't change at all).
-4. **[`deferred.md`](deferred.md)** — everything cut for this pass, with a one-line reason each
+4. **[`memory_layer_eval_report.md`](memory_layer_eval_report.md)** — results of actually running
+   the ported memory layer through five real student personas across multi-session conversations
+   with the real `TutorAgent`, live: what worked (Firestore/Redis mechanics, citation-evidence
+   integrity, cross-session recall, misconception lifecycle, student isolation, all verified
+   end to end for the first time against a real run), the one significant gap found
+   (`search_grounding`'s exact-string concept-id matching is fragile to LLM phrasing), and a full
+   account of an LLM-as-judge infrastructure failure investigated but not resolved.
+5. **[`deferred.md`](deferred.md)** — everything cut for this pass, with a one-line reason each
    and a pointer to where the full design lived, in case it's needed later.
-5. This file — navigation, and the parts of the earlier research that are about Shruti (not
+6. This file — navigation, and the parts of the earlier research that are about Shruti (not
    this redesign) and haven't changed.
 
 ---
