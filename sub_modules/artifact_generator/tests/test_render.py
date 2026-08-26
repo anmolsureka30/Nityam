@@ -1,6 +1,10 @@
 """Regression test for the render extraction — build.py must produce
-byte-identical output to what render_html() now produces, since build.py's
-own rendering logic is being replaced with a call to this function."""
+functionally equivalent output to what render_html() now produces, since
+build.py's own rendering logic is being replaced with a call to this
+function. ("Functionally", not byte-identical: build_meta's dict key order
+shifts slightly because render_html() adds "theme" via `{**build_meta,
+"theme": ...}` — every consumer reads BUILD.<key> by name, never by
+position, so this has no runtime effect. See shell/template.html.)"""
 import json
 import os
 import sys
