@@ -8,6 +8,19 @@ from shruti.contracts.beat import Beat
 from shruti.contracts.atlas import BeatRef, Concept, Edge, Misconception
 
 
+def test_is_physical_board_true_only_for_blackboard_and_whiteboard():
+    from shruti.contracts.recording import is_physical_board
+    assert is_physical_board(SurfaceKind.BLACKBOARD) is True
+    assert is_physical_board(SurfaceKind.WHITEBOARD) is True
+    assert is_physical_board(SurfaceKind.SLIDES) is False
+    assert is_physical_board(SurfaceKind.MIXED) is False
+    assert is_physical_board(SurfaceKind.TALKING_HEAD) is False
+    # Also accepts a plain string, since ingest.py mostly carries
+    # recording.surface_kind.value (a str) rather than the enum member.
+    assert is_physical_board("blackboard") is True
+    assert is_physical_board("slides") is False
+
+
 def test_recording_requires_surface_kind():
     with pytest.raises(ValidationError):
         Recording(id="a" * 64, source_uri="gs://x", duration_s=1.0, fps=30.0)

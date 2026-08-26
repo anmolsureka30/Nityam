@@ -45,7 +45,7 @@ import numpy as np
 
 from shruti.db import get_pool, apply_migrations
 from shruti.config import Models, PulseConfig
-from shruti.contracts.recording import Recording
+from shruti.contracts.recording import Recording, is_physical_board
 from shruti.contracts.beat import Beat
 from shruti.contracts.atlas import Concept, Edge, Misconception, BeatRef
 from shruti.contracts.board import BoardState
@@ -286,7 +286,7 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
 
     print()
     print("=" * 70)
-    if recording.surface_kind.value in ("blackboard", "whiteboard"):
+    if is_physical_board(recording.surface_kind):
         print("SLATE + GLYPH (board-rectification path: locate/rectify/mask/composite)")
     else:
         print(f"SLATE + GLYPH (surface_kind={recording.surface_kind.value!r} — "
@@ -295,7 +295,7 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
     art.start_stage("02_slate")
     board_states: list[BoardState] = []
     try:
-        if recording.surface_kind.value in ("blackboard", "whiteboard"):
+        if is_physical_board(recording.surface_kind):
             # Real physical board: geometric rectification + occlusion masking
             # + directional compositing are the right tools here.
             if quad is None or not coarse_frames:
@@ -411,28 +411,34 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
 
     print()
     print("=" * 70)
-    print(f"POINT (capped at {POINT_CAP} utterances to bound API cost)")
-    print("=" * 70)
     art.start_stage("05_point")
     deixis_list = []
-    deixis_debug = []
-    for u in utterances[:POINT_CAP]:
-        clip = sample_frames_at(normalized_video_path, [max(0, u.start_s - 0.5), u.start_s, u.end_s])
-        if not clip:
-            continue
-        art.save_image_series("05_point", f"clip_{u.id}", clip)
-        try:
-            d = resolve_deixis(client, clip, u)
-        except Exception as e:
-            gaps.append(f"POINT failed on utterance {u.id}: {e!r}")
-            d = None
-        deixis_debug.append({"utterance_id": u.id, "utterance_text": u.text,
-                              "found": d is not None, "deixis": d.model_dump() if d else None})
-        if d:
-            deixis_list.append(d)
-    art.save_json("05_point", "deixis_results", deixis_debug)
+    if is_physical_board(recording.surface_kind):
+        print(f"POINT (capped at {POINT_CAP} utterances to bound API cost)")
+        print("=" * 70)
+        deixis_debug = []
+        for u in utterances[:POINT_CAP]:
+            clip = sample_frames_at(normalized_video_path, [max(0, u.start_s - 0.5), u.start_s, u.end_s])
+            if not clip:
+                continue
+            art.save_image_series("05_point", f"clip_{u.id}", clip)
+            try:
+                d = resolve_deixis(client, clip, u)
+            except Exception as e:
+                gaps.append(f"POINT failed on utterance {u.id}: {e!r}")
+                d = None
+            deixis_debug.append({"utterance_id": u.id, "utterance_text": u.text,
+                                  "found": d is not None, "deixis": d.model_dump() if d else None})
+            if d:
+                deixis_list.append(d)
+        art.save_json("05_point", "deixis_results", deixis_debug)
+        print(f"Gestures found: {len(deixis_list)} (out of {min(POINT_CAP, len(utterances))} checked)")
+    else:
+        print(f"POINT (surface_kind={recording.surface_kind.value!r} — skipped: no physical "
+              f"board region for gesture-pointing to attach to, and GLYPH already reads slide "
+              f"content directly)")
+        print("=" * 70)
     art.end_stage("05_point")
-    print(f"Gestures found: {len(deixis_list)} (out of {min(POINT_CAP, len(utterances))} checked)")
 
     print()
     print("=" * 70)
