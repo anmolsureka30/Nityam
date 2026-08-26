@@ -19,7 +19,7 @@ class FakeEmbedClient:
     two different texts get two different (but reproducible) embeddings."""
 
     class _Models:
-        async def embed_content(self, model: str, contents: str):
+        async def embed_content(self, model: str, contents: str, config=None):
             seed = float(len(contents) % 7 + 1)
             return _FakeEmbedResponse([seed] * 3072)
 
@@ -36,6 +36,18 @@ async def test_embed_concepts_writes_a_retrievable_embedding(db_conn):
         db_conn, [float(len(concept.definition) % 7 + 1)] * 3072, "concept", k=1
     )
     assert results[0]["ref_id"] == "c_embed_1"
+    assert results[0]["text"] == concept.definition
+
+
+@pytest.mark.asyncio
+async def test_embed_concepts_falls_back_to_canonical_name_when_no_definition(db_conn):
+    concept = Concept(id="c_embed_no_def", canonical_name="projectile motion", definition=None)
+    await embed_concepts(FakeEmbedClient(), db_conn, [concept])
+    results = await similarity_search(
+        db_conn, [float(len(concept.canonical_name) % 7 + 1)] * 3072, "concept", k=1
+    )
+    assert results[0]["ref_id"] == "c_embed_no_def"
+    assert results[0]["text"] == concept.canonical_name
 
 
 @pytest.mark.asyncio
