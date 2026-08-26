@@ -1,5 +1,5 @@
 """Seed one demo student against real, already-ingested projectile-motion
-content from sub_modules/shruti/vault/wiki/ — not invented text
+content from sub_modules_examples/shruti/vault/wiki/ — not invented text
 (architecture.md, "Demo subject" decision).
 
 Run directly: `uv run python scripts/seed_demo_data.py`
@@ -13,7 +13,9 @@ from app.memory import store
 from app.memory.schemas import DPMProfile, GroundingChunk, Persona, TeachingMemory
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-WIKI_DIR = REPO_ROOT / "sub_modules" / "shruti" / "vault" / "wiki"
+# Shruti lives under sub_modules_examples/, a sibling of sub_modules/ at the
+# repo root (renamed upstream from sub_modules/shruti/; tutor stayed put).
+WIKI_DIR = REPO_ROOT / "sub_modules_examples" / "shruti" / "vault" / "wiki"
 
 _SECTION = re.compile(
     r"## Taught in (?P<source_ref>shruti:\S+) @(?P<location>[\d:]+)\n"

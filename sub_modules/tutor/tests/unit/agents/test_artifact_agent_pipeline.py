@@ -11,7 +11,10 @@ from unittest.mock import MagicMock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TUTOR_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(_HERE)))
-_ARTIFACT_GEN = os.path.join(os.path.dirname(_TUTOR_ROOT), "artifact_generator")
+# artifact_generator lives under sub_modules_examples/, a sibling of
+# sub_modules/ at the repo root — see app/agents/artifact_agent.py.
+_REPO_ROOT = os.path.dirname(os.path.dirname(_TUTOR_ROOT))
+_ARTIFACT_GEN = os.path.join(_REPO_ROOT, "sub_modules_examples", "artifact_generator")
 sys.path.insert(0, os.path.join(_ARTIFACT_GEN, "generate"))
 
 import generator  # noqa: E402

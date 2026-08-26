@@ -1,4 +1,4 @@
-"""ArtifactAgent — wraps sub_modules/artifact_generator's
+"""ArtifactAgent — wraps sub_modules_examples/artifact_generator's
 spec -> IR -> validate -> render pipeline as a single_turn ADK sub-agent
 (memory_layer.md §3, architecture.md §2).
 """
@@ -15,7 +15,11 @@ from app import config
 from app.memory.tools import get_dpm, get_teaching_memory, log_artifact_evidence
 
 _TUTOR_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-_ARTIFACT_GEN = os.path.join(os.path.dirname(_TUTOR_ROOT), "artifact_generator")
+# artifact_generator lives under sub_modules_examples/, a sibling of
+# sub_modules/ at the repo root — not a sibling of tutor itself. (Renamed
+# from sub_modules/artifact_generator/ upstream; tutor stayed put.)
+_REPO_ROOT = os.path.dirname(os.path.dirname(_TUTOR_ROOT))
+_ARTIFACT_GEN = os.path.join(_REPO_ROOT, "sub_modules_examples", "artifact_generator")
 sys.path.insert(0, os.path.join(_ARTIFACT_GEN, "generate"))
 
 ARTIFACTS_OUT = os.path.join(_TUTOR_ROOT, "app", "artifacts_out")
