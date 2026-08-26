@@ -1,5 +1,6 @@
 from shruti.lens.retrievers import graph_traverse, timeline_lookup
 from shruti.lens.citations import format_citation
+from shruti.lens.fusion import related_concepts
 from shruti.vault.ledger import board_state_at
 
 
@@ -45,11 +46,17 @@ def _build_lesson_functions(conn) -> dict:
         bs = await board_state_at(conn, recording_id, t)
         return bs.model_dump() if bs else {"found": False}
 
+    async def related_concepts_semantic(concept_id: str, query_embedding: list[float]) -> list[dict]:
+        """Graph structure (REQUIRES) fused with semantic similarity — the
+        dual-index SKG retrieval, not graph-only or embedding-only."""
+        return await related_concepts(conn, concept_id, query_embedding)
+
     return {
         "recall_lesson": recall_lesson,
         "prerequisites_of": prerequisites_of,
         "known_misconceptions": known_misconceptions,
         "board_at": board_at,
+        "related_concepts_semantic": related_concepts_semantic,
     }
 
 

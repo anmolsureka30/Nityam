@@ -55,9 +55,9 @@ async def test_known_misconceptions_returns_teacher_phrasing(db_conn):
 
 
 @pytest.mark.asyncio
-async def test_build_lesson_tools_returns_four_tools(db_conn):
+async def test_build_lesson_tools_returns_five_tools(db_conn):
     tools = build_lesson_tools(db_conn)
-    assert len(tools) == 4
+    assert len(tools) == 5
 
 
 @pytest.mark.asyncio
