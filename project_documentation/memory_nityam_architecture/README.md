@@ -1,6 +1,6 @@
 # Nityam / SMRITI — Architecture Wiki
 
-Four documents. Read them in this order the first time; after that, treat them as reference.
+Five documents. Read them in this order the first time; after that, treat them as reference.
 Every document is a living artifact — corrections and refinements get appended in place with a
 version bump, not silently rewritten.
 
@@ -11,6 +11,13 @@ of the cut research was wrong — it's preserved in git history and summarized i
 If something in the older commit history contradicts what's here, what's here wins; it's newer
 and it's the version actually being built toward.
 
+**v2.0 note (2026-08-27):** `memory_layer.md` moved from SQLite to Google-managed storage
+(Firestore for the episodic and long-term tiers, Memorystore for the workflow tier, Cloud
+Storage for artifacts) — no local database anywhere in the design now. A fifth document,
+`google_cloud_storage_integration.md`, carries the full research and the file-by-file
+implementation plan behind that move; nothing in the four schemas or the three-tier split
+changed, only where each tier physically lives.
+
 ---
 
 ## Reading order
@@ -19,12 +26,18 @@ and it's the version actually being built toward.
    (`VoiceAgent` → `TutorAgent` → `ArtifactAgent`, wired with ADK's `mode='single_turn'`
    sub-agent mechanism, verified against the installed ADK source), the
    voice-streaming facts that are load-bearing regardless of topology, and the build order.
-2. **[`memory_layer.md`](memory_layer.md)** (SMRITI, v1.0) — the memory design. Three tiers
+2. **[`memory_layer.md`](memory_layer.md)** (SMRITI, v2.0) — the memory design. Three tiers
    (workflow / episodic / long-term), four JSON-Schema record types, the tool catalog every
-   agent shares, and why Memory Bank is still declined.
-3. **[`deferred.md`](deferred.md)** — everything cut for this pass, with a one-line reason each
+   agent shares, which Google-managed service backs each tier, and why Memory Bank/Agent
+   Search/Vector Search are all still declined.
+3. **[`google_cloud_storage_integration.md`](google_cloud_storage_integration.md)** — the research
+   behind `memory_layer.md` §5–§6: service-by-service verdicts and sources, Express Mode auth
+   findings, the Firestore embedding-dimension conflict still open, and exact per-file code for
+   the Firestore/GCS/Memorystore migration (`app/memory/store.py` rewritten function-for-function,
+   what changes in `app/memory/tools.py`, what doesn't change at all).
+4. **[`deferred.md`](deferred.md)** — everything cut for this pass, with a one-line reason each
    and a pointer to where the full design lived, in case it's needed later.
-4. This file — navigation, and the parts of the earlier research that are about Shruti (not
+5. This file — navigation, and the parts of the earlier research that are about Shruti (not
    this redesign) and haven't changed.
 
 ---
