@@ -2,7 +2,7 @@
 
 Last verified: 2026-08-25, via live fetch of `docs.cloud.google.com/gemini-enterprise-agent-platform/scale/*` and cross-checks against ADK docs and Google's developer blog.
 
-This is the pillar that matters most for Nityam's core requirement — "stateful, multi-turn dialogue with persistent memory" and a "background agent that wakes on a schedule." The findings below directly shaped the learner-model and scheduling decisions in `../shruti_platform_alignment.md`.
+This is the pillar that matters most for Nityam's core requirement — "stateful, multi-turn dialogue with persistent memory" and a "background agent that wakes on a schedule." The findings below directly shaped the learner-model and scheduling decisions in `../../submodules/shruti/docs/platform_alignment.md`.
 
 ## Pillar overview
 

@@ -45,7 +45,7 @@ Each phase is independently shippable and tested against a real ingested lecture
 
 | Phase | Build | Proves | Doc |
 |---|---|---|---|
-| **0** | Shruti: citation resolver + human-readable recording IDs, wire the embedding index into graph+semantic fusion retrieval, enforce the provenance invariant at write time (not just CI) | The grounding layer is real, not just schema | [`shruti_implementation_plan_phase0.md`](../shruti_implementation_plan_phase0.md) — 6 tasks, ready to execute |
+| **0** | Shruti: citation resolver + human-readable recording IDs, wire the embedding index into graph+semantic fusion retrieval, enforce the provenance invariant at write time (not just CI) | The grounding layer is real, not just schema | [`implementation_plan_01_phase0.md`](../../submodules/shruti/docs/implementation_plan_01_phase0.md) — 6 tasks, ready to execute |
 | **0.5** | Shruti: compose each stage (Pulse/Slate/Echo/Point/Weave/Glyph/Atlas) into one orchestration function per stage, wire GATE/PULSE tools + the plugins into a real Runner, add an `ingest` CLI command. See "Known gaps for Phase 0.5" below for four specific things the Phase 0 final review found that belong here. | A real video actually flows through the pipeline end to end — confirmed, nothing in the original 22-task plan or Phase 0 does this yet | not yet planned |
 
 ### Resolved via LLM-as-judge review of real run artifacts (2026-08-26)
