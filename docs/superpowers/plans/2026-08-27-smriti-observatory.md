@@ -166,6 +166,19 @@ def test_publish_failure_does_not_raise(monkeypatch, redis_client):
         lambda: (_ for _ in ()).throw(ConnectionError("simulated outage")),
     )
     assert fake_fn() == "ok"  # must not raise
+
+
+def test_broken_extractor_does_not_raise(redis_client):
+    """Tasks 2-4 write ~13 extract_ids functions — a bug in one of them must
+    never propagate out and break the real memory write it's observing."""
+    @instrumentation.emit_memory_event(
+        tier="workflow", record_type="turn_buffer", operation="write",
+        extract_ids=lambda args, kwargs, result: (_ for _ in ()).throw(IndexError("bad extractor")),
+    )
+    def fake_fn():
+        return "ok"
+
+    assert fake_fn() == "ok"  # must not raise, despite the broken extractor
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -341,22 +354,32 @@ def emit_memory_event(
             @functools.wraps(fn)
             async def async_wrapper(*args, **kwargs):
                 result = await fn(*args, **kwargs)
-                session_id, student_id = extract_ids(args, kwargs, result)
-                event = _build_event(
-                    tier, record_type, operation, fn.__name__, session_id, student_id, result
-                )
-                await _publish_async(event)
+                try:
+                    session_id, student_id = extract_ids(args, kwargs, result)
+                    event = _build_event(
+                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                    )
+                    await _publish_async(event)
+                except Exception:
+                    # A bug in a future extract_ids (Tasks 2-4 write ~13 of
+                    # them) must never propagate out of a real memory write
+                    # it's merely observing — same fire-and-forget guarantee
+                    # as _publish_sync/_publish_async's own try/except.
+                    pass
                 return result
             return async_wrapper
         else:
             @functools.wraps(fn)
             def sync_wrapper(*args, **kwargs):
                 result = fn(*args, **kwargs)
-                session_id, student_id = extract_ids(args, kwargs, result)
-                event = _build_event(
-                    tier, record_type, operation, fn.__name__, session_id, student_id, result
-                )
-                _publish_sync(event)
+                try:
+                    session_id, student_id = extract_ids(args, kwargs, result)
+                    event = _build_event(
+                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                    )
+                    _publish_sync(event)
+                except Exception:
+                    pass
                 return result
             return sync_wrapper
     return decorator
@@ -385,7 +408,7 @@ def _reset_memory_session_context():
 - [ ] **Step 5: Run to verify it passes**
 
 Run: `cd sub_modules_examples/tutor && uv run pytest tests/unit/memory/test_instrumentation.py -v`
-Expected: 6 passed (or skipped if Redis is unreachable — start it first: `brew services start redis` / `redis-server`)
+Expected: 7 passed (or skipped if Redis is unreachable — start it first: `brew services start redis` / `redis-server`)
 
 - [ ] **Step 6: Commit**
 
