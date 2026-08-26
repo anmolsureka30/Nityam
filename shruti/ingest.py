@@ -52,10 +52,7 @@ from shruti.contracts.board import BoardState
 
 from shruti.stages.gate.admit import admit
 from shruti.stages.pulse.shots import detect_shots
-from shruti.stages.pulse.ink import ink_curve
-from shruti.stages.pulse.erase import find_erase_events
-from shruti.stages.pulse.plan import build_sample_plan
-from shruti.stages.slate.locate import locate_board
+from shruti.stages.pulse.board_signal import compute_board_signal
 from shruti.stages.slate.rectify import rectify
 from shruti.stages.slate.mask import framediff_masks
 from shruti.stages.slate.composite import composite_board_state
@@ -235,32 +232,26 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
     coarse_times = np.linspace(0, recording.duration_s, num=min(40, max(4, int(recording.duration_s))))
     coarse_frames = sample_frames_at(normalized_video_path, coarse_times.tolist())
     art.save_image_series("01_pulse", "coarse_sampled_frames", coarse_frames)
-    quad = locate_board(coarse_frames) if coarse_frames else None
+    pulse_cfg = PulseConfig()
+    signal = compute_board_signal(
+        recording.surface_kind.value, shots, coarse_frames, coarse_times.tolist(),
+        recording.duration_s, pulse_cfg.erase_drop_ratio, pulse_cfg.erase_window_s,
+        pulse_cfg.dense_fps, pulse_cfg.sparse_fps,
+    )
+    quad, curve, erase_events, sample_plan = signal.quad, signal.curve, signal.erase_events, signal.sample_plan
     if quad is not None and coarse_frames:
         art.save_json("01_pulse", "board_quad", {"quad": [list(p) for p in quad]})
         draw_quad_overlay(coarse_frames[-1], quad, art.stage_dir("01_pulse") / "board_quad_overlay.jpg")
-
-    polarity = "bright_on_dark" if recording.surface_kind.value == "blackboard" else "dark_on_bright"
-    if quad is not None and coarse_frames:
-        curve = ink_curve(coarse_frames, quad, polarity)
-        erase_events = find_erase_events(
-            curve, coarse_times.tolist(),
-            drop_ratio=PulseConfig().erase_drop_ratio, window_s=PulseConfig().erase_window_s,
-        )
-    else:
-        curve, erase_events = np.array([]), []
     art.save_json("01_pulse", "erase_events", [e.model_dump() for e in erase_events])
     art.save_json("01_pulse", "ink_curve", {"times": coarse_times.tolist(), "values": curve.tolist()})
     draw_ink_curve(coarse_times.tolist(), curve, erase_events, art.stage_dir("01_pulse") / "ink_curve.jpg")
-    print(f"Erase events detected: {len(erase_events)}")
-
-    sample_plan = build_sample_plan(
-        shots, erase_events, recording.duration_s,
-        PulseConfig().dense_fps, PulseConfig().sparse_fps,
-    )
-    art.save_json("01_pulse", "sample_plan", [r.model_dump() for r in sample_plan])
+    if is_physical_board(recording.surface_kind):
+        print(f"Erase events detected: {len(erase_events)}")
+        art.save_json("01_pulse", "sample_plan", [r.model_dump() for r in sample_plan])
+        print(f"Sample plan regions: {len(sample_plan)}")
+    else:
+        print("Board-quad/erase/sample-plan detection skipped (no physical board for this surface_kind)")
     art.end_stage("01_pulse")
-    print(f"Sample plan regions: {len(sample_plan)}")
 
     print()
     print("=" * 70)
