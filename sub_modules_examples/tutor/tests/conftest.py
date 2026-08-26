@@ -35,3 +35,16 @@ def redis_client():
     except Exception as exc:  # noqa: BLE001
         pytest.skip(f"Redis unreachable at {config.REDIS_HOST}:{config.REDIS_PORT} ({exc}); run `brew services start redis`")
     yield client
+
+
+@pytest.fixture(autouse=True)
+def _reset_memory_session_context():
+    """instrumentation.set_session_context's contextvar is process-global —
+    reset it around every test so one test's close_session/context call
+    can't leak into the next (see Task 1 note in
+    docs/superpowers/plans/2026-08-27-smriti-observatory.md)."""
+    from app.memory import instrumentation
+
+    instrumentation.set_session_context(None)
+    yield
+    instrumentation.set_session_context(None)
