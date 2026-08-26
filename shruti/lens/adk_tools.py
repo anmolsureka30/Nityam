@@ -1,4 +1,5 @@
 from shruti.lens.retrievers import graph_traverse, timeline_lookup
+from shruti.lens.citations import format_citation
 from shruti.vault.ledger import board_state_at
 
 
@@ -10,10 +11,18 @@ def _build_lesson_functions(conn) -> dict:
             return {"found": False, "fallback": "generic"}
         b = beats[0]
         bs = await board_state_at(conn, b.recording_id, b.start_s)
+        slug_row = await conn.fetchrow(
+            "SELECT slug FROM recording WHERE id=$1", b.recording_id
+        )
+        citation = (
+            format_citation(slug_row["slug"], b.start_s)
+            if slug_row and slug_row["slug"] else None
+        )
         return {
             "found": True,
             "recording_id": b.recording_id,
             "timestamp": b.start_s,
+            "citation": citation,
             "teacher_words": b.transcript,
             "board_image_uri": bs.composited_uri if bs else None,
         }

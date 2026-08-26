@@ -57,3 +57,38 @@ async def test_known_misconceptions_returns_teacher_phrasing(db_conn):
 async def test_build_lesson_tools_returns_four_tools(db_conn):
     tools = build_lesson_tools(db_conn)
     assert len(tools) == 4
+
+
+@pytest.mark.asyncio
+async def test_recall_lesson_includes_a_resolvable_citation(db_conn):
+    rec = Recording(id="r_tool_3", slug="physics_projectile_2d_a1b2c3d4",
+                     source_uri="gs://x", duration_s=10.0, fps=30.0,
+                     surface_kind=SurfaceKind.BLACKBOARD)
+    await write_recording(db_conn, rec)
+    beat = Beat(id="b_tool_3", recording_id=rec.id, idx=0, start_s=23.0, end_s=30.0,
+                kind="derive", transcript="range formula for projectile motion")
+    await write_beats(db_conn, [beat])
+    concept = Concept(id="proj_range_tool", canonical_name="projectile range",
+                       taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")])
+    await write_concepts(db_conn, [concept])
+
+    tools = _build_lesson_functions(db_conn)
+    result = await tools["recall_lesson"]("proj_range_tool", [rec.id])
+    assert result["citation"] == "shruti:physics_projectile_2d_a1b2c3d4 @0:23"
+
+
+@pytest.mark.asyncio
+async def test_recall_lesson_citation_is_none_without_a_slug(db_conn):
+    rec = Recording(id="r_tool_4", source_uri="gs://x", duration_s=10.0, fps=30.0,
+                     surface_kind=SurfaceKind.BLACKBOARD)
+    await write_recording(db_conn, rec)
+    beat = Beat(id="b_tool_4", recording_id=rec.id, idx=0, start_s=1.0, end_s=2.0,
+                kind="explain", transcript="x")
+    await write_beats(db_conn, [beat])
+    concept = Concept(id="no_slug_concept", canonical_name="no slug concept",
+                       taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")])
+    await write_concepts(db_conn, [concept])
+
+    tools = _build_lesson_functions(db_conn)
+    result = await tools["recall_lesson"]("no_slug_concept", [rec.id])
+    assert result["citation"] is None
