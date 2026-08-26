@@ -156,22 +156,28 @@ def emit_memory_event(
             @functools.wraps(fn)
             async def async_wrapper(*args, **kwargs):
                 result = await fn(*args, **kwargs)
-                session_id, student_id = extract_ids(args, kwargs, result)
-                event = _build_event(
-                    tier, record_type, operation, fn.__name__, session_id, student_id, result
-                )
-                await _publish_async(event)
+                try:
+                    session_id, student_id = extract_ids(args, kwargs, result)
+                    event = _build_event(
+                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                    )
+                    await _publish_async(event)
+                except Exception:
+                    pass
                 return result
             return async_wrapper
         else:
             @functools.wraps(fn)
             def sync_wrapper(*args, **kwargs):
                 result = fn(*args, **kwargs)
-                session_id, student_id = extract_ids(args, kwargs, result)
-                event = _build_event(
-                    tier, record_type, operation, fn.__name__, session_id, student_id, result
-                )
-                _publish_sync(event)
+                try:
+                    session_id, student_id = extract_ids(args, kwargs, result)
+                    event = _build_event(
+                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                    )
+                    _publish_sync(event)
+                except Exception:
+                    pass
                 return result
             return sync_wrapper
     return decorator

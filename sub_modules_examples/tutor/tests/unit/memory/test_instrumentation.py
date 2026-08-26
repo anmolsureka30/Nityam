@@ -118,3 +118,16 @@ def test_publish_failure_does_not_raise(monkeypatch, redis_client):
         lambda: (_ for _ in ()).throw(ConnectionError("simulated outage")),
     )
     assert fake_fn() == "ok"  # must not raise
+
+
+def test_broken_extractor_does_not_raise(redis_client):
+    """A broken extract_ids function must never break a real memory write —
+    observability is a pure side effect."""
+    @instrumentation.emit_memory_event(
+        tier="long_term", record_type="dpm_profile", operation="read",
+        extract_ids=lambda args, kwargs, result: (_ for _ in ()).throw(IndexError("bad extractor")),
+    )
+    def fake_fn(x):
+        return x * 3
+
+    assert fake_fn(7) == 21  # must not raise, must return real result
