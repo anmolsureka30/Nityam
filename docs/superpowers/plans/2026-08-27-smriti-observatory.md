@@ -1342,7 +1342,7 @@ git commit -m "feat: wire close_session into production via POST /memory/session
 
 **Interfaces:**
 - Consumes: `memory_routes.perform_close_session` (Task 6), the `session:{id}:heartbeat` key (Task 5).
-- Produces: `app/app_utils/idle_watcher.py`'s `watch_idle_sessions(client: redis.asyncio.Redis) -> None` (an infinite loop — tested via a bounded variant, see below), and `run_one_expiry_cycle(pubsub) -> str | None` (processes exactly one pubsub message, returns the closed session id or `None` — this is what the test drives, so the test doesn't need to run or cancel an infinite loop).
+- Produces: `app/app_utils/idle_watcher.py`'s `watch_idle_sessions() -> None` (an infinite loop, no arguments — it builds its own Redis client internally; tested via a bounded variant, see below), and `run_one_expiry_cycle(pubsub, timeout) -> str | None` (waits up to `timeout` seconds total for one real expiry notification, returns the closed session id or `None` — this is what the test drives, so the test doesn't need to run or cancel an infinite loop).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1427,8 +1427,8 @@ local dev, not a hard dependency of the watch loop itself.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
+import time
 
 import redis.asyncio as redis
 
@@ -1438,23 +1438,45 @@ from app.app_utils.memory_routes import perform_close_session
 logger = logging.getLogger(__name__)
 
 
-async def run_one_expiry_cycle(pubsub: redis.client.PubSub, timeout: float = 5.0) -> str | None:
-    """Waits up to `timeout` seconds for one expiry notification. Returns the
-    session id it closed, or None if the message wasn't a session heartbeat
-    (or nothing arrived in time)."""
-    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=timeout)
-    if message is None or message.get("type") != "pmessage":
-        return None
-    key = message["data"]
-    if not (key.startswith("session:") and key.endswith(":heartbeat")):
-        return None
-    session_id = key.split(":")[1]
-    try:
-        await perform_close_session(session_id)
-    except Exception:
-        logger.exception("idle-timeout close_session failed for session_id=%s", session_id)
-        return None
-    return session_id
+async def run_one_expiry_cycle(pubsub: redis.client.PubSub, timeout: float | None = 5.0) -> str | None:
+    """Waits up to `timeout` seconds (total) for one expiry notification.
+
+    redis-py's get_message() reads exactly one raw frame per call. Right
+    after psubscribe(), the first frame on the wire is always the PSUBSCRIBE
+    confirmation itself; with ignore_subscribe_messages=True that frame is
+    suppressed and the call returns None immediately — it does *not* keep
+    reading within the same call to find a real message, even though
+    `timeout` budget remains. A single get_message() call (a naive first
+    draft of this function did exactly that) therefore spuriously returns
+    None on the very first invocation after subscribing, regardless of
+    whether a real expiry notification was waiting right behind it on the
+    socket. This loops past those protocol-level confirmations, spending
+    only the remaining timeout budget on each subsequent read, so the
+    result reflects the first real message (or true timeout), not a
+    subscribe ack.
+
+    Returns the session id it closed, or None if the message wasn't a
+    session heartbeat key (or nothing arrived in time)."""
+    deadline = None if timeout is None else time.monotonic() + timeout
+    while True:
+        remaining = timeout if deadline is None else max(0.0, deadline - time.monotonic())
+        message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=remaining)
+        if message is None:
+            if deadline is not None and time.monotonic() >= deadline:
+                return None
+            continue
+        if message.get("type") != "pmessage":
+            continue
+        key = message["data"]
+        if not (key.startswith("session:") and key.endswith(":heartbeat")):
+            return None
+        session_id = key.split(":")[1]
+        try:
+            await perform_close_session(session_id)
+        except Exception:
+            logger.exception("idle-timeout close_session failed for session_id=%s", session_id)
+            return None
+        return session_id
 
 
 async def watch_idle_sessions() -> None:
