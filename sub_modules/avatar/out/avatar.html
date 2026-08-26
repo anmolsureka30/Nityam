@@ -1,0 +1,1437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nityam Avatar</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#FBFAF7; --card:#FFFFFF; --card-2:#F6F4F0;
+  --ink:#161A22; --ink-2:#5A6070; --ink-3:#8A90A0;
+  --line:#E9E6DF;
+  --brand:#E8437A; --brand-deep:#C22B5F;
+  --orb-a:#FF6B4A; --orb-b:#E8437A; --orb-c:#C9308F;
+  --shadow:0 1px 2px rgba(22,26,34,.05), 0 18px 40px -22px rgba(22,26,34,.30);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#121317; --card:#1A1C21; --card-2:#212429;
+    --ink:#F0EEEA; --ink-2:#AFB4BE; --ink-3:#7B818C;
+    --line:#2B2E35;
+    --brand:#FF5C8E; --brand-deep:#E8437A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 18px 40px -22px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#121317; --card:#1A1C21; --card-2:#212429;
+  --ink:#F0EEEA; --ink-2:#AFB4BE; --ink-3:#7B818C;
+  --line:#2B2E35;
+  --brand:#FF5C8E; --brand-deep:#E8437A;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 18px 40px -22px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:30px 24px 60px}
+
+header{display:flex;align-items:center;gap:11px;margin-bottom:8px}
+.dot{width:26px;height:26px;border-radius:8px;
+  background:linear-gradient(140deg,var(--orb-a),var(--orb-b),var(--orb-c))}
+header b{font-size:15px;font-weight:650}
+header span{font-size:13px;color:var(--ink-3)}
+.lede{color:var(--ink-2);font-size:15px;max-width:62ch;margin:0 0 26px}
+
+.main{display:grid;grid-template-columns:340px minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:820px){.main{grid-template-columns:1fr}}
+
+.stage{
+  background:var(--card);border:1px solid var(--line);border-radius:18px;
+  box-shadow:var(--shadow);padding:18px;text-align:center;position:sticky;top:24px;
+}
+.avatar-box{
+  width:100%;aspect-ratio:300/340;border-radius:14px;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 12%, var(--card-2), var(--card));
+}
+.nty-avatar{width:100%;height:100%}
+.statusline{
+  margin-top:13px;display:flex;align-items:center;justify-content:center;gap:9px;
+  font-size:12.5px;color:var(--ink-3);
+}
+.pip{width:8px;height:8px;border-radius:50%;background:var(--ink-3);flex:none}
+.pip.listening{background:#2FA36B;animation:blip 1.5s ease-in-out infinite}
+.pip.thinking{background:#C2700F;animation:blip .9s ease-in-out infinite}
+.pip.speaking{background:var(--brand);animation:blip .5s ease-in-out infinite}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.35}}
+.caption{
+  margin-top:10px;min-height:44px;font-size:14.5px;line-height:1.5;color:var(--ink);
+  padding:0 6px;
+}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+.panel h2{font-size:11px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 14px}
+.hint{font-size:13.5px;color:var(--ink-2);margin:0 0 14px;line-height:1.55}
+.hint code{font:12px ui-monospace,Menlo,monospace;background:var(--card-2);
+  border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+button{
+  background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;font:inherit;font-size:13.5px;cursor:pointer;min-height:40px;
+  transition:background .12s,border-color .12s,transform .08s;text-align:left;
+}
+button:hover{background:var(--card-2);border-color:var(--ink-3)}
+button:active{transform:translateY(1px)}
+button[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:560}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:560;text-align:center}
+button.primary:hover{background:var(--brand-deep);border-color:var(--brand-deep)}
+button:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text]{
+  flex:1;min-width:200px;background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;min-height:40px;
+}
+input[type=text]:focus-visible{outline:2.5px solid var(--brand);outline-offset:1px}
+.emolabel{display:block;font-size:11px;color:var(--ink-3);margin-top:2px}
+button[aria-pressed="true"] .emolabel{color:rgba(255,255,255,.8)}
+
+.params{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-3);
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:2px 14px}
+.params i{font-style:normal;color:var(--ink-2)}
+.foot{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);
+  font:11px ui-monospace,Menlo,monospace;color:var(--ink-3);display:flex;gap:16px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="dot"></div>
+    <div><b>Nityam</b> <span>avatar &mdash; proof of concept</span></div>
+  </header>
+  <p class="lede">The tutor's face. One parameter set, an emotion engine that springs between poses, and a lip&#8209;sync engine that drives the mouth from either real audio or the words themselves.</p>
+
+  <div class="main">
+    <div class="stage">
+      <div class="avatar-box"><div id="avatar"></div></div>
+      <div class="statusline"><span class="pip" id="pip"></span><span id="statetext">idle</span>
+        <span style="color:var(--line)">|</span><span id="emotext">neutral</span></div>
+      <div class="caption" id="caption"></div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>Say something</h2>
+        <p class="hint">No microphone, no TTS. The mouth shapes come from the actual syllables via <code>textToVisemes()</code>, so the rhythm matches the sentence.</p>
+        <div class="row">
+          <input type="text" id="line" value="So, what do you think decides the maximum range?">
+          <button class="primary" id="say">Speak</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button id="l1">&ldquo;Close &mdash; let's test that.&rdquo;</button>
+          <button id="l2">&ldquo;That's exactly it. Well done.&rdquo;</button>
+          <button id="l3">&ldquo;Not quite. Look again at the angle.&rdquo;</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Emotions</h2>
+        <p class="hint">Each is a partial set of targets over the rig. Anything an emotion doesn't mention keeps its current value, which is why blends never snap through neutral.</p>
+        <div class="grid" id="emotions"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Conversational state</h2>
+        <p class="hint">Orthogonal to emotion &mdash; she can be listening <em>and</em> concerned. Speech drives the mouth; the emotion drives everything else.</p>
+        <div class="row" id="states"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Live rig parameters</h2>
+        <div class="params" id="params"></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+//== runtime ==================================================================
+/* ---- runtime/rig.js ---- */
+/* The rig: a parameter set, and a procedural drawing of a face that reads it.
+ *
+ * Every expressive thing the avatar can do is a NUMBER in this list. Emotions
+ * are target values for these numbers; speech drives three of them; idle
+ * behaviours nudge a few more. Nothing else in the module touches pixels.
+ *
+ * That split is the point. Swap this file for a Rive board or a 3D head with
+ * blendshapes and the emotion engine, the lip-sync engine and the public API
+ * are all unchanged — the parameter names are the contract. */
+(function (NS) {
+
+  /* ── the parameter contract ──────────────────────────────────────────
+     Anything a renderer must understand. Ranges are advisory, not clamped,
+     because overshoot from the spring is what makes motion feel alive.      */
+  var PARAMS = {
+    headTurn:   0,    // -1 left .. +1 right   (yaw, faked in 2.5D)
+    headTilt:   0,    // -1 .. +1              (roll)
+    headNod:    0,    // -1 up .. +1 down      (pitch)
+    lean:       0,    // -1 back .. +1 toward the student
+    bounce:     0,    // 0 .. 1                vertical excitement
+    breathe:    0,    // 0 .. 1                driven by idle
+
+    browRaise:  0,    // -1 lowered .. +1 raised
+    browInner:  0,    // -1 inner-down (focus) .. +1 inner-up (concern)
+    browAsym:   0,    // 0 .. 1   one brow higher than the other
+
+    eyeOpen:    1,    // 0 shut .. 1 normal .. 1.35 wide
+    eyeSquint:  0,    // 0 .. 1   lower lid rises — the Duchenne smile
+    lookX:      0,    // -1 .. +1
+    lookY:      0,    // -1 up .. +1 down
+
+    mouthOpen:  0.06, // 0 .. 1
+    mouthWidth: 0.5,  // 0 narrow .. 0.5 neutral .. 1 wide
+    mouthCurve: 0.12, // -1 frown .. +1 smile
+    mouthPurse: 0,    // 0 .. 1   rounded, for O / U
+    teeth:      0,    // 0 .. 1
+
+    cheekRaise: 0,    // 0 .. 1
+    blush:      0     // 0 .. 1
+  };
+
+  NS.PARAMS = PARAMS;
+  NS.newParams = function () {
+    var p = {};
+    for (var k in PARAMS) p[k] = PARAMS[k];
+    return p;
+  };
+
+  /* ── palette ─────────────────────────────────────────────────────────
+     A warm, stylised illustration. Deliberately not photoreal: at this level
+     of abstraction the viewer forgives a lot and the uncanny valley never
+     opens up.                                                              */
+  var C = {
+    // skin — light and peachy, lit from the upper left
+    skinLit:   '#FFE0CC',
+    skin:      '#F8CBB0',
+    skinShade: '#EBA98B',
+    skinDeep:  '#D98E70',
+    blush:     '#F1978F',
+
+    // hair — warm brown with visible strand lighting
+    hair:      '#8A4C2C',
+    hairDark:  '#5C3220',
+    hairLight: '#B87344',
+    hairSheen: '#DFA771',
+    brow:      '#5B3520',
+
+    // eyes — large, hazel-gold
+    sclera:    '#FFFFFF',
+    scleraSh:  '#E8DED6',
+    iris:      '#9A8235',
+    irisDeep:  '#6B5722',
+    irisLight: '#C0A64B',
+    pupil:     '#2A2118',
+    lash:      '#2E2119',
+
+    // round tortoiseshell glasses
+    frame:     '#8A4F32',
+    frameLit:  '#B0714A',
+
+    lip:       '#E89A93',
+    lipDark:   '#CE706A',
+    mouthIn:   '#A2565A',
+    tongue:    '#C97C7C',
+    teeth:     '#FFFDFA',
+
+    // mint collared shirt
+    top:       '#B7DFD1',
+    topShade:  '#96C6B4',
+    topLit:    '#D6EFE6',
+    topTrim:   '#CFEBE0',
+    button:    '#D9CBA9'
+  };
+  NS.PALETTE = C;
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  function ellipse(g, x, y, rx, ry, rot) {
+    g.beginPath(); g.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), rot || 0, 0, Math.PI * 2);
+  }
+
+  /* ── the drawing ─────────────────────────────────────────────────────
+     Authored in a fixed 300x340 space and scaled to fit, so every magic
+     number below is stable regardless of canvas size.                     */
+  var W = 300, H = 340;
+  NS.DESIGN = { w: W, h: H };
+
+  NS.draw = function (ctx, p, opts) {
+    opts = opts || {};
+    var cw = opts.width, ch = opts.height;
+    var s = Math.min(cw / W, ch / H);
+    ctx.save();
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.translate((cw - W * s) / 2, (ch - H * s) / 2);
+    ctx.scale(s, s);
+
+    var breathe = Math.sin(p.breathe * Math.PI * 2) * 1.2;
+    var bounceY = -p.bounce * 7;
+    var leanY = p.lean * 3;
+
+    /* ---- body ---------------------------------------------------- */
+    ctx.save();
+    ctx.translate(0, breathe * 0.6 + bounceY * 0.35 + leanY);
+    drawBody(ctx, p);
+    ctx.restore();
+
+    /* ---- head ------------------------------------------------------
+       Yaw is faked: shift the features, and shift the head silhouette a
+       little less, which reads as rotation at this stylisation.          */
+    var hx = 150, hy = 143 + breathe + bounceY + p.headNod * 7 + leanY * 1.6;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(p.headTilt * 0.16);
+    ctx.translate(p.headTurn * 5, 0);
+    drawHead(ctx, p);
+    ctx.restore();
+
+    ctx.restore();
+  };
+
+  /* ── body ─────────────────────────────────────────────────────────── */
+  function drawBody(ctx, p) {
+    var shift = p.headTurn * 2.5;
+
+    // neck — slim, and SHORT. The reference reads as a big head on a small
+    // neck; a long one immediately looks wrong.
+    var ng = ctx.createLinearGradient(128, 0, 172, 0);
+    ng.addColorStop(0, C.skinDeep);
+    ng.addColorStop(0.45, C.skinShade);
+    ng.addColorStop(1, C.skinDeep);
+    ctx.fillStyle = ng;
+    ctx.beginPath();
+    ctx.moveTo(136 + shift, 208);
+    ctx.bezierCurveTo(135, 240, 131, 252, 127 + shift * 0.4, 266);
+    ctx.lineTo(173 + shift * 0.4, 266);
+    ctx.bezierCurveTo(169, 252, 165, 240, 164 + shift, 208);
+    ctx.closePath(); ctx.fill();
+
+    // shoulders — wide, so the crop reads as a bust and not a hill
+    var sg = ctx.createLinearGradient(6, 0, 294, 0);
+    sg.addColorStop(0, C.topShade);
+    sg.addColorStop(0.32, C.top);
+    sg.addColorStop(0.6, C.topLit);
+    sg.addColorStop(1, C.topShade);
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.moveTo(150, 262);
+    ctx.bezierCurveTo(190, 263, 226, 274, 250, 296);
+    ctx.bezierCurveTo(272, 316, 282, 328, 288, 340);
+    ctx.lineTo(12, 340);
+    ctx.bezierCurveTo(18, 328, 28, 316, 50, 296);
+    ctx.bezierCurveTo(74, 274, 110, 263, 150, 262);
+    ctx.closePath(); ctx.fill();
+
+    // collar. The band BEHIND the neck is what makes it read as a shirt
+    // collar rather than a coloured hill.
+    ctx.fillStyle = C.topShade;
+    ctx.beginPath();
+    ctx.moveTo(120 + shift * 0.4, 262);
+    ctx.quadraticCurveTo(150 + shift * 0.4, 246, 180 + shift * 0.4, 262);
+    ctx.quadraticCurveTo(150 + shift * 0.4, 274, 120 + shift * 0.4, 262);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = C.topLit;
+    [-1, 1].forEach(function (sd) {
+      ctx.beginPath();
+      ctx.moveTo(150 + sd * 22 + shift * 0.4, 258);
+      ctx.bezierCurveTo(150 + sd * 52, 262, 150 + sd * 70, 288, 150 + sd * 66, 316);
+      ctx.bezierCurveTo(150 + sd * 38, 302, 150 + sd * 14, 294, 150, 302);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(88,142,124,0.8)'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(150 + sd * 22 + shift * 0.4, 258);
+      ctx.bezierCurveTo(150 + sd * 52, 262, 150 + sd * 70, 288, 150 + sd * 66, 316);
+      ctx.bezierCurveTo(150 + sd * 38, 302, 150 + sd * 14, 294, 150, 302);
+      ctx.stroke();
+    });
+
+    // placket + buttons
+    ctx.strokeStyle = 'rgba(96,150,132,0.6)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(150, 302); ctx.lineTo(150, 340); ctx.stroke();
+    ctx.fillStyle = C.button;
+    [318, 336].forEach(function (by) {
+      ellipse(ctx, 150, by, 4.2, 4.2); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,100,64,0.5)'; ctx.lineWidth = 1;
+      ellipse(ctx, 150, by, 4.2, 4.2); ctx.stroke();
+      ctx.fillStyle = C.button;
+    });
+
+    // shadow the head casts onto the chest
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(150, 262);
+    ctx.bezierCurveTo(190, 263, 226, 274, 250, 296);
+    ctx.bezierCurveTo(272, 316, 282, 328, 288, 340);
+    ctx.lineTo(12, 340);
+    ctx.bezierCurveTo(18, 328, 28, 316, 50, 296);
+    ctx.bezierCurveTo(74, 274, 110, 263, 150, 262);
+    ctx.closePath(); ctx.clip();
+    var cs = ctx.createRadialGradient(150, 246, 12, 150, 246, 86);
+    cs.addColorStop(0, 'rgba(80,116,104,0.34)');
+    cs.addColorStop(1, 'rgba(80,116,104,0)');
+    ctx.fillStyle = cs; ctx.fillRect(6, 244, 288, 100);
+    ctx.restore();
+  }
+
+  /* ── head ──────────────────────────────────────────────────────────
+     Origin is the centre of the face. The look is soft-3D: every mass gets
+     a gradient rather than a flat fill, and the light is consistently from
+     the upper left.                                                       */
+  function drawHead(ctx, p) {
+    var t = p.headTurn;
+    var fx = t * 10;
+
+    // ── hair behind: the back mass and the low side bun ──
+    ctx.fillStyle = C.hairDark;
+    ctx.beginPath();
+    ctx.moveTo(-88 + t * 2, -12);
+    ctx.bezierCurveTo(-100, -90, -56, -124, 0, -124);
+    ctx.bezierCurveTo(56, -124, 100, -90, 88 + t * 2, -12);
+    ctx.bezierCurveTo(94, 26, 86, 54, 74, 68);
+    ctx.bezierCurveTo(28, 84, -28, 84, -74, 68);
+    ctx.bezierCurveTo(-86, 54, -94, 26, -88 + t * 2, -12);
+    ctx.closePath(); ctx.fill();
+
+    // braided bun, low on her right (viewer's left)
+    ctx.save();
+    ctx.translate(-84 + t * 4, 28);
+    var bg = ctx.createRadialGradient(-4, -6, 2, 0, 0, 20);
+    bg.addColorStop(0, C.hairLight);
+    bg.addColorStop(1, C.hairDark);
+    ctx.fillStyle = bg;
+    ellipse(ctx, 0, 0, 20, 23, -0.28); ctx.fill();
+    ctx.strokeStyle = 'rgba(58,38,28,0.55)'; ctx.lineWidth = 1.6;
+    [-9, 0, 9].forEach(function (o) {
+      ctx.beginPath();
+      ctx.moveTo(-15, o - 4); ctx.quadraticCurveTo(0, o + 5, 15, o - 4);
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    // ── ears ──
+    ctx.fillStyle = C.skinShade;
+    ellipse(ctx, -70 + fx * 0.4, 2, 8.5, 13); ctx.fill();
+    ellipse(ctx, 70 + fx * 0.4, 2, 8.5, 13); ctx.fill();
+
+    // ── face: a soft rounded mass, lit from the upper left ──
+    ctx.beginPath();
+    ctx.moveTo(-70 + fx * 0.3, -22);
+    ctx.bezierCurveTo(-70, -80, -41, -104, 0 + fx * 0.3, -104);
+    ctx.bezierCurveTo(41, -104, 70, -80, 70 + fx * 0.3, -22);
+    ctx.bezierCurveTo(70, 26, 53, 62, 0 + fx * 0.5, 76);
+    ctx.bezierCurveTo(-53, 62, -70, 26, -70 + fx * 0.3, -22);
+    ctx.closePath();
+    var fg = ctx.createRadialGradient(-28 + fx, -46, 16, 4 + fx, 6, 108);
+    fg.addColorStop(0, C.skinLit);
+    fg.addColorStop(0.5, C.skin);
+    fg.addColorStop(1, C.skinShade);
+    ctx.fillStyle = fg; ctx.fill();
+
+    ctx.save();
+    ctx.clip();
+
+    // form shadow down the away side
+    var sgn = t >= 0 ? -1 : 1;
+    var sx = ctx.createLinearGradient(sgn * 26, 0, sgn * 82, 0);
+    sx.addColorStop(0, 'rgba(196,124,96,0)');
+    sx.addColorStop(1, 'rgba(196,124,96,0.24)');
+    ctx.fillStyle = sx; ctx.fillRect(Math.min(sgn * 22, sgn * 78), -110, 78, 196);
+
+    // under-jaw shadow
+    var jg = ctx.createLinearGradient(0, 36, 0, 78);
+    jg.addColorStop(0, 'rgba(196,124,96,0)');
+    jg.addColorStop(1, 'rgba(196,124,96,0.22)');
+    ctx.fillStyle = jg; ctx.fillRect(-72, 36, 144, 44);
+
+    // shadow the fringe casts across the forehead
+    var hg = ctx.createLinearGradient(0, -104, 0, -52);
+    hg.addColorStop(0, 'rgba(140,86,62,0.32)');
+    hg.addColorStop(1, 'rgba(140,86,62,0)');
+    ctx.fillStyle = hg; ctx.fillRect(-72, -106, 144, 56);
+
+    // blush — soft radial, always slightly present
+    var bl = 0.5 + clamp(p.blush, 0, 1) * 0.5;
+    [-1, 1].forEach(function (sd) {
+      var r = ctx.createRadialGradient(sd * 40 + fx, 22, 1, sd * 40 + fx, 22, 25);
+      r.addColorStop(0, 'rgba(244,146,138,' + (bl * 0.62).toFixed(3) + ')');
+      r.addColorStop(1, 'rgba(244,146,138,0)');
+      ctx.fillStyle = r;
+      ctx.fillRect(sd * 40 + fx - 27, 0, 54, 48);
+    });
+    ctx.restore();
+
+    drawBrows(ctx, p, fx);
+    drawEyes(ctx, p, fx);
+    drawNose(ctx, p, fx);
+    drawMouth(ctx, p, fx);
+    drawGlasses(ctx, p, fx);
+
+    // ── hair in front: centre part, swept back over each side ──
+    function sweep(side) {
+      ctx.beginPath();
+      ctx.moveTo(0 + t * 3, -118);
+      ctx.bezierCurveTo(side * 40, -122, side * 78, -100, side * 86 + t * 3, -44);
+      ctx.bezierCurveTo(side * 92, -14, side * 90, 12, side * 84, 30);
+      ctx.bezierCurveTo(side * 77, -12, side * 63, -46, side * 38 + t * 4, -60);
+      ctx.bezierCurveTo(side * 20, -72, side * 7, -88, 0 + t * 3, -118);
+      ctx.closePath();
+      var g = ctx.createLinearGradient(side * 9, -118, side * 88, 30);
+      g.addColorStop(0, C.hairDark);
+      g.addColorStop(0.34, C.hairLight);
+      g.addColorStop(0.62, C.hair);
+      g.addColorStop(1, C.hairDark);
+      ctx.fillStyle = g; ctx.fill();
+
+      // strand sheen following the sweep
+      ctx.strokeStyle = 'rgba(223,167,113,0.62)'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+      [0, 1, 2].forEach(function (i) {
+        ctx.beginPath();
+        ctx.moveTo(side * (9 + i * 5) + t * 3, -111 + i * 6);
+        ctx.bezierCurveTo(side * (44 + i * 6), -109 + i * 5, side * (72 + i * 5), -89 + i * 6,
+                          side * (80 + i * 2) + t * 3, -49 + i * 9);
+        ctx.stroke();
+      });
+    }
+    sweep(-1); sweep(1);
+
+    // the parting itself
+    ctx.strokeStyle = C.hairDark; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0 + t * 3, -118); ctx.quadraticCurveTo(-2 + t * 3, -104, -1 + t * 3, -92);
+    ctx.stroke();
+  }
+
+  /* ── round tortoiseshell glasses ───────────────────────────────────
+     Drawn last so the frame sits over the eyes, with a highlight on each
+     lens to sell the glass.                                              */
+  function drawGlasses(ctx, p, fx) {
+    var y = -10, r = 32;
+    var lx = -32 + fx, rx = 32 + fx;
+
+    // lens glass — barely there. A stronger fill greys out the eyes and turns
+    // the lashes into scratches, which is what it did before this was dialled back.
+    [-1, 1].forEach(function (sd) {
+      var cx = sd < 0 ? lx : rx;
+      var g = ctx.createLinearGradient(cx - r, y - r, cx + r * 0.4, y + r);
+      g.addColorStop(0, 'rgba(255,255,255,0.16)');
+      g.addColorStop(0.55, 'rgba(255,255,255,0.02)');
+      g.addColorStop(1, 'rgba(210,230,240,0.05)');
+      ctx.fillStyle = g;
+      ellipse(ctx, cx, y, r - 2, r - 2); ctx.fill();
+    });
+
+    ctx.lineWidth = 4.6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    var fgr = ctx.createLinearGradient(lx - r, y - r, rx + r, y + r);
+    fgr.addColorStop(0, C.frameLit);
+    fgr.addColorStop(0.5, C.frame);
+    fgr.addColorStop(1, C.frameLit);
+    ctx.strokeStyle = fgr;
+
+    ellipse(ctx, lx, y, r, r); ctx.stroke();
+    ellipse(ctx, rx, y, r, r); ctx.stroke();
+
+    // bridge
+    ctx.beginPath();
+    ctx.moveTo(lx + r - 1, y - 5);
+    ctx.quadraticCurveTo(fx, y - 12, rx - r + 1, y - 5);
+    ctx.stroke();
+
+    // temples out to the ears
+    ctx.lineWidth = 3.8;
+    ctx.beginPath(); ctx.moveTo(lx - r + 2, y - 6); ctx.lineTo(-68 + fx * 0.5, y - 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx + r - 2, y - 6); ctx.lineTo(68 + fx * 0.5, y - 3); ctx.stroke();
+
+    // a soft glint high on each lens — anything stronger reads as a scratch
+    ctx.lineCap = 'round';
+    [-1, 1].forEach(function (sd) {
+      var cx = sd < 0 ? lx : rx;
+      ctx.strokeStyle = 'rgba(255,255,255,0.34)'; ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(cx, y, r - 9, Math.PI * 1.12, Math.PI * 1.36);
+      ctx.stroke();
+    });
+  }
+
+  /* ── brows: thick, dark, sitting above the frames ──────────────────── */
+  function drawBrows(ctx, p, fx) {
+    var raise = p.browRaise * 9;
+    var inner = p.browInner * 8;
+
+    function brow(side, extra) {
+      var x = side * 32 + fx;
+      var y = -50 - raise - extra;
+      ctx.fillStyle = C.brow;
+      ctx.beginPath();
+      ctx.moveTo(x - side * 23, y - inner + 3);
+      ctx.quadraticCurveTo(x - side * 5, y - 9.5 - Math.abs(inner) * 0.1, x + side * 21, y + 3.5 + inner * 0.4);
+      ctx.quadraticCurveTo(x - side * 5, y - 3 - Math.abs(inner) * 0.1, x - side * 23, y - inner + 8.5);
+      ctx.closePath(); ctx.fill();
+    }
+    brow(-1, 0);
+    brow(1, p.browAsym * 9);
+  }
+
+  /* ── eyes: large and round, hazel-gold ─────────────────────────────── */
+  function drawEyes(ctx, p, fx) {
+    var open = clamp(p.eyeOpen, 0, 1.4);
+    var squint = clamp(p.eyeSquint, 0, 1);
+
+    function eye(side) {
+      var x = side * 32 + fx, y = -10;
+      var narrow = (side === Math.sign(p.headTurn)) ? 0 : Math.abs(p.headTurn) * 2.5;
+      var rx = 23 - narrow;
+      var ryTop = 18 * open;
+      var ryBot = 17 * open * (1 - squint * 0.62);
+
+      if (ryTop < 1.2) {                        // shut: a lash curve
+        ctx.strokeStyle = C.lash; ctx.lineWidth = 3.2; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x - rx, y - 1); ctx.quadraticCurveTo(x, y + 7, x + rx, y - 1);
+        ctx.stroke();
+        return;
+      }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x - rx, y);
+      ctx.quadraticCurveTo(x, y - ryTop * 1.6, x + rx, y);
+      ctx.quadraticCurveTo(x, y + ryBot * 1.6, x - rx, y);
+      ctx.closePath();
+      var sg = ctx.createLinearGradient(0, y - ryTop, 0, y + ryBot);
+      sg.addColorStop(0, C.scleraSh);
+      sg.addColorStop(0.42, C.sclera);
+      sg.addColorStop(1, '#F3ECE6');
+      ctx.fillStyle = sg; ctx.fill();
+      ctx.clip();
+
+      var ix = x + p.lookX * 6, iy = y + p.lookY * 5 + 1;
+      var ig = ctx.createRadialGradient(ix - 2, iy - 3, 1.5, ix, iy, 12.5);
+      ig.addColorStop(0, C.irisLight);
+      ig.addColorStop(0.55, C.iris);
+      ig.addColorStop(1, C.irisDeep);
+      ellipse(ctx, ix, iy, 12.5, 12.5); ctx.fillStyle = ig; ctx.fill();
+      ctx.strokeStyle = 'rgba(58,44,16,0.6)'; ctx.lineWidth = 1.6;
+      ellipse(ctx, ix, iy, 12.5, 12.5); ctx.stroke();
+      ellipse(ctx, ix, iy, 5.4, 5.4); ctx.fillStyle = C.pupil; ctx.fill();
+      ellipse(ctx, ix - 4, iy - 4.6, 3.6, 3, -0.5); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fill();
+      ellipse(ctx, ix + 4.4, iy + 3.6, 1.8, 1.5); ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fill();
+
+      var us = ctx.createLinearGradient(0, y - ryTop * 1.5, 0, y);
+      us.addColorStop(0, 'rgba(120,90,70,0.34)');
+      us.addColorStop(1, 'rgba(120,90,70,0)');
+      ctx.fillStyle = us; ctx.fillRect(x - rx, y - ryTop * 1.6, rx * 2, ryTop * 1.6);
+      ctx.restore();
+
+      // upper lash line, thick, with lashes at the outer corner
+      ctx.strokeStyle = C.lash; ctx.lineWidth = 3.6; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x - rx, y); ctx.quadraticCurveTo(x, y - ryTop * 1.68, x + rx, y);
+      ctx.stroke();
+      ctx.strokeStyle = C.lash; ctx.lineWidth = 2.8;
+      [0, 1, 2].forEach(function (i) {
+        var f = 0.6 + i * 0.14;
+        var px0 = x + side * rx * f;
+        var py0 = y - ryTop * (1.02 - Math.abs(f - 0.75) * 0.9);
+        ctx.beginPath();
+        ctx.moveTo(px0, py0);
+        ctx.quadraticCurveTo(px0 + side * 2.6, py0 - 3.4, px0 + side * 4.2, py0 - 5.4);
+        ctx.stroke();
+      });
+
+    }
+    eye(-1); eye(1);
+  }
+
+  /* ── a small button nose ───────────────────────────────────────────── */
+  function drawNose(ctx, p, fx) {
+    var x = fx * 1.15, y = 24;
+    var g = ctx.createRadialGradient(x - 3, y - 4, 1, x, y, 12);
+    g.addColorStop(0, 'rgba(255,224,204,0.9)');
+    g.addColorStop(0.55, 'rgba(235,169,139,0.45)');
+    g.addColorStop(1, 'rgba(235,169,139,0)');
+    ctx.fillStyle = g;
+    ellipse(ctx, x, y, 12.5, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(210,140,112,0.55)'; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 6.5, y + 3); ctx.quadraticCurveTo(x, y + 7.5, x + 6.5, y + 3);
+    ctx.stroke();
+  }
+
+  /* ── mouth ─────────────────────────────────────────────────────────
+     Same three parameters as before — how open, how wide, how curved,
+     plus purse. Every viseme and every smile is a point in that space.   */
+  function drawMouth(ctx, p, fx) {
+    var open = clamp(p.mouthOpen, 0, 1);
+    var purse = clamp(p.mouthPurse, 0, 1);
+    var w = lerp(17, 36, clamp(p.mouthWidth, 0, 1)) * (1 - purse * 0.45);
+    var curve = clamp(p.mouthCurve, -1, 1);
+    var cy = 48;
+    var x = fx * 1.3;
+
+    var h = open * 24 * (1 + purse * 0.2);
+    var cornerY = cy - curve * 10;
+
+    if (h < 1.8) {                              // closed
+      ctx.strokeStyle = C.lipDark; ctx.lineWidth = 3.6; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x - w, cornerY);
+      ctx.quadraticCurveTo(x, cy + curve * 8 + 4, x + w, cornerY);
+      ctx.stroke();
+      // lower lip, given a little volume
+      var lg = ctx.createLinearGradient(0, cornerY, 0, cornerY + 14);
+      lg.addColorStop(0, C.lip);
+      lg.addColorStop(1, 'rgba(232,154,147,0)');
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.moveTo(x - w * 0.85, cornerY + 1);
+      ctx.quadraticCurveTo(x, cy + curve * 8 + 12, x + w * 0.85, cornerY + 1);
+      ctx.quadraticCurveTo(x, cy + curve * 8 + 4, x - w * 0.85, cornerY + 1);
+      ctx.closePath(); ctx.fill();
+      if (curve > 0.3) smileCreases(ctx, x, w, cornerY);
+      return;
+    }
+
+    function mouthPath() {
+      ctx.beginPath();
+      ctx.moveTo(x - w, cornerY);
+      ctx.quadraticCurveTo(x, cy - h * 0.8 + curve * 4, x + w, cornerY);
+      ctx.quadraticCurveTo(x, cy + h * 1.1 + curve * 5, x - w, cornerY);
+      ctx.closePath();
+    }
+
+    ctx.fillStyle = C.mouthIn; mouthPath(); ctx.fill();
+
+    if (p.teeth > 0.05 && h > 4) {
+      ctx.save(); mouthPath(); ctx.clip();
+      ctx.fillStyle = C.teeth;
+      ctx.fillRect(x - w, cornerY - h * 0.85, w * 2, h * 0.5 + p.teeth * 6);
+      ctx.restore();
+    }
+    if (h > 11) {
+      ctx.save(); mouthPath(); ctx.clip();
+      ctx.fillStyle = C.tongue;
+      ellipse(ctx, x, cy + h * 0.9, w * 0.6, h * 0.45); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.strokeStyle = C.lip; ctx.lineWidth = 3.6; ctx.lineJoin = 'round';
+    mouthPath(); ctx.stroke();
+    if (curve > 0.3) smileCreases(ctx, x, w, cornerY);
+  }
+
+  /* A dimple, not a fold. The old version drew a long nasolabial crease, which
+     is one of the strongest "older face" cues there is. */
+  function smileCreases(ctx, x, w, cornerY) {
+    ctx.fillStyle = 'rgba(214,150,124,0.17)';
+    [-1, 1].forEach(function (sd) {
+      ellipse(ctx, x + sd * (w + 3.5), cornerY - 1.5, 2, 2.6); ctx.fill();
+    });
+  }
+
+  NS.lerp = lerp;
+  NS.clamp = clamp;
+
+})(typeof window !== 'undefined' ? (window.Nityam = window.Nityam || {}) : (module.exports = {}));
+
+
+/* ---- runtime/emotions.js ---- */
+/* Emotions, and the engine that moves between them.
+ *
+ * An emotion is just a partial set of target values over the rig parameters.
+ * Anything it doesn't mention stays wherever the previous emotion left it,
+ * which is why blends look natural rather than snapping through a neutral pose.
+ *
+ * Each parameter has its own spring stiffness: eyes and mouth are quick, the
+ * head is slow and heavy. Getting those speeds right is most of what separates
+ * "alive" from "puppet". */
+(function (NS) {
+
+  /* ── the emotions ────────────────────────────────────────────────────
+     Chosen for TUTORING, not for a generic emotion wheel. Note there is no
+     "sad" and no "angry": a tutor is never disappointed in a student. The
+     nearest thing is `gentle` — sympathetic, still on your side.           */
+  var EMOTIONS = {
+    neutral: {
+      browRaise: 0, browInner: 0, browAsym: 0,
+      eyeOpen: 1, eyeSquint: 0.05, lookX: 0, lookY: 0,
+      mouthOpen: 0.04, mouthWidth: 0.5, mouthCurve: 0.2, mouthPurse: 0, teeth: 0,
+      cheekRaise: 0.05, blush: 0, headTilt: 0, headNod: 0, lean: 0, bounce: 0
+    },
+
+    listening: {
+      browRaise: 0.4, browInner: 0.15, browAsym: 0.2,
+      eyeOpen: 1.1, eyeSquint: 0.1, lookX: 0, lookY: 0,
+      mouthOpen: 0.03, mouthWidth: 0.46, mouthCurve: 0.34, mouthPurse: 0.05, teeth: 0,
+      cheekRaise: 0.15, blush: 0, headTilt: 0.3, headNod: 0.14, lean: 0.4, bounce: 0
+    },
+
+    thinking: {
+      browRaise: -0.25, browInner: -0.6, browAsym: 0.55,
+      eyeOpen: 0.8, eyeSquint: 0.25, lookX: 0.7, lookY: -0.75,
+      mouthOpen: 0.02, mouthWidth: 0.34, mouthCurve: -0.05, mouthPurse: 0.6, teeth: 0,
+      cheekRaise: 0, blush: 0, headTilt: -0.24, headNod: -0.16, lean: -0.2, bounce: 0
+    },
+
+    explaining: {
+      browRaise: 0.3, browInner: -0.1, browAsym: 0.15,
+      eyeOpen: 1.04, eyeSquint: 0.12, lookX: 0, lookY: 0,
+      mouthOpen: 0.3, mouthWidth: 0.6, mouthCurve: 0.34, mouthPurse: 0, teeth: 0.5,
+      cheekRaise: 0.2, blush: 0, headTilt: 0.08, headNod: 0, lean: 0.2, bounce: 0
+    },
+
+    /* the "good job" face — a real smile reaches the EYES, so eyeSquint and
+       cheekRaise do more work here than mouth width does */
+    encouraging: {
+      browRaise: 0.6, browInner: 0.2, browAsym: 0,
+      eyeOpen: 0.85, eyeSquint: 0.85, lookX: 0, lookY: 0,
+      mouthOpen: 0.24, mouthWidth: 0.86, mouthCurve: 1, mouthPurse: 0, teeth: 0.8,
+      cheekRaise: 0.9, blush: 0.35, headTilt: 0.16, headNod: 0.22, lean: 0.3, bounce: 0.12
+    },
+
+    excited: {
+      browRaise: 1, browInner: 0.15, browAsym: 0,
+      eyeOpen: 1.3, eyeSquint: 0.4, lookX: 0, lookY: 0,
+      mouthOpen: 0.72, mouthWidth: 0.95, mouthCurve: 0.95, mouthPurse: 0, teeth: 0.95,
+      cheekRaise: 1, blush: 0.55, headTilt: -0.12, headNod: -0.22, lean: 0.5, bounce: 0.75
+    },
+
+    curious: {
+      browRaise: 0.45, browInner: -0.15, browAsym: 1,
+      eyeOpen: 1.14, eyeSquint: 0.05, lookX: 0.2, lookY: 0,
+      mouthOpen: 0.04, mouthWidth: 0.38, mouthCurve: 0.4, mouthPurse: 0.4, teeth: 0,
+      cheekRaise: 0.15, blush: 0, headTilt: 0.55, headNod: 0.05, lean: 0.3, bounce: 0
+    },
+
+    surprised: {
+      browRaise: 1, browInner: 0.5, browAsym: 0,
+      eyeOpen: 1.38, eyeSquint: 0, lookX: 0, lookY: 0,
+      mouthOpen: 0.62, mouthWidth: 0.28, mouthCurve: 0.05, mouthPurse: 0.75, teeth: 0.2,
+      cheekRaise: 0, blush: 0.15, headTilt: 0.04, headNod: -0.3, lean: -0.3, bounce: 0
+    },
+
+    /* NOT disappointment. A tutor is never disappointed in a student — this
+       is warm, sympathetic, "let's look again". */
+    gentle: {
+      browRaise: 0.2, browInner: 1, browAsym: 0.15,
+      eyeOpen: 0.86, eyeSquint: 0.3, lookX: 0, lookY: 0.1,
+      mouthOpen: 0.02, mouthWidth: 0.42, mouthCurve: -0.35, mouthPurse: 0.15, teeth: 0,
+      cheekRaise: 0.1, blush: 0, headTilt: 0.42, headNod: 0.2, lean: 0.24, bounce: 0
+    },
+
+    proud: {
+      browRaise: 0.35, browInner: 0.25, browAsym: 0,
+      eyeOpen: 0.82, eyeSquint: 0.75, lookX: 0, lookY: 0,
+      mouthOpen: 0.1, mouthWidth: 0.7, mouthCurve: 0.85, mouthPurse: 0, teeth: 0.4,
+      cheekRaise: 0.85, blush: 0.3, headTilt: -0.1, headNod: -0.3, lean: 0.05, bounce: 0
+    }
+  };
+  NS.EMOTIONS = EMOTIONS;
+  NS.emotionNames = function () { return Object.keys(EMOTIONS); };
+
+  /* ── per-parameter spring constants ──────────────────────────────────
+     [stiffness, damping]. Light features settle fast; the head is heavy and
+     lags, which is exactly what makes the motion read as a body rather than
+     a set of sliders.                                                     */
+  var SPRING = {
+    _default:  [0.11, 0.76],
+    /* the mouth must keep up with speech, so it stays fast */
+    mouthOpen: [0.55, 0.48],
+    mouthWidth:[0.34, 0.60],
+    mouthPurse:[0.38, 0.58],
+    teeth:     [0.30, 0.62],
+    /* eyes are quick — a blink or a widen is near-instant */
+    eyeOpen:   [0.42, 0.55],
+    lookX:     [0.30, 0.62],
+    lookY:     [0.30, 0.62],
+    /* the expression carriers are slower: a face takes ~0.3s to change its
+       mind, and anything quicker reads as a cut rather than a feeling */
+    eyeSquint: [0.13, 0.74],
+    mouthCurve:[0.11, 0.76],
+    browRaise: [0.12, 0.75],
+    browInner: [0.11, 0.76],
+    browAsym:  [0.10, 0.78],
+    headTilt:  [0.09, 0.80],
+    headTurn:  [0.09, 0.80],
+    headNod:   [0.10, 0.78],
+    lean:      [0.08, 0.82],
+    bounce:    [0.26, 0.55],
+    cheekRaise:[0.12, 0.75],
+    blush:     [0.06, 0.86]
+  };
+
+  NS.createEmotionEngine = function (opts) {
+    opts = opts || {};
+    var cur = NS.newParams();          // where we are
+    var vel = NS.newParams();          // spring velocity
+    var target = NS.newParams();       // where we're heading
+    for (var k in vel) vel[k] = 0;
+
+    var emotion = 'neutral';
+    var holdLeft = 0;                  // seconds remaining on a transient emotion
+    var baseEmotion = 'neutral';       // what to fall back to
+
+    apply(EMOTIONS.neutral);
+
+    function apply(e) {
+      for (var k in e) if (k in target) target[k] = e[k];
+    }
+
+    /* ── idle behaviour ────────────────────────────────────────────────
+       Without this the avatar is a corpse with a moving mouth. Blinks,
+       breath, micro-saccades and slow head drift are doing more work for
+       believability than any single expression.                          */
+    var t0 = 0, nextBlink = 1.4, blinkPhase = -1, blinkQueue = 0;
+    var nextSaccade = 2.0, saccX = 0, saccY = 0;
+    var driftSeed = Math.random() * 100;
+
+    function idle(dt, now, speaking) {
+      // breathing
+      target.breathe = (now * 0.22) % 1;
+
+      // blinking — occasionally a double blink, which humans do constantly
+      if (blinkPhase >= 0) {
+        blinkPhase += dt * 7.5;
+        var b = blinkPhase < 1 ? blinkPhase : 2 - blinkPhase;
+        cur.eyeOpen = Math.min(cur.eyeOpen, Math.max(0, target.eyeOpen * (1 - b)));
+        if (blinkPhase >= 2) {
+          blinkPhase = -1;
+          if (blinkQueue > 0) { blinkQueue--; blinkPhase = 0; }
+          else nextBlink = now + 1.8 + Math.random() * 4.2;
+        }
+      } else if (now > nextBlink) {
+        blinkPhase = 0;
+        if (Math.random() < 0.28) blinkQueue = 1;
+      }
+
+      // micro-saccades: the eyes are never perfectly still
+      if (now > nextSaccade) {
+        saccX = (Math.random() - 0.5) * 0.34;
+        saccY = (Math.random() - 0.5) * 0.22;
+        nextSaccade = now + 0.7 + Math.random() * 2.4;
+      }
+
+      // slow head drift, so a held pose never freezes
+      var d = driftSeed + now * 0.35;
+      var driftTurn = Math.sin(d) * 0.09 + Math.sin(d * 0.37) * 0.05;
+      var driftTilt = Math.sin(d * 0.53 + 1.1) * 0.05;
+      var driftNod = Math.sin(d * 0.41 + 2.3) * 0.05;
+
+      return { saccX: saccX, saccY: saccY,
+               driftTurn: driftTurn, driftTilt: driftTilt, driftNod: driftNod };
+    }
+
+    return {
+      /* set(name)                      hold it
+         set(name, {hold: 1.8})         revert to the base emotion after 1.8s  */
+      set: function (name, o) {
+        if (!EMOTIONS[name]) { console.warn('[nityam:avatar] unknown emotion: ' + name); return false; }
+        o = o || {};
+        emotion = name;
+        apply(EMOTIONS[name]);
+        if (o.hold) holdLeft = o.hold;              // counted down in step(), so
+        else { holdLeft = 0; baseEmotion = name; }  // it never depends on a clock
+        return true;
+      },
+      emotion: function () { return emotion; },
+      baseEmotion: function () { return baseEmotion; },
+
+      /* one-off nudges layered on top of the current emotion */
+      nudge: function (patch) { for (var k in patch) if (k in target) target[k] = patch[k]; },
+
+      params: cur,
+      target: target,
+
+      step: function (dt, now, overrides) {
+        if (holdLeft > 0) {
+          holdLeft -= dt;
+          if (holdLeft <= 0) { holdLeft = 0; emotion = baseEmotion; apply(EMOTIONS[baseEmotion]); }
+        }
+
+        var idl = idle(dt, now, false);
+
+        // speech and other live drivers win over the emotion's own targets
+        if (overrides) for (var k in overrides) if (k in target) target[k] = overrides[k];
+
+        for (var p in target) {
+          if (p === 'breathe') { cur[p] = target[p]; continue; }
+          var sp = SPRING[p] || SPRING._default;
+          var extra = 0;
+          if (p === 'lookX') extra = idl.saccX;
+          else if (p === 'lookY') extra = idl.saccY;
+          else if (p === 'headTurn') extra = idl.driftTurn;
+          else if (p === 'headTilt') extra = idl.driftTilt;
+          else if (p === 'headNod') extra = idl.driftNod;
+
+          var goal = target[p] + extra;
+          vel[p] = (vel[p] + (goal - cur[p]) * sp[0]) * sp[1];
+          cur[p] += vel[p];
+        }
+
+        // the blink is applied AFTER the spring so it always fully closes
+        if (blinkPhase >= 0) {
+          var bb = blinkPhase < 1 ? blinkPhase : 2 - blinkPhase;
+          cur.eyeOpen *= Math.max(0, 1 - bb * 1.05);
+        }
+        return cur;
+      }
+    };
+  };
+
+})(typeof window !== 'undefined' ? (window.Nityam = window.Nityam || {}) : (module.exports = {}));
+
+
+/* ---- runtime/speech.js ---- */
+/* Lip sync.
+ *
+ * Research finding worth recording: there is no off-the-shelf audio-to-lipsync
+ * for Rive, Lottie or Spine characters — whichever renderer you pick, this
+ * layer gets built. So it is built here, renderer-agnostic, and it emits
+ * VISEMES rather than pixels.
+ *
+ * Two drivers, same output:
+ *
+ *   fromAudio(el|stream)  Web Audio AnalyserNode -> FFT band energies ->
+ *                         viseme. Real, sub-frame latency, no network.
+ *   fromText(string)      a synthetic envelope built from the actual syllables,
+ *                         so the demo works with no microphone and no TTS —
+ *                         and still moves in a way that matches the words.
+ *
+ * A viseme is a target for four mouth parameters. Coarticulation (the smooth
+ * blur between shapes that makes real speech legible) is handled for free by
+ * the emotion engine's springs. */
+(function (NS) {
+
+  /* Preston-Blair style set, reduced to what reads at this stylisation. */
+  var VISEMES = {
+    REST: { mouthOpen: 0.05, mouthWidth: 0.50, mouthPurse: 0.00, teeth: 0.00 },
+    MBP:  { mouthOpen: 0.00, mouthWidth: 0.46, mouthPurse: 0.10, teeth: 0.00 },  // m b p — shut
+    AA:   { mouthOpen: 0.85, mouthWidth: 0.66, mouthPurse: 0.00, teeth: 0.55 },  // father
+    E:    { mouthOpen: 0.42, mouthWidth: 0.86, mouthPurse: 0.00, teeth: 0.70 },  // bed
+    I:    { mouthOpen: 0.22, mouthWidth: 0.80, mouthPurse: 0.00, teeth: 0.55 },  // bit
+    O:    { mouthOpen: 0.52, mouthWidth: 0.30, mouthPurse: 0.72, teeth: 0.20 },  // go
+    U:    { mouthOpen: 0.26, mouthWidth: 0.22, mouthPurse: 0.92, teeth: 0.05 },  // boot
+    FV:   { mouthOpen: 0.14, mouthWidth: 0.62, mouthPurse: 0.00, teeth: 0.85 },  // f v
+    L:    { mouthOpen: 0.36, mouthWidth: 0.58, mouthPurse: 0.00, teeth: 0.45 },  // l th n
+    S:    { mouthOpen: 0.16, mouthWidth: 0.72, mouthPurse: 0.00, teeth: 0.80 }   // s z sh
+  };
+  NS.VISEMES = VISEMES;
+
+  /* ── text -> viseme sequence ─────────────────────────────────────────
+     Not phoneme-accurate, and it doesn't need to be: matching the RHYTHM and
+     the rounded/wide distinction is what the eye actually checks.          */
+  var VOWEL_MAP = { a: 'AA', e: 'E', i: 'I', o: 'O', u: 'U', y: 'I' };
+
+  function visemeForChunk(chunk) {
+    var c = chunk.toLowerCase();
+    if (/^[mbp]/.test(c)) return 'MBP';
+    if (/^[fv]/.test(c)) return 'FV';
+    if (/^(s|z|sh|ch|j)/.test(c)) return 'S';
+    if (/^(l|th|n|d|t)/.test(c)) return 'L';
+    var m = c.match(/[aeiouy]/);
+    return m ? (VOWEL_MAP[m[0]] || 'AA') : 'L';
+  }
+
+  /* Split into rough syllables: a run of consonants plus its vowel cluster. */
+  function syllables(word) {
+    var out = word.toLowerCase().match(/[^aeiouy]*[aeiouy]+(?:[^aeiouy]*(?=[^aeiouy][aeiouy]))?[^aeiouy]*/g);
+    return (out && out.length) ? out : [word];
+  }
+
+  NS.textToVisemes = function (text, opts) {
+    opts = opts || {};
+    var rate = opts.syllablesPerSecond || 4.6;
+    var seq = [], t = 0;
+    text.split(/\s+/).filter(Boolean).forEach(function (word, wi) {
+      var clean = word.replace(/[^A-Za-z']/g, '');
+      if (!clean) { t += 0.16; return; }                    // punctuation = a beat
+      syllables(clean).forEach(function (syl) {
+        var dur = (1 / rate) * (0.75 + Math.random() * 0.5);
+        seq.push({ t: t, dur: dur, viseme: visemeForChunk(syl), stress: syl.length > 3 ? 1 : 0.8 });
+        t += dur;
+      });
+      if (/[.,;:!?]$/.test(word)) t += 0.22;                // pause at punctuation
+      t += 0.045;
+    });
+    return { seq: seq, duration: t };
+  };
+
+  /* ── the driver ──────────────────────────────────────────────────────── */
+  NS.createSpeechEngine = function (opts) {
+    opts = opts || {};
+    var mode = null;            // 'text' | 'audio' | null
+    var seq = null, startedAt = 0, duration = 0;
+    var analyser = null, freqData = null, audioCtx = null, srcNode = null;
+    var level = 0, closed = 1;
+    var current = VISEMES.REST;
+    var onEnd = null;
+
+    function speakText(text, o) {
+      o = o || {};
+      var built = NS.textToVisemes(text, o);
+      seq = built.seq; duration = built.duration;
+      startedAt = o.now != null ? o.now : (performance.now() / 1000);
+      mode = 'text';
+      onEnd = o.onEnd || null;
+      return duration;
+    }
+
+    /* Real audio. Works with an <audio> element or a MediaStream. */
+    function attachAudio(source) {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (srcNode) { try { srcNode.disconnect(); } catch (e) {} }
+        srcNode = source instanceof MediaStream
+          ? audioCtx.createMediaStreamSource(source)
+          : audioCtx.createMediaElementSource(source);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.55;
+        srcNode.connect(analyser);
+        if (!(source instanceof MediaStream)) analyser.connect(audioCtx.destination);
+        freqData = new Uint8Array(analyser.frequencyBinCount);
+        mode = 'audio';
+        return true;
+      } catch (e) {
+        console.warn('[nityam:avatar] audio lip sync unavailable:', e.message);
+        return false;
+      }
+    }
+
+    /* Energy in a frequency range, as a 0..1 average. */
+    function band(lo, hi) {
+      var nyq = audioCtx.sampleRate / 2, n = freqData.length;
+      var a = Math.max(0, Math.floor(lo / nyq * n));
+      var b = Math.min(n - 1, Math.ceil(hi / nyq * n));
+      var s = 0;
+      for (var i = a; i <= b; i++) s += freqData[i];
+      return (s / Math.max(1, b - a + 1)) / 255;
+    }
+
+    /* Classify a frame. F1 (roughly 300-900Hz) carries openness; the ratio of
+       F2 (900-2600Hz) to F1 separates wide vowels from rounded ones. */
+    function analyse() {
+      analyser.getByteFrequencyData(freqData);
+      var lowF = band(90, 300);
+      var f1 = band(300, 900);
+      var f2 = band(900, 2600);
+      var hiss = band(3500, 8000);
+
+      var energy = Math.max(f1, f2 * 0.8, lowF * 0.6);
+      level = level * 0.5 + energy * 0.5;
+
+      if (level < 0.045) return { v: VISEMES.MBP, amp: 0 };
+      if (hiss > f1 * 1.25 && hiss > 0.12) return { v: VISEMES.S, amp: level };
+
+      var ratio = f2 / (f1 + f2 + 1e-6);      // high = wide, low = rounded
+      var pick;
+      if (ratio > 0.60) pick = level > 0.35 ? VISEMES.E : VISEMES.I;
+      else if (ratio < 0.36) pick = level > 0.35 ? VISEMES.O : VISEMES.U;
+      else pick = level > 0.45 ? VISEMES.AA : VISEMES.L;
+      return { v: pick, amp: level };
+    }
+
+    return {
+      speakText: speakText,
+      attachAudio: attachAudio,
+      isSpeaking: function () { return mode !== null; },
+      stop: function () { mode = null; seq = null; current = VISEMES.REST; },
+      duration: function () { return duration; },
+
+      /* -> the mouth parameter overrides for this frame, or null when silent */
+      step: function (now) {
+        if (mode === 'audio' && analyser) {
+          var r = analyse();
+          var amp = Math.min(1, r.amp * 2.1);
+          return {
+            mouthOpen: r.v.mouthOpen * amp,
+            mouthWidth: NS.lerp(0.5, r.v.mouthWidth, amp),
+            mouthPurse: r.v.mouthPurse * amp,
+            teeth: r.v.teeth * amp
+          };
+        }
+
+        if (mode === 'text' && seq) {
+          var t = now - startedAt;
+          if (t > duration) {
+            mode = null; seq = null;
+            if (onEnd) { var f = onEnd; onEnd = null; f(); }
+            return null;
+          }
+          var cur = null;
+          for (var i = 0; i < seq.length; i++) {
+            if (t >= seq[i].t && t < seq[i].t + seq[i].dur) { cur = seq[i]; break; }
+          }
+          if (!cur) return { mouthOpen: 0.03, mouthWidth: 0.5, mouthPurse: 0.05, teeth: 0 };
+
+          /* an envelope inside each syllable, so it opens and closes rather
+             than snapping between held shapes */
+          var k = (t - cur.t) / cur.dur;
+          var env = Math.sin(Math.min(1, Math.max(0, k)) * Math.PI);
+          env = Math.pow(env, 0.55) * cur.stress;
+          var v = VISEMES[cur.viseme];
+          return {
+            mouthOpen: v.mouthOpen * env,
+            mouthWidth: NS.lerp(0.5, v.mouthWidth, env),
+            mouthPurse: v.mouthPurse * env,
+            teeth: v.teeth * env
+          };
+        }
+        return null;
+      }
+    };
+  };
+
+})(typeof window !== 'undefined' ? (window.Nityam = window.Nityam || {}) : (module.exports = {}));
+
+
+/* ---- runtime/mount.js ---- */
+/* mountAvatar(container, options) -> handle
+ *
+ * The public API, and the only thing the rest of Nityam should ever touch:
+ *
+ *     const tutor = Nityam.mountAvatar(el, { size: 260 });
+ *     tutor.setState('listening');
+ *     tutor.say("So what do you think decides the range?");
+ *     tutor.react('encouraging');            // a transient beat
+ *     tutor.attachAudio(audioElement);       // real TTS -> real lip sync
+ *
+ * Note what is NOT in here: any drawing. Swap runtime/rig.js for a Rive board
+ * or a 3D head with ARKit blendshapes and everything below is unchanged,
+ * because the rig's parameter names are the contract. */
+(function (NS) {
+
+  /* Conversational states, which are orthogonal to emotion. A tutor can be
+     listening AND concerned, or speaking AND delighted. */
+  var STATE_EMOTION = {
+    idle: 'neutral',
+    listening: 'listening',
+    thinking: 'thinking',
+    speaking: 'explaining'
+  };
+
+  NS.mountAvatar = function (container, opts) {
+    opts = opts || {};
+    container.innerHTML = '';
+    container.classList.add('nty-avatar');
+
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', 'Nityam, your tutor');
+    canvas.style.display = 'block';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    container.appendChild(canvas);
+    var ctx = canvas.getContext('2d');
+
+    var emo = NS.createEmotionEngine();
+    var speech = NS.createSpeechEngine();
+    var state = 'idle';
+    var raf = null, last = 0, running = true, clock = 0;
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function resize() {
+      var dpr = window.devicePixelRatio || 1;
+      var w = container.clientWidth || opts.size || 260;
+      var h = container.clientHeight || Math.round((opts.size || 260) * NS.DESIGN.h / NS.DESIGN.w);
+      canvas.width = Math.max(1, Math.round(w * dpr));
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { w: w, h: h };
+    }
+    var size = resize();
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(function () { size = resize(); }).observe(container);
+    }
+
+    /* One step of the whole avatar, at an explicit time. The RAF loop is just
+       a caller of this — a host that owns its own loop (or a test that needs
+       deterministic frames) can drive it directly instead. */
+    function tick(now) {
+      if (now == null) now = performance.now() / 1000;
+      var dt = last ? Math.min(0.05, now - last) : 0.016;
+      last = now; clock = now;
+
+      /* Speech drives the mouth; the emotion drives everything else. They
+         layer rather than fight, because the mouth targets are overrides
+         into the same spring system. */
+      var mouth = speech.step(now);
+      if (mouth && state !== 'speaking') setState('speaking');
+      if (!mouth && state === 'speaking') setState(prevState === 'speaking' ? 'idle' : prevState);
+
+      var p = emo.step(dt, now, mouth);
+      if (reduced) { p = Object.assign({}, p, { bounce: 0, breathe: 0.25 }); }
+      NS.draw(ctx, p, { width: size.w, height: size.h });
+      return p;
+    }
+
+    function frame(ms) {
+      if (!running) return;
+      tick(ms / 1000);
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+
+    var prevState = 'idle';
+    function setState(s) {
+      if (!STATE_EMOTION[s]) { console.warn('[nityam:avatar] unknown state: ' + s); return false; }
+      if (s === state) return true;
+      if (s !== 'speaking') prevState = s;
+      state = s;
+      /* a transient reaction outranks the state's own resting face */
+      if (emo.emotion() === emo.baseEmotion()) emo.set(STATE_EMOTION[s]);
+      else emo.set(emo.emotion());
+      return true;
+    }
+
+    return {
+      /* conversational state: idle | listening | thinking | speaking */
+      setState: setState,
+      state: function () { return state; },
+
+      /* hold an emotion until told otherwise */
+      setEmotion: function (name) { return emo.set(name); },
+
+      /* a beat that reverts on its own — "good job", a flash of surprise */
+      react: function (name, seconds) { return emo.set(name, { hold: seconds || 2.2 }); },
+
+      emotion: emo.emotion,
+      emotions: NS.emotionNames,
+
+      /* speak without audio: the mouth is driven by the words themselves */
+      say: function (text, o) {
+        o = o || {};
+        setState('speaking');
+        var d = speech.speakText(text, {
+          now: clock,                     // the clock tick() is being driven with
+          syllablesPerSecond: o.rate,
+          onEnd: function () { setState(o.thenListen === false ? 'idle' : 'listening'); if (o.onEnd) o.onEnd(); }
+        });
+        return d;
+      },
+
+      /* speak WITH audio: real TTS in, real visemes out */
+      attachAudio: function (source) {
+        var ok = speech.attachAudio(source);
+        if (ok) setState('speaking');
+        return ok;
+      },
+
+      stopSpeaking: function () { speech.stop(); setState('listening'); },
+      isSpeaking: speech.isSpeaking,
+
+      /* Drive one frame yourself, at an explicit time in seconds. Lets a host
+         sync the avatar to its own clock, and makes the whole thing testable. */
+      tick: tick,
+
+      /* escape hatch for one-off poses */
+      nudge: emo.nudge,
+      params: function () { return emo.params; },
+
+      destroy: function () {
+        running = false;
+        if (raf) cancelAnimationFrame(raf);
+        container.innerHTML = '';
+      }
+    };
+  };
+
+})(window.Nityam = window.Nityam || {});
+
+</script>
+<script>
+var BUILD = {"runtime": ["rig.js", "emotions.js", "speech.js", "mount.js"]};
+var tutor = Nityam.mountAvatar(document.getElementById('avatar'), { size: 300 });
+window.tutor = tutor;
+
+/* emotions */
+var LABEL = {
+  neutral:'resting', listening:'attentive, leaning in', thinking:'working it out',
+  explaining:'mid-teaching', encouraging:'good job', excited:'delighted',
+  curious:'head tilt, one brow', surprised:'did not expect that',
+  gentle:'not quite — kindly', proud:'quietly pleased'
+};
+var eg = document.getElementById('emotions');
+tutor.emotions().forEach(function(name){
+  var b=document.createElement('button');
+  b.dataset.emo=name;
+  b.innerHTML='<span>'+name+'</span><span class="emolabel">'+(LABEL[name]||'')+'</span>';
+  b.onclick=function(){ tutor.setEmotion(name); syncEmo(); };
+  eg.appendChild(b);
+});
+function syncEmo(){
+  var cur=tutor.emotion();
+  eg.querySelectorAll('button').forEach(function(b){
+    b.setAttribute('aria-pressed', b.dataset.emo===cur);
+  });
+  document.getElementById('emotext').textContent=cur;
+}
+
+/* states */
+var sg=document.getElementById('states');
+['idle','listening','thinking','speaking'].forEach(function(s){
+  var b=document.createElement('button');
+  b.textContent=s; b.dataset.state=s; b.style.textAlign='center';
+  b.onclick=function(){ tutor.setState(s); };
+  sg.appendChild(b);
+});
+
+/* speaking */
+function speak(text, reactWith){
+  document.getElementById('caption').textContent = text;
+  if (reactWith) tutor.react(reactWith, 3.4);
+  tutor.say(text, { onEnd: function(){ } });
+}
+document.getElementById('say').onclick=function(){
+  speak(document.getElementById('line').value.trim() || 'Hello.');
+};
+document.getElementById('line').addEventListener('keydown', function(e){
+  if(e.key==='Enter') document.getElementById('say').click();
+});
+document.getElementById('l1').onclick=function(){ speak("Close — let's test that.", 'curious'); };
+document.getElementById('l2').onclick=function(){ speak("That's exactly it. Well done.", 'encouraging'); };
+document.getElementById('l3').onclick=function(){ speak("Not quite. Look again at the angle.", 'gentle'); };
+
+/* live readout */
+var PSHOW=['headTurn','headTilt','headNod','browRaise','browInner','eyeOpen','eyeSquint',
+           'mouthOpen','mouthWidth','mouthCurve','mouthPurse','teeth'];
+var pn=document.getElementById('params');
+PSHOW.forEach(function(k){
+  var d=document.createElement('div'); d.id='p_'+k;
+  pn.appendChild(d);
+});
+setInterval(function(){
+  var p=tutor.params();
+  PSHOW.forEach(function(k){
+    document.getElementById('p_'+k).innerHTML=k+' <i>'+p[k].toFixed(2)+'</i>';
+  });
+  var s=tutor.state();
+  document.getElementById('statetext').textContent=s;
+  document.getElementById('pip').className='pip '+s;
+  syncEmo();
+}, 90);
+
+document.getElementById('foot').innerHTML=
+  ['emotions: '+tutor.emotions().length,
+   'rig parameters: '+Object.keys(Nityam.PARAMS).length,
+   'visemes: '+Object.keys(Nityam.VISEMES).length,
+   'dependencies: 0'].map(function(s){return '<span>'+s+'</span>';}).join('');
+</script>
+</body>
+</html>
