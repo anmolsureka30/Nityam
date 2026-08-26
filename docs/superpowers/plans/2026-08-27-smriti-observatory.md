@@ -127,7 +127,11 @@ def test_session_context_fills_in_when_extractor_uses_it(redis_client):
     instrumentation.set_session_context(None)  # don't leak into other tests
 
 
-def test_no_publish_when_session_id_is_none(redis_client):
+def test_publishes_even_when_both_session_and_student_id_are_none(redis_client):
+    """search_grounding/search_grounding_semantic/put_grounding_chunk (Task 2)
+    never have either id at all — grounding_chunk records aren't per-session
+    or per-student. The whole point of the global (not per-session) channel
+    is that these still publish, not get silently dropped."""
     redis_client.delete("smriti:events:recent")
 
     @instrumentation.emit_memory_event(
@@ -139,7 +143,12 @@ def test_no_publish_when_session_id_is_none(redis_client):
 
     fake_search(None, ["x"])
 
-    assert redis_client.lrange("smriti:events:recent", 0, -1) == []
+    raw = redis_client.lrange("smriti:events:recent", 0, -1)
+    assert len(raw) == 1
+    event = instrumentation.MemoryEvent.model_validate_json(raw[0])
+    assert event.session_id is None
+    assert event.student_id is None
+    assert event.record_type == "grounding_chunk"
 
 
 def test_publish_failure_does_not_raise(monkeypatch, redis_client):
@@ -283,8 +292,12 @@ def _build_event(
 
 
 def _publish_sync(event: MemoryEvent) -> None:
-    if not event.session_id:
-        return
+    """No gate on session_id/student_id here — several long-term-tier
+    functions (search_grounding, search_grounding_semantic,
+    put_grounding_chunk) never have either at all, and the whole point of
+    the global (not per-session) channel is that those events are still
+    worth seeing, not silently dropped. See spec §5: "every event — scoped
+    or not — publishes.\""""
     try:
         client = _get_sync_client()
         body = event.model_dump_json()
@@ -296,8 +309,6 @@ def _publish_sync(event: MemoryEvent) -> None:
 
 
 async def _publish_async(event: MemoryEvent) -> None:
-    if not event.session_id:
-        return
     try:
         client = redis_async.Redis(
             host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True
