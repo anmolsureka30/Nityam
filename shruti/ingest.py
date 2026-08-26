@@ -194,7 +194,7 @@ def _remap_concept_id(raw_id: str, concepts: list[Concept]) -> str | None:
     return match[0] if match else None
 
 
-async def run_ingest(video_path: str, client, subject: str | None = None,
+async def run_ingest(video_path: str, client, whisper_model, subject: str | None = None,
                       grade: int | None = None, chapter: str | None = None) -> dict:
     """Run the full pipeline against a local video file. Prints progress
     and returns the run summary dict (also saved as run_summary.json)."""
@@ -267,7 +267,7 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
     print("ECHO")
     print("=" * 70)
     art.start_stage("04_echo")
-    utterances = transcribe_audio(client, audio_path, recording.id)
+    utterances = transcribe_audio(whisper_model, audio_path, recording.id)
     await write_utterances(conn, utterances)
     art.save_json("04_echo", "utterances", [u.model_dump() for u in utterances])
     art.save_text("04_echo", "transcript",

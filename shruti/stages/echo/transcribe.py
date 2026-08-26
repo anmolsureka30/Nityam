@@ -1,48 +1,52 @@
-import json
 import uuid
-from google.genai import types
+
+from faster_whisper import WhisperModel
+
 from shruti.config import Models
 from shruti.contracts.speech import Utterance
 
-_FIDELITY_PROMPT = """Transcribe this classroom recording exactly as spoken.
 
-RULES
-1. This is code-mixed Hindi-English classroom speech. Transcribe FAITHFULLY:
-   Hindi words in Devanagari, English words in Latin script, in the order spoken.
-   Do NOT translate. Do NOT normalize to one script.
-2. Timestamp every utterance in seconds (start_s, end_s).
-3. Label the speaker: TEACHER or STUDENT.
-4. If audio is unintelligible, emit text "[inaudible]". Never guess.
+def build_whisper_model() -> WhisperModel:
+    """Loads once per process — real model weights, real disk I/O, not
+    something to call per-transcription. CPU + int8 quantization: this
+    pipeline runs on a MacBook Air with no dedicated GPU, and int8 keeps
+    inference tolerable there. large-v3 chosen over medium because
+    code-mixed Hindi-English classroom speech is exactly the harder input
+    where the larger model's accuracy gap matters most — see
+    shruti_storage_and_pipeline_redesign_design.md §4.
+    Models().whisper_model_size is a one-line override if real-world
+    latency ever makes medium the better trade — no redesign needed."""
+    return WhisperModel(Models().whisper_model_size, device="cpu", compute_type="int8")
 
-Return a JSON array of objects: {start_s, end_s, text, speaker, confidence}.
-"""
 
-
-def transcribe_audio(client, audio_path: str, recording_id: str) -> list[Utterance]:
-    # Bug fix: a raw path string is not audio content to the SDK — it would
-    # be treated as extra prompt text, not the file. Read the bytes and wrap
-    # as an inline Part. Deliberately not client.files.upload(): that method
-    # only works in Gemini Developer API mode (raises ValueError under
-    # Vertex AI), and inline bytes work in both modes — this pipeline needs
-    # to run under either.
-    with open(audio_path, "rb") as f:
-        audio_bytes = f.read()
-    audio_part = types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav")
-    response = client.models.generate_content(
-        model=Models().reasoner,
-        contents=[_FIDELITY_PROMPT, audio_part],
-        config={"response_mime_type": "application/json"},
-    )
-    rows = json.loads(response.text)
-    return [
-        Utterance(
+def transcribe_audio(model, audio_path: str, recording_id: str) -> list[Utterance]:
+    """model is a faster_whisper.WhisperModel (see build_whisper_model), or
+    in tests, anything with a matching .transcribe(audio, **kwargs) ->
+    (segments, info) interface. Every utterance is labeled TEACHER —
+    Whisper does no speaker diarization on its own, and in every real run
+    this pipeline has done, 100% of transcribed speech was a single
+    narrator (see shruti_storage_and_pipeline_redesign_design.md §4).
+    multilingual=True asks Whisper to detect language per segment rather
+    than once for the whole file — the right setting for code-mixed
+    Hindi-English speech (verified against the installed faster-whisper
+    package's own docstring: "Perform language detection on every
+    segment"). word_timestamps=True uses Whisper's cross-attention word
+    alignment, expected to be materially more reliable than the previous
+    single-shot JSON-timestamp-guessing approach — see the ECHO
+    reliability gap this swap addresses in
+    memory_nityam_architecture/README.md."""
+    segments, _info = model.transcribe(audio_path, word_timestamps=True, multilingual=True)
+    utterances = []
+    for segment in segments:
+        text = segment.text.strip()
+        if not text:
+            continue
+        utterances.append(Utterance(
             id=str(uuid.uuid4()),
             recording_id=recording_id,
-            start_s=row["start_s"],
-            end_s=row["end_s"],
-            text=row["text"],
-            speaker=row["speaker"],
-            confidence=row.get("confidence"),
-        )
-        for row in rows
-    ]
+            start_s=segment.start,
+            end_s=segment.end,
+            text=text,
+            speaker="TEACHER",
+        ))
+    return utterances

@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from google import genai
 from shruti.ingest import run_ingest
+from shruti.stages.echo.transcribe import build_whisper_model
 
 
 def build_client() -> genai.Client:
@@ -30,7 +31,10 @@ async def main():
     parser.add_argument("--chapter", default=None)
     args = parser.parse_args()
 
-    await run_ingest(args.video_path, build_client(), subject=args.subject,
+    print("Loading Whisper model (first run downloads several GB) ...")
+    whisper_model = build_whisper_model()
+
+    await run_ingest(args.video_path, build_client(), whisper_model, subject=args.subject,
                       grade=args.grade, chapter=args.chapter)
 
 

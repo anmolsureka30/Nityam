@@ -62,8 +62,13 @@ def ingest(
         raise typer.Exit(code=1)
     client = genai.Client(vertexai=True, api_key=vertex_key) if vertex_key else genai.Client()
 
+    from shruti.stages.echo.transcribe import build_whisper_model
+    typer.echo("Loading Whisper model (first run downloads several GB) ...")
+    whisper_model = build_whisper_model()
+
     from shruti.ingest import run_ingest
-    asyncio.run(run_ingest(video_path, client, subject=subject, grade=grade, chapter=chapter))
+    asyncio.run(run_ingest(video_path, client, whisper_model, subject=subject,
+                            grade=grade, chapter=chapter))
 
 
 @app.command()
