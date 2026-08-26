@@ -17,16 +17,18 @@
 
 - ADK version pinned: `google-adk[gcp,otel-gcp]>=2.6.0,<3.0.0`, installed `2.7.1` — matches the version this plan's ADK source citations were verified against.
 - Model ids live only in `sub_modules/tutor/app/config.py` — never inlined at a call site. Verified live on 2026-08-26: `LIVE_MODEL = "gemini-3.1-flash-live-preview"`, `REASONING_MODEL = "gemini-3.7-flash"` (architecture.md §4).
-- Auth is Gemini API key (`GEMINI_API_KEY`), matching `sub_modules/shruti`'s existing pattern — not Vertex AI. No `gcloud`/ADC in this environment.
+- ~~Auth is Gemini API key (`GEMINI_API_KEY`)~~ — **superseded, see the correction below.** Auth is Vertex AI Express Mode (`GOOGLE_GENAI_USE_VERTEXAI=TRUE` + `GOOGLE_API_KEY=<express-mode key>`, no project/location, no `gcloud`/ADC).
 - Long-term memory (`dpm_profile`, `teaching_memory`) is **never** written mid-session — the only write path is `close_session` (memory_layer.md §3–§4). Tools exposed to `TutorAgent`/`ArtifactAgent` are read-only against long-term memory.
 - Every `Weakness`, `SelfReflection`, and `OpenDoubt` record requires at least one `"session_id#turn"` evidence reference — enforced by the Pydantic schema itself, not just convention (memory_layer.md §2).
 - Sub-agent delegation uses `sub_agents=[child]` with `mode="single_turn"` declared **on the child**, never raw `AgentTool(child)` — the installed ADK's own source discourages direct `AgentTool` use (architecture.md §2).
 - Demo subject is projectile motion — grounding content is seeded from the real, already-ingested `sub_modules/shruti/vault/wiki/*.md` files, not invented.
 - **Never assert on LLM response content in pytest.** Behavioral verification of an agent's actual output happens via `agents-cli run` / `agents-cli eval`, not pytest (`google-agents-cli-workflow` rule). pytest in this plan checks structure, config, and deterministic logic only.
 
-## ⚠️ Known blocker, discovered during this plan's own research
+## ⚠️ Known blocker, discovered during this plan's own research — RESOLVED
 
-The `GEMINI_API_KEY` currently configured (shared with `sub_modules/shruti`) returned `429 RESOURCE_EXHAUSTED — prepayment credits are depleted` on a real `generate_content` call during scaffolding verification. **Listing models still works** (used to verify the model ids above); **actual generation calls do not**, right now. Every task below is still fully buildable and its structural/deterministic tests are runnable today — each task's final "live verification" step is what's blocked, and is labeled as such. Before running any live-verification step: add credits at https://ai.studio/projects, or swap in a different working key in `sub_modules/tutor/.env`.
+The `GEMINI_API_KEY` originally configured (shared with `sub_modules/shruti`) returned `429 RESOURCE_EXHAUSTED — prepayment credits are depleted` on a real `generate_content` call. This blocked every task's "live verification" step at the time; structural/deterministic tests were unaffected.
+
+**Resolution (found after the plan's tasks were built, verified live):** the plain Gemini Developer API key hits AI Studio's prepay-credit limit, but this project's Vertex AI billing is separate and not exhausted. `sub_modules_examples/shruti` (`shruti/cli.py`, `scripts/ingest_video.py`) and `sub_modules_examples/adk` (`backend/auth.py`'s `vertex_express` mode) had both already independently converged on the fix: **Vertex AI Express Mode** — `genai.Client(vertexai=True, api_key=...)` using the value stored (confusingly) under `GOOGLE_OAUTH_ACCESS_TOKEN` in `sub_modules/shruti/.env`, not a real OAuth token. For ADK, this is env-var only: `GOOGLE_GENAI_USE_VERTEXAI=TRUE` + `GOOGLE_GENAI_USE_ENTERPRISE=TRUE` + `GOOGLE_API_KEY=<that value>`, with `GOOGLE_CLOUD_PROJECT`/`GOOGLE_CLOUD_LOCATION` left **unset** (their presence flips `google-genai` onto the ADC path, which ignores the key entirely). Confirmed live via `agents-cli run` — real grounded responses from `TutorAgent`, `search_grounding`/`get_dpm`/`get_teaching_memory` all firing correctly. `sub_modules/tutor/.env.example` documents this as the default now.
 
 ---
 
