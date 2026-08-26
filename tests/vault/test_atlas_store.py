@@ -1,9 +1,9 @@
 import pytest
 from shruti.contracts.recording import Recording, SurfaceKind
 from shruti.contracts.beat import Beat
-from shruti.contracts.atlas import Concept, BeatRef
+from shruti.contracts.atlas import Concept, Edge, BeatRef
 from shruti.vault.reel import write_recording, write_beats
-from shruti.vault.atlas_store import write_concepts, check_provenance_invariant
+from shruti.vault.atlas_store import write_concepts, write_edges, check_provenance_invariant
 
 
 @pytest.mark.asyncio
@@ -49,3 +49,46 @@ async def test_write_concepts_with_evidence_does_not_raise(db_conn):
     good = Concept(id="c_has_evidence", canonical_name="has evidence concept",
                     taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")])
     await write_concepts(db_conn, [good])  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_write_edges_raises_on_an_edge_with_no_evidence(db_conn):
+    from shruti.vault.atlas_store import ProvenanceViolation
+    rec = Recording(id="r_test_5", source_uri="gs://x", duration_s=10.0, fps=30.0,
+                     surface_kind=SurfaceKind.BLACKBOARD)
+    await write_recording(db_conn, rec)
+    beat = Beat(id="b_test_5", recording_id=rec.id, idx=0, start_s=0.0, end_s=1.0,
+                kind="explain", transcript="x")
+    await write_beats(db_conn, [beat])
+    concepts = [
+        Concept(id="c_edge_from_5", canonical_name="edge from concept",
+                taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")]),
+        Concept(id="c_edge_to_5", canonical_name="edge to concept",
+                taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")]),
+    ]
+    await write_concepts(db_conn, concepts)
+    bad_edge = Edge(id="e_no_evidence", from_concept="c_edge_from_5", to_concept="c_edge_to_5",
+                     edge_type="REQUIRES", evidence=[])
+    with pytest.raises(ProvenanceViolation):
+        await write_edges(db_conn, [bad_edge])
+
+
+@pytest.mark.asyncio
+async def test_write_edges_with_evidence_does_not_raise(db_conn):
+    rec = Recording(id="r_test_6", source_uri="gs://x", duration_s=10.0, fps=30.0,
+                     surface_kind=SurfaceKind.BLACKBOARD)
+    await write_recording(db_conn, rec)
+    beat = Beat(id="b_test_6", recording_id=rec.id, idx=0, start_s=0.0, end_s=1.0,
+                kind="explain", transcript="x")
+    await write_beats(db_conn, [beat])
+    concepts = [
+        Concept(id="c_edge_from_6", canonical_name="edge from concept",
+                taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")]),
+        Concept(id="c_edge_to_6", canonical_name="edge to concept",
+                taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")]),
+    ]
+    await write_concepts(db_conn, concepts)
+    good_edge = Edge(id="e_has_evidence", from_concept="c_edge_from_6", to_concept="c_edge_to_6",
+                      edge_type="REQUIRES",
+                      evidence=[BeatRef(beat_id=beat.id, relation="evidence_for")])
+    await write_edges(db_conn, [good_edge])  # must not raise
