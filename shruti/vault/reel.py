@@ -6,13 +6,14 @@ from shruti.contracts.beat import Beat
 
 async def write_recording(conn, recording: Recording) -> None:
     await conn.execute(
-        """INSERT INTO recording (id, source_uri, title, duration_s, fps, width, height,
+        """INSERT INTO recording (id, slug, source_uri, title, duration_s, fps, width, height,
                                    surface_kind, subject, grade, chapter, reel_version)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
            ON CONFLICT (id) DO NOTHING""",
-        recording.id, recording.source_uri, recording.title, recording.duration_s,
-        recording.fps, recording.width, recording.height, recording.surface_kind.value,
-        recording.subject, recording.grade, recording.chapter, recording.reel_version,
+        recording.id, recording.slug, recording.source_uri, recording.title,
+        recording.duration_s, recording.fps, recording.width, recording.height,
+        recording.surface_kind.value, recording.subject, recording.grade,
+        recording.chapter, recording.reel_version,
     )
 
 

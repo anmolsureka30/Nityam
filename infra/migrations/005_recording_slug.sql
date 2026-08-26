@@ -1,0 +1,2 @@
+ALTER TABLE recording ADD COLUMN IF NOT EXISTS slug TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS recording_slug_idx ON recording (slug) WHERE slug IS NOT NULL;

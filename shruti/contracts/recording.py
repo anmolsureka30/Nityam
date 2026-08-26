@@ -12,6 +12,7 @@ class SurfaceKind(str, Enum):
 
 class Recording(BaseModel):
     id: str
+    slug: str | None = None
     source_uri: str
     title: str | None = None
     duration_s: float
