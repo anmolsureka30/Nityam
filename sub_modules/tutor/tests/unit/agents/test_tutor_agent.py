@@ -11,12 +11,33 @@ from app.memory.tools import get_dpm, get_teaching_memory, log_turn, search_grou
 def test_tutor_agent_identity():
     agent = build_tutor_agent()
     assert agent.name == "TutorAgent"
-    assert agent.mode == "single_turn"
     assert agent.model == config.REASONING_MODEL
 
 
+def test_tutor_agent_defaults_to_a_valid_root_agent_mode():
+    # ADK's Runner rejects mode='single_turn' on a root agent outright:
+    # "LlmAgent as root agent must have mode='chat' or 'task', but got
+    # mode='single_turn'." (google/adk/runners.py). build_tutor_agent()'s
+    # default (mode=None, which the Runner itself normalizes to 'chat' for
+    # a root agent) must stay valid for root use — this is what app/agent.py
+    # actually constructs.
+    agent = build_tutor_agent()
+    assert agent.mode is None
+
+
+def test_tutor_agent_supports_single_turn_mode_for_future_sub_agent_use():
+    # Task 9 (VoiceAgent, not yet built) will attach TutorAgent as its own
+    # sub-agent via build_tutor_agent(mode="single_turn") — the same
+    # auto-wrap-into-tools mechanism ArtifactAgent relies on here. Proves
+    # the factory still supports that mode on request, without making it
+    # the default (which would break root-agent use, see the test above).
+    agent = build_tutor_agent(mode="single_turn")
+    assert agent.mode == "single_turn"
+
+
 def test_tutor_agent_has_a_description_for_delegation():
-    # Required: with no input_schema set, ADK exposes this agent to its
+    # Useful generically, and required for Task 9's future single_turn use:
+    # with no input_schema set, ADK exposes a single_turn agent to its
     # parent as a tool taking one `request: str` field, described by
     # `agent.description` — verified against installed ADK source
     # (google/adk/tools/agent_tool.py::AgentTool._get_declaration).

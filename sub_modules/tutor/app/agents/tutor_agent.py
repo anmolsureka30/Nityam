@@ -3,6 +3,16 @@
 Holds all memory tools. Delegates artifact generation to ArtifactAgent via
 ADK's mode='single_turn' sub-agent mechanism (never raw AgentTool — see
 architecture.md §2 for why, verified against installed ADK source).
+
+TutorAgent itself plays two different roles depending on context, and ADK's
+Runner enforces this at the type level (google/adk/runners.py: "LlmAgent as
+root agent must have mode='chat' or 'task', but got mode='single_turn'"):
+  - As root_agent (current text-mode testing, app/agent.py): mode must be
+    None/'chat' — a root agent IS the thing chatting with the user.
+  - As VoiceAgent's sub-agent (Task 9, not yet built): mode must be
+    'single_turn' so LlmAgent.model_post_init auto-wraps it into
+    VoiceAgent's own tools, the same mechanism ArtifactAgent relies on here.
+build_tutor_agent(mode=...) exists so the same factory serves both.
 """
 from __future__ import annotations
 
@@ -41,11 +51,13 @@ async def _init_student(callback_context: CallbackContext) -> None:
     callback_context.state.setdefault("student_id", "demo_student")
 
 
-def build_tutor_agent() -> LlmAgent:
+def build_tutor_agent(mode: str | None = None) -> LlmAgent:
+    """mode=None (default): valid as root_agent (chat). mode='single_turn':
+    valid as another agent's sub-agent, auto-wrapped into its tools."""
     return LlmAgent(
         name="TutorAgent",
         model=config.REASONING_MODEL,
-        mode="single_turn",
+        mode=mode,
         description=(
             "Handles any teaching moment for the projectile-motion student — "
             "call this whenever the student needs an explanation, wants to "
