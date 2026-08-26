@@ -39,7 +39,8 @@ async def test_known_misconceptions_returns_teacher_phrasing(db_conn):
     beat = Beat(id="b_tool_2", recording_id=rec.id, idx=0, start_s=0.0, end_s=1.0,
                 kind="explain", transcript="x")
     await write_beats(db_conn, [beat])
-    concept = Concept(id="cts_tool2", canonical_name="completing the square")
+    concept = Concept(id="cts_tool2", canonical_name="completing the square",
+                       taught_in=[BeatRef(beat_id=beat.id, relation="taught_in")])
     await write_concepts(db_conn, [concept])
     misconception = Misconception(id="m_tool_1", concept_id="cts_tool2",
                                    statement="treats (a+b)^2 as a^2+b^2",
