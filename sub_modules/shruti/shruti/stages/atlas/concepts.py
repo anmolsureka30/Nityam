@@ -13,9 +13,13 @@ Curriculum spine (normalize concept names against this when given): {spine}
 
 For each concept genuinely TAUGHT (introduced/explained), not merely
 mentioned, return: canonical_name, aliases, taught_in_beat_ids, and
-definition (a 2-4 sentence explanation grounded in what was actually said
-and shown — the derivation, the equation, the example given, not a generic
-textbook definition).
+definition — a 2-4 sentence explanation grounded in what was actually said
+and shown (the derivation, the equation, the example given), written so a
+student reviewing this later, who did not watch the video, can understand
+it standalone. Do not compress away the specific numbers, variable names,
+or steps that were used — a generic textbook definition that could apply
+to any lecture on this topic is a failure; this must read like notes from
+THIS particular class.
 Return a JSON array.
 """
 

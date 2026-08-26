@@ -7,7 +7,6 @@ packages = ["shruti"]
 dependencies = [
     "asyncpg>=0.31.0",
     "duckdb>=1.5.5",
-    "faster-whisper>=1.2.1",
     "google-adk==2.7.1",
     "google-cloud-storage>=3.13.1",
     "google-genai>=1.0",

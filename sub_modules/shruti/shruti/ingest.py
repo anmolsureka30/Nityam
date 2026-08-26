@@ -194,7 +194,7 @@ def _remap_concept_id(raw_id: str, concepts: list[Concept]) -> str | None:
     return match[0] if match else None
 
 
-async def run_ingest(video_path: str, client, whisper_model, subject: str | None = None,
+async def run_ingest(video_path: str, client, subject: str | None = None,
                       grade: int | None = None, chapter: str | None = None) -> dict:
     """Run the full pipeline against a local video file. Prints progress
     and returns the run summary dict (also saved as run_summary.json)."""
@@ -267,7 +267,7 @@ async def run_ingest(video_path: str, client, whisper_model, subject: str | None
     print("ECHO")
     print("=" * 70)
     art.start_stage("04_echo")
-    utterances = transcribe_audio(whisper_model, audio_path, recording.id)
+    utterances = transcribe_audio(client, audio_path, recording.id)
     await write_utterances(conn, utterances)
     art.save_json("04_echo", "utterances", [u.model_dump() for u in utterances])
     art.save_text("04_echo", "transcript",
@@ -504,11 +504,6 @@ async def run_ingest(video_path: str, client, whisper_model, subject: str | None
         )) for ref in c.taught_in[:1]]
         print(f"  - {c.canonical_name}  [{', '.join(cites)}]")
 
-    WIKI_DIR.mkdir(parents=True, exist_ok=True)
-    for c in concepts:
-        write_concept_wiki_page(WIKI_DIR, c, beats, board_states, recording.slug)
-    print(f"Wiki pages updated in {WIKI_DIR}")
-
     beat_ids = {b.id for b in beats}
     edges = extract_relations(client, concepts, beats) if len(concepts) >= 2 else []
     art.save_json("07_atlas", "relations_raw", [e.model_dump() for e in edges])
@@ -551,6 +546,18 @@ async def run_ingest(video_path: str, client, whisper_model, subject: str | None
         if m.teacher_phrasing:
             print(f"    teacher's words: \"{m.teacher_phrasing}\"")
         print(f"    correct: {m.correct_understanding}")
+
+    # Wiki pages are written here, after both concepts AND misconceptions
+    # are finalized — a misconception's verbatim teacher_phrasing belongs on
+    # its concept's page (this is the one place in the whole pipeline that
+    # keeps the teacher's exact words, per memory_layer.md §3.2's "nobody
+    # else can do this" citation principle), and write_concept_wiki_page
+    # needs the full misconceptions list to fold them into the right entry.
+    WIKI_DIR.mkdir(parents=True, exist_ok=True)
+    for c in concepts:
+        write_concept_wiki_page(WIKI_DIR, c, beats, board_states, recording.slug,
+                                 misconceptions=misconceptions)
+    print(f"Wiki pages updated in {WIKI_DIR}")
 
     print()
     print("=" * 70)

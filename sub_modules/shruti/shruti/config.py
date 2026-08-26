@@ -6,7 +6,6 @@ class Models(BaseSettings):
     reasoner: str = "gemini-3.5-flash"
     router: str = "gemini-3.5-flash-lite"
     embedder: str = "gemini-embedding-001"
-    whisper_model_size: str = "large-v3"
 
 
 class Budget(BaseSettings):
