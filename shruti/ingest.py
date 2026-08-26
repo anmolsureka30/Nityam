@@ -53,6 +53,7 @@ from shruti.contracts.board import BoardState
 from shruti.stages.gate.admit import admit
 from shruti.stages.pulse.shots import detect_shots
 from shruti.stages.pulse.board_signal import compute_board_signal
+from shruti.stages.pulse.slide_sampling import compute_slide_sample_spans
 from shruti.stages.slate.rectify import rectify
 from shruti.stages.slate.mask import framediff_masks
 from shruti.stages.slate.composite import composite_board_state
@@ -75,6 +76,7 @@ from shruti.vault.atlas_store import (
 from shruti.lens.citations import format_citation
 
 POINT_CAP = 6  # cap deixis calls to bound API cost — see module docstring
+SLIDE_SAMPLE_INTERVAL_S = 25.0  # see compute_slide_sample_spans's docstring
 
 
 class RunArtifacts:
@@ -335,21 +337,17 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
         else:
             # No physical board: a screen-recorded/rendered slide is already
             # flat, nothing to rectify and nothing occluding it the way a
-            # teacher occludes a chalkboard. Sample one frame per shot
-            # boundary (plus a midpoint for any shot longer than 30s, since
-            # scene detection under-fires on smooth animated transitions —
-            # see memory_nityam_architecture/README.md's Phase 0.5 notes),
-            # and read each directly. This produces multiple BoardStates,
-            # one per slide, instead of one degenerate state for the whole
-            # video.
-            sample_points_set = {0.0} | {s.start_s for s in shots}
-            for s in shots:
-                if s.end_s - s.start_s > 30.0:
-                    sample_points_set.add((s.start_s + s.end_s) / 2)
-            sample_points = sorted(sample_points_set)
-            spans = list(zip(sample_points, sample_points[1:] + [recording.duration_s]))
+            # teacher occludes a chalkboard. Sample shot-cut points plus
+            # periodic points every SLIDE_SAMPLE_INTERVAL_S seconds — shot
+            # cuts alone under-sample continuous screen recordings (see
+            # compute_slide_sample_spans's docstring). This produces
+            # multiple BoardStates, one per sampled span, instead of one
+            # degenerate state for the whole video.
+            spans = compute_slide_sample_spans(
+                shots, recording.duration_s, interval_s=SLIDE_SAMPLE_INTERVAL_S,
+            )
             print(f"Sampling {len(spans)} slide state(s) at: "
-                  f"{[round(t, 1) for t in sample_points]}")
+                  f"{[round(start, 1) for start, _ in spans]}")
 
             art.end_stage("02_slate")
             art.start_stage("03_glyph")
