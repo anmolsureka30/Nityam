@@ -1,0 +1,340 @@
+/* Bright, off-white, calm layout with saturated accents — the same palette
+   direction as the other Nityam sub-modules. The accents are the validated
+   CVD-safe trio, so anything data-bearing stays distinguishable. */
+
+:root {
+  --cream: #fdfaf4;
+  --paper: #ffffff;
+  --ink: #23282f;
+  --ink-soft: #5d6672;
+  --ink-faint: #9aa3af;
+  --line: #e8e2d6;
+
+  --blue: #2a78d6;
+  --orange: #eb6834;
+  --aqua: #1baf7a;
+
+  --radius: 18px;
+  --shadow: 0 1px 2px rgba(35, 40, 47, 0.05), 0 12px 32px rgba(35, 40, 47, 0.07);
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--ink);
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #fff4e8 0%, transparent 60%),
+    radial-gradient(900px 560px at 92% 4%, #e9f4ff 0%, transparent 58%),
+    var(--cream);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 26px 28px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-height: 100vh;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand { display: flex; align-items: center; gap: 14px; }
+
+.mark {
+  width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(145deg, var(--blue), #1b5fb4);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(42, 120, 214, 0.32);
+}
+
+.brand h1 { margin: 0; font-size: 21px; letter-spacing: -0.02em; }
+.brand p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+
+.badges { display: flex; align-items: center; gap: 8px; }
+
+.badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-soft);
+}
+.badge.live { color: #0f7f58; background: #e6f8f0; border-color: #bfe9d8; }
+.badge.warn { color: #a34a17; background: #fdefe6; border-color: #f6d4bf; }
+.badge.muted { font-family: var(--mono); font-weight: 500; font-size: 10.5px; }
+
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-faint); }
+.dot.on { background: var(--aqua); box-shadow: 0 0 0 4px rgba(27, 175, 122, 0.16); }
+.dot.off { background: #dcd6ca; }
+
+/* ----------------------------------------------------------------- stage */
+
+.stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 388px;
+  gap: 22px;
+  align-items: stretch;
+}
+
+.talk {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 34px 30px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+
+.agent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--cream);
+  transition: border-color 0.25s, background 0.25s;
+}
+.agent.speaking { border-color: rgba(42, 120, 214, 0.4); background: #f2f8ff; }
+.agent .who { font-size: 14px; font-weight: 600; }
+.agent .voice { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.03em; }
+
+/* The orb: one control for the whole conversation. */
+.orb {
+  position: relative;
+  width: 208px; height: 208px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-family: inherit;
+  background: linear-gradient(150deg, #3f8ade, #2a78d6 55%, #205fae);
+  box-shadow: 0 14px 40px rgba(42, 120, 214, 0.34);
+  transition: transform 0.18s ease, box-shadow 0.25s ease, background 0.3s ease;
+}
+.orb:hover { transform: translateY(-2px); }
+.orb:active { transform: translateY(1px) scale(0.99); }
+
+.orb.idle { background: linear-gradient(150deg, #4b93e3, #2a78d6); }
+
+.orb.hot {
+  background: linear-gradient(150deg, #f0834f, var(--orange) 60%, #d1521f);
+  box-shadow: 0 14px 40px rgba(235, 104, 52, 0.36);
+}
+.orb.talking {
+  background: linear-gradient(150deg, #2fc793, var(--aqua) 60%, #128e62);
+  box-shadow: 0 14px 44px rgba(27, 175, 122, 0.38);
+}
+
+.orb-ring {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  transform-origin: center;
+  transition: transform 0.08s linear;
+  pointer-events: none;
+}
+.orb.idle .orb-ring { display: none; }
+
+.orb-label {
+  position: relative;
+  color: #fff;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.hint {
+  margin: 0;
+  max-width: 34ch;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.error {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #a3261a;
+  background: #fdecea;
+  border: 1px solid #f3ccc6;
+  border-radius: 12px;
+  padding: 10px 13px;
+  font-family: var(--mono);
+}
+
+/* ------------------------------------------------------------------ rail */
+
+.rail {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 8px;
+  min-height: 0;
+}
+.transcript h2 {
+  margin: 0 0 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.transcript .empty {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  margin: 0;
+}
+.transcript ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+
+.turn { display: flex; flex-direction: column; gap: 3px; }
+.turn-who {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.turn-text {
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 9px 13px;
+  border-radius: 13px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+}
+.turn.user .turn-text { background: #f1f7ff; border-color: #d8e8fb; }
+
+/* Still being transcribed: dashed, so a partial caption never reads as a
+   finished sentence the student can rely on. */
+.turn.live .turn-text { border-style: dashed; color: var(--ink-soft); }
+.turn.live.speaking .turn-text { border-color: rgba(27, 175, 122, 0.5); }
+.turn.system {
+  align-items: center;
+}
+.turn .system {
+  font-size: 11.5px;
+  color: var(--orange);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.composer {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(253, 250, 244, 0), var(--cream));
+}
+.composer input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 13.5px;
+  padding: 10px 13px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.composer input:focus {
+  outline: none;
+  border-color: rgba(42, 120, 214, 0.55);
+  box-shadow: 0 0 0 3px rgba(42, 120, 214, 0.13);
+}
+.composer button {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 11px;
+  border: none;
+  background: var(--blue);
+  color: #fff;
+  cursor: pointer;
+}
+.composer button:disabled { background: #cfd6de; cursor: default; }
+
+/* ----------------------------------------------------------------- tools */
+
+.tools {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tools.empty-tools {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  padding: 14px 18px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.tools code { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.card-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.card-value { font-size: 19px; font-weight: 600; }
+.card-value.formula { font-family: var(--mono); font-size: 17px; color: var(--blue); }
+
+@media (max-width: 980px) {
+  .stage { grid-template-columns: 1fr; }
+  .rail { min-height: 380px; }
+}
