@@ -24,6 +24,7 @@ from google.adk.runners import Runner
 
 from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
+from app.app_utils.memory_routes import router as memory_router
 
 load_dotenv()
 allow_origins = (
@@ -71,6 +72,7 @@ app: FastAPI = get_fast_api_app(
 )
 app.title = "tutor"
 app.description = "API for interacting with the Agent tutor"
+app.include_router(memory_router)  # NEW
 
 
 # Main execution
