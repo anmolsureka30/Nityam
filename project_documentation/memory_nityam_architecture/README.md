@@ -1,47 +1,87 @@
 # Nityam / SMRITI — Architecture Wiki
 
-Six documents. Read them in this order the first time; after that, treat them as reference. Every document is a living artifact — corrections and refinements get appended in place with a version bump, not silently rewritten. If a doc contradicts another, check `nityam_error_registory.md` first — it exists specifically to resolve that.
+Four documents. Read them in this order the first time; after that, treat them as reference.
+Every document is a living artifact — corrections and refinements get appended in place with a
+version bump, not silently rewritten.
+
+**v1.0 note (2026-08-26):** this wiki was simplified down from six documents to four, cutting a
+five-plane architecture, a tldraw canvas, FSRS scheduling, and a background plane of proactive
+agents down to a minimal voice loop: three agents, one shared memory layer, one sub-agent. None
+of the cut research was wrong — it's preserved in git history and summarized in `deferred.md`.
+If something in the older commit history contradicts what's here, what's here wins; it's newer
+and it's the version actually being built toward.
 
 ---
 
 ## Reading order
 
-1. **[`nityam_initial_architecture.md`](nityam_initial_architecture.md)** — start here. What Nityam is, why (DeepTutor's research + the hackathon-brief-turned-product framing), the five-plane architecture, ADK agent topology, the canvas layer, and the original build plan. Written first; several of its specifics (which model IDs, where the learner model lives, which "mode" means what) are superseded by later docs — treat it as the *why*, not the current *how*.
-2. **[`memory_layer.md`](memory_layer.md)** (SMRITI, v0.3) — the memory design that matters most. Why markdown-wiki-plus-one-table beats schemas, the four file kinds per student, teaching modes as skill files, the three-speed self-improvement loop, and (§11) the refinements a deeper research pass added: grow-and-refine over pure append-only, bi-temporal supersession metadata, session-log archival, and why Gemini Enterprise's Memory Bank doesn't replace any of it.
-3. **[`smriti_harness_integration.md`](smriti_harness_integration.md)** — how the memory design binds into a live ADK voice agent without breaking it. The thin-Live/Brain split, cached-prefix ordering, zero-I/O-per-turn read path, buffer-then-flush write path, mode enforcement, and the complete wiring.
-4. **[`smriti_session_lifecycle.md`](smriti_session_lifecycle.md)** — what runs when, what it costs, what breaks. Online/offline split, a session end-to-end, failure modes, per-session cost (~$0.22), and the build order with five load-bearing instrumentation numbers.
-5. **[`nityam_error_registory.md`](nityam_error_registory.md)** — every mistake found across the other docs, with evidence and a fix. Read this alongside the others, not after — E1–E6 change the architecture, E7–E12 are implementation traps, E13–E17 are gaps, E18–E22 are corrections from direct verification against ADK source and current docs.
-6. **[`google_platform_integration.md`](google_platform_integration.md)** — which pieces of Google's managed platform (Sessions, Memory Bank, RAG Engine, Vector Search 2, Skill Registry, Feedback Service, Sandbox/Code Execution) Nityam actually adopts, evaluated one service at a time against a real design decision. Short version: deployment and session durability, yes; the citation-critical memory and grounding layers, no — self-built stays self-built, for specific, checkable reasons.
+1. **[`architecture.md`](architecture.md)** — what Nityam is, the three-agent topology
+   (`VoiceAgent` → `TutorAgent` → `ArtifactAgent`, wired with ADK's `mode='single_turn'`
+   sub-agent mechanism, verified against the installed ADK source), the
+   voice-streaming facts that are load-bearing regardless of topology, and the build order.
+2. **[`memory_layer.md`](memory_layer.md)** (SMRITI, v1.0) — the memory design. Three tiers
+   (workflow / episodic / long-term), four JSON-Schema record types, the tool catalog every
+   agent shares, and why Memory Bank is still declined.
+3. **[`deferred.md`](deferred.md)** — everything cut for this pass, with a one-line reason each
+   and a pointer to where the full design lived, in case it's needed later.
+4. This file — navigation, and the parts of the earlier research that are about Shruti (not
+   this redesign) and haven't changed.
 
 ---
 
-## The one thing to hold onto across all six documents
+## The one thing to hold onto
 
-**Every claim in a student's memory cites evidence back to a real moment — a session turn, or a teacher's exact words at a specific video timestamp.** This is the property that took the most design effort, the one no managed service currently replaces, and the one that separates a learner model from a horoscope. If a future change makes a claim less traceable to ground it "just this once," that's the change to be most suspicious of.
+**Every claim in a student's memory cites evidence back to a real moment — a session turn, or a
+teacher's exact words at a specific video timestamp.** This is the property that took the most
+design effort, the one no managed service currently replaces, and the one that separates a
+learner model from a horoscope. See `memory_layer.md` §2–§3 for how this is now enforced as a
+required field in the JSON schemas themselves, not just a convention.
 
 ---
 
 ## Shruti's own docs (repo root, not this folder)
 
-Four more documents live at the repo root, not here — found mid-session and easy to miss for the same reason: `shruti_architecture.md` (the original SHRUTI design — Gemini-native extraction, Reel/Ledger/Atlas layering, staged CV, D1–D3), `shruti_implementation.md` (the narrative walkthrough), `shruti_implementation_plan.md` (the 4,468-line, 22-task TDD plan the current codebase was actually built from — Tasks 1–22 all map onto real commits), and `shruti_platform_alignment.md` (v0.2 addendum: D4–D9, what changed to satisfy the "use the managed platform" hackathon requirement). Read `shruti_architecture.md` and `shruti_platform_alignment.md` before touching Shruti code — they're the ground truth for *why* it's built the way it is, and `google_platform_integration.md` in this folder was written independently and largely converges with `shruti_platform_alignment.md`'s D8/D9, which is worth knowing when reading both.
+Four more documents live at `sub_modules/shruti/docs/`, not here: `architecture.md` (the
+original SHRUTI design — Gemini-native extraction, Reel/Ledger/Atlas layering, staged CV,
+D1–D3), `implementation.md` (the narrative walkthrough), `implementation_plan_00_original.md`
+(the original 22-task TDD plan the current codebase was built from), and `platform_alignment.md`
+(v0.2 addendum: D4–D9). Read `architecture.md` and `platform_alignment.md` before touching
+Shruti code — they're the ground truth for *why* it's built the way it is, and this folder's
+(now largely superseded) `google_platform_integration.md` research was written independently
+and largely converged with `platform_alignment.md`'s D8/D9.
 
-Three findings from `shruti_platform_alignment.md` §D9 (forward notes for the not-yet-designed tutor, written before SMRITI existed) worth carrying into the tutor design directly:
-
-- **`before_model_callback`/`after_model_callback` do not fire on ADK's streaming path (`run_live`) — only on `run_async`.** This is exactly why the thin Ear/Brain split (`smriti_harness_integration.md` §1) matters beyond latency and cost: `ModeGuard`, `JournalPlugin`, and `CostGuard` all depend on callbacks, and they're attached to the **Brain's** `run_async` invocation, never the Ear's `run_live` streaming session — which has no tools needing guards and no memory needing journaling. Confirm this explicitly in testing once the tutor is built; it's an easy thing to assume "just works" on the streaming side and have it silently not fire.
-- **Memory Bank's non-citable-personalization role (§2 of `google_platform_integration.md`) has real, named topic categories**, not just "soft personalization facts" in the abstract: `USER_PREFERENCES`, `EXPLICIT_INSTRUCTIONS`, `KEY_CONVERSATION_DETAILS` — fed from session transcripts, retrieved by similarity search to season tone, never in the path that decides what to review next.
-- **A2UI** — Gemini Enterprise ships a built-in generative-UI renderer (message shape: `createSurface` pointing at a `catalogId`, then `updateComponents` with component IDs from that catalog — not a flat `{component, params}` object). This was never evaluated against the tldraw-based canvas design in `nityam_initial_architecture.md` §5, and given the platform-requirement constraint this project is under, it should be — a real, undone research task, not a decision either way yet.
+Two of `platform_alignment.md` §D9's three forward notes for the tutor are now resolved or
+superseded by this redesign: **`before_model_callback`/`after_model_callback` not firing on
+ADK's `run_live` streaming path** is resolved by `architecture.md` §2's `mode='single_turn'` design
+(`TutorAgent` runs via a normal invocation, not inside the Live model's own flow, so it gets the
+full callback lifecycle). The tldraw-vs-A2UI evaluation is moot — tldraw is deferred, see
+`deferred.md`. Memory Bank's non-citable-personalization topic categories
+(`USER_PREFERENCES`/`EXPLICIT_INSTRUCTIONS`/`KEY_CONVERSATION_DETAILS`) remain accurate if
+Memory Bank is ever revisited, but nothing in v1.0 currently uses it.
 
 ---
 
 ## Where Shruti fits
 
-Shruti (the video-lecture-ingestion pipeline, `shruti/` at the repo root) is what makes that citation possible: it extracts a real knowledge graph (concepts, typed relations, misconceptions) from a classroom recording, with every fact pointing back to a `(recording_id, timestamp)` pair, and the teacher's exact phrasing preserved verbatim. A full codebase audit found the schema well-aligned with what SMRITI needs — but several pieces built and tested in isolation, not yet wired end-to-end: no human-readable citation format yet (`shruti:<slug> @mm:ss`), a fully-built embedding index that nothing calls, and provenance enforced only at CI-eval time rather than at write time. These are scoped as **Phase 0** in the build order below — foundational, small, and blocking everything downstream that needs to cite a lecture. *(Status: paused as of 2026-08-26 while active work continues directly in `shruti/` — resume once clear to proceed without colliding with that work.)*
+Shruti (the video-lecture-ingestion pipeline, `shruti/` at the repo root) is what makes citation
+possible: it extracts a real knowledge graph (concepts, typed relations, misconceptions) from a
+classroom recording, with every fact pointing back to a `(recording_id, timestamp)` pair, and
+the teacher's exact phrasing preserved verbatim. A full codebase audit found the schema
+well-aligned with what SMRITI needs — but several pieces built and tested in isolation, not yet
+wired end-to-end: no human-readable citation format yet (`shruti:<slug> @mm:ss`), a fully-built
+embedding index that nothing calls, and provenance enforced only at CI-eval time rather than at
+write time. These are scoped as **Phase 0** in the build order below — foundational, small, and
+blocking everything downstream that needs to cite a lecture. *(Status: paused as of 2026-08-26
+while active work continues directly in `shruti/` — resume once clear to proceed without
+colliding with that work.)*
 
 ---
 
 ## Master build order
 
-Each phase is independently shippable and tested against a real ingested lecture before the next starts. Subject-agnostic throughout — nothing below is specific to any one chapter or subject.
+Shruti's Phase 0 / 0.5 (below) is independent, active work — untouched by this redesign. The
+Nityam tutor's own build order moved to `architecture.md` §6 and is now five steps, not seven
+phases; see there rather than below for the current plan.
 
 | Phase | Build | Proves | Doc |
 |---|---|---|---|
@@ -56,7 +96,7 @@ Diagnosed by directly viewing the saved images/JSON from `.local/runs/230ccffe38
 - **GLYPH's slide-sampling only fired on hard shot cuts, drastically undersampling continuous screen recordings.** A real 18-minute lecture with no scene cuts registered as a single PULSE shot, so only 2 points got sampled for the entire video. **Fix:** `compute_slide_sample_spans` (`shruti/stages/pulse/slide_sampling.py`) adds periodic sampling (every `SLIDE_SAMPLE_INTERVAL_S`=25s, widened for long videos via `MAX_SLIDE_SAMPLES`=60 to bound total API cost) merged with shot-cut points — the same video now samples ~46 points instead of 2. A follow-on whole-branch review then caught that this widened GLYPH coverage while a sibling fix (below) had simultaneously narrowed WEAVE's own boundary-detection input for the same content — both are fixed and verified together, see the next entry.
 - **PULSE's board-quad/ink-curve/erase-event detection ran unconditionally even for non-board content**, wasting compute and producing a misleading "erase events" signal for slides (there was never a real board to erase). But that same ink-curve had incidentally been WEAVE's dominant boundary-detection signal for non-board content too (`candidate_boundaries`'s ink-inflection branch fired on it, mislabeled as "ink" but functioning as a slide-change signal) — so gating PULSE's board detection off for non-board kinds (via `compute_board_signal`, `shruti/stages/pulse/board_signal.py`) quietly emptied WEAVE's main boundary source for exactly the content the GLYPH undersampling fix (above) was improving coverage for, and `_FUSE_PROMPT` is merge-only so lost boundaries couldn't be recovered downstream. Found by a whole-branch review reading both fixes together — neither task's own scoped review could see it. **Fix:** `candidate_boundaries` (`shruti/stages/weave/boundaries.py`) gained an `extra_boundaries` parameter; `ingest.py` feeds the slide-sample points (the same ones GLYPH already reads from) into it for non-board content, restoring a real content-change signal to WEAVE through a different but equivalent path. True no-op for blackboard/whiteboard (`extra_boundaries` stays empty there), verified via the pre-existing boundary test passing unchanged with no `extra_boundaries` argument.
 - **`Region.derives_from` was a Pydantic `str` field backed by an enforced self-referencing FK (`board_region.derives_from → board_region.id`), but GLYPH's model naturally names descriptive multi-source derivation labels, not a single literal sibling id.** First real run against slide content (not synthetic test data) hit a validation error on exactly this. **Fix:** widened to `str | list[str] | None`, dropped the FK (`infra/migrations/006_board_region_derives_from_relax.sql` — it's informational text now, comma-joined at write time in `shruti/vault/ledger.py`), added a regression test.
-- **The embedding stage failed with a 404 on every single run, every time, with no exceptions.** Root cause: `Models().embedder = "gemini-embedding-2"` is not a real API model id — it doesn't exist. This was E21's own "fix," which translated the product name "Gemini Embedding 2" from a docs page directly into a model id string without a live call to confirm it — exactly the risk gap 4b (as originally filed) warned about, now confirmed as a real regression rather than a hypothetical one. **Fix:** live-tested four candidate ids directly against `embed_content` — `gemini-embedding-001` succeeds and returns a real 3072-dim vector; `gemini-embedding-2` 404s; `text-embedding-004`/`005` 400 (incompatible with `output_dimensionality=3072`). `Models().embedder` is `"gemini-embedding-001"` again — the value E21 called "stale" was correct the whole time. See `nityam_error_registory.md`'s corrected E21 entry.
+- **The embedding stage failed with a 404 on every single run, every time, with no exceptions.** Root cause: `Models().embedder = "gemini-embedding-2"` is not a real API model id — it doesn't exist. This was E21's own "fix," which translated the product name "Gemini Embedding 2" from a docs page directly into a model id string without a live call to confirm it — exactly the risk gap 4b (as originally filed) warned about, now confirmed as a real regression rather than a hypothetical one. **Fix:** live-tested four candidate ids directly against `embed_content` — `gemini-embedding-001` succeeds and returns a real 3072-dim vector; `gemini-embedding-2` 404s; `text-embedding-004`/`005` 400 (incompatible with `output_dimensionality=3072`). `Models().embedder` is `"gemini-embedding-001"` again — the value E21 called "stale" was correct the whole time.
 - **`relations.py` and `concepts.py` disagreed on concept identity, so `Relations extracted: 0` printed on every real run this project has ever done, regardless of content.** `concepts.py` sets `Concept.id` to a slugified `canonical_name`; `relations.py` prompted the model with human-readable `canonical_name` values and used whatever it echoed back verbatim as `Edge.from_concept`/`to_concept`. The actual failure mode wasn't an FK-violation crash (an older version of this gap note assumed that) — `ingest.py` already had a defensive `valid_ids` filter that silently dropped every edge whose id didn't match, since a raw name essentially never equals its own slug. **Fix:** `extract_relations` now resolves the model's returned names back to real concept ids (case-insensitively) via a `name_to_id` map built from the `concepts` list it's already given — deliberately not by re-deriving `concepts.py`'s slugify logic separately, which would drift if that logic ever changed. A follow-on whole-branch review also caught that fixing this made `write_edges` reachable for the very first time in any real run (previously dead code), and the model's `evidence_beat_ids` were never validated against real beats before that write — a hallucinated id could abort a run mid-ATLAS with an uncaught DB foreign-key error. **Also fixed in the same pass:** `filter_valid_edges` (`shruti/stages/atlas/relations.py`) validates evidence beat ids too, mirroring the validation misconceptions already had, and a dropped-edge count is now logged to `gaps` instead of vanishing silently.
 - **`board_region.id` is a global `PRIMARY KEY`, but GLYPH's model names it independently per slide with no cross-slide awareness (`"r1"`, `"eq1"`, etc.) — so two different slides in the same recording collide, and `ON CONFLICT (id) DO NOTHING` silently dropped whichever slide's regions lost the race, with no error or log.** Found while investigating an unrelated test failure: a real ingest run's slide 4 ("Horizontal Range", 7 regions) was missing exactly the 3 regions (`r1`/`r2`/`r3`) whose ids had already been claimed by slide 1 ("Resolution of Vectors") earlier in the same run — confirmed by querying the DB directly and comparing against the slide's own saved JSON artifact, which had all 7. Re-running the same video also piled up duplicate near-identical rows under the same `board_state_id` across separate runs (e.g. both `"eq1"` and `"eq_1"` for the same equation) since re-ingestion isn't currently idempotent at the ledger level. **Fix:** `write_board_state` (`shruti/vault/ledger.py`) now writes the DB row id as `f"{board_state.id}::{region.id}"` — globally unique since `board_state.id` already is, while leaving the model's own `region.id` label untouched for anything that reads it back. Verified: a clean re-run produced all 13 regions across 4 non-empty slides with zero drops (confirmed by direct DB query). Two regression tests added (`tests/vault/test_ledger.py`). **Not fixed:** re-ingesting the same video is still additive, not idempotent/versioned — a real fix would use the existing-but-unused `ledger_version` field on `BoardState` to version re-runs explicitly rather than merging silently into the first run's rows. Left open below.
 
@@ -68,18 +108,13 @@ Diagnosed by directly viewing the saved images/JSON from `.local/runs/230ccffe38
 2. **Orchestration ordering between VAULT writes and the embedding index is unenforced.** `embedding.ref_id` (`infra/migrations/004_index.sql`) is a bare `TEXT NOT NULL` with no foreign key back to `concept`/`misconception`. If a future orchestrator calls `embed_concepts`/`embed_misconceptions` (`shruti/stages/atlas/embed.py`) *before* `write_concepts`/`write_misconceptions`, and the latter then raises `ProvenanceViolation`, the vector index is left holding an orphan embedding for a concept that was never actually written to the graph — and `related_concepts_semantic` would happily surface it. The correct order is: write to VAULT first (let provenance enforcement fail loudly and cheaply), embed only after that succeeds. Currently only a code comment enforces this; whoever writes the Phase 0.5 orchestrator needs to preserve that order explicitly.
 3. **`mixed` surface-kind recordings lose PULSE's board-quad tracking and POINT's gesture-pointing entirely, with no way to get either back today.** `mixed` means a recording containing BOTH slides and a physical board — but `is_physical_board` (added along with the surface_kind gating fixes above) returns `False` for it, since this pipeline classifies `surface_kind` once per whole recording with no per-segment routing, and there's no way to correctly run board-only rectification against segments that are actually slides. Found by a whole-branch review: the docstring and printed messages originally claimed "no physical board" for this case, which is false by definition for `mixed` — that wording is now fixed to describe the real reason (no per-segment routing exists), but the underlying gating decision (skip board handling for `mixed` entirely, same as slides) was deliberately left unchanged rather than guessed at inside a fix loop. Real fix needs actual per-segment `surface_kind` detection (e.g. re-classify at each PULSE shot boundary instead of once at GATE) — a real architecture change, not yet designed.
 4a. **ECHO's Gemini-based transcription was replaced with a local `faster-whisper` (large-v3, int8) model** (`shruti/stages/echo/transcribe.py`), fixing the dollar cost (no longer a billed API call) and word-level timestamp reliability that motivated the swap — see the prior version of this entry for the original evidence (non-deterministic timestamps across identical repeated calls, one beat with `end_s` 1600+ seconds past the video's real duration). **New, real, confirmed-not-hypothetical gap this swap introduced:** code-switch fidelity has regressed. Tested directly against real audio (not mocks) from `.local/videos/b6c87594bb.mp4` (a lecture confirmed heavy in Hindi-English code-switching in every run this whole session): Whisper transliterates English loanwords phonetically into Devanagari instead of preserving them in Latin script (e.g. "next video" comes out as "नेक्स्ट वीडियो", not "next video") — this violates the original fidelity requirement ("Hindi words in Devanagari, English words in Latin script, in the order spoken. Do NOT translate. Do NOT normalize to one script") that Gemini's prompt-based approach satisfied by construction. Worse: one 60-second test clip produced a segment of genuine hallucinated gibberish in Bengali script with a nonsensical "$27,000 notice" fragment inserted — a known Whisper failure mode on confusing audio, not something the old Gemini-based approach exhibited. **Not fixed.** Candidate directions, not yet tried: force `language="hi"` instead of `multilingual=True`'s per-segment auto-detection (may reduce script-drift, unclear effect on the hallucination); a stronger VAD/`no_speech_threshold` tune to suppress low-confidence segments before they hallucinate; or accepting Devanagari-normalized English loanwords as good enough (downstream ATLAS stages haven't been checked against this specific input shape). Whichever direction is right, real-audio verification (not fake-client unit tests) is the only way to confirm it — the fake-client tests in `tests/stages/echo/test_transcribe.py` correctly can't and don't try to catch this class of issue.
-| **1** | Hand-written `LEARNER.md` + one concept page, injected into the Brain prompt | Personalization is visible at all | `memory_layer.md` §9 |
-| **2** | Session buffer + `JournalPlugin` + deterministic write-back (no LLM yet) | Durability end to end | `smriti_harness_integration.md` §4, `smriti_session_lifecycle.md` §2 |
-| **3** | Mode selector + 3 method skills (`socratic`/`worked-example`/`direct`) + two-layer `ModeGuard` | Turns-to-collapse ≥ 16 | `memory_layer.md` §5, `smriti_harness_integration.md` §5 |
-| **4** | The Reflect call in write-back; concept pages update; citations written | Memory improves across sessions | `smriti_session_lifecycle.md` §2 Phase 3 |
-| **5** | `schedule` table + FSRS + PrepAgent background wake | The background story is real | `memory_layer.md` §4, `nityam_initial_architecture.md` §4.7 |
-| **6** | Deploy to Agent Engine, wire `VertexAiSessionService`, Cloud Trace, Agent Registry listing | The managed-platform story is real | `google_platform_integration.md` §1 |
-| **7** (later) | Weekly curator + cross-student promotion into shared method skills | Memory compounds across students | `memory_layer.md` §7 |
-
-**Never cut:** `LEARNER.md`, the concept page, `ModeGuard`, and the citation rule (from `memory_layer.md` §9) — plus, now, Phase 0's write-time provenance enforcement, since everything after it assumes citations actually resolve.
 
 ---
 
 ## Corrections log
 
-Anything found wrong or stale gets fixed in place in the doc it lives in, with a version bump and a note — see each doc's closing line for its current version and what changed. `nityam_error_registory.md` is the index of every correction found so far (E1–E22); check there first if something in another doc looks off before assuming it's still accurate.
+Anything found wrong or stale gets fixed in place in the doc it lives in, with a version bump
+and a note — see each doc's closing line for its current version and what changed. The old
+`nityam_error_registory.md` (E1–E22) is retired as a standalone doc; still-relevant operational
+gotchas now live in `architecture.md` §5, and entries specific to the superseded topology are
+listed with a one-line note in `deferred.md`.

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, `google-adk==2.7.1`, `asyncpg`, PostgreSQL + pgvector, `google-genai`, pytest + pytest-asyncio, `uv`.
 
-**Spec:** This plan implements the Phase 0 scope agreed in `memory_nityam_architecture/README.md`'s master build order, refines E21 from `memory_nityam_architecture/nityam_error_registory.md` (stale embedder model), and is a direct continuation of `shruti_implementation_plan.md` (the original 22-task plan this codebase was built from — read that first for full context on every file this plan touches). It does **not** revise or re-execute any task in that plan.
+**Spec:** This plan implements the Phase 0 scope agreed in `memory_nityam_architecture/README.md`'s master build order, refines the stale-embedder-model correction documented in that same file's "Resolved via LLM-as-judge review" section, and is a direct continuation of `shruti_implementation_plan.md` (the original 22-task plan this codebase was built from — read that first for full context on every file this plan touches). It does **not** revise or re-execute any task in that plan.
 
 ## Global Constraints
 
@@ -683,7 +683,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'shruti.stages.atlas.em
 
 ```python
 # shruti/config.py — one-line change, rest of the file unchanged
-# (E21 from nityam_error_registory.md: gemini-embedding-001 is superseded;
+# (per memory_nityam_architecture/README.md: gemini-embedding-001 is superseded;
 # gemini-embedding-2 is current, GA, and defaults to the same 3072
 # dimensionality already in infra/migrations/004_index.sql, so no schema
 # change is required alongside this fix.)

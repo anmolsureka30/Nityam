@@ -109,7 +109,8 @@ derivable from the concept's own slug.
   exactly the config issue predicted: `Models().embedder` was set to
   `"gemini-embedding-2"`, which is not a real model id (a bad translation of
   a product-name doc page into an id string, applied by an earlier
-  correction pass — see `nityam_error_registory.md` E21). Live-tested four
+  correction pass — see `memory_nityam_architecture/README.md`'s "Resolved via
+  LLM-as-judge review" section). Live-tested four
   candidate ids directly against `embed_content`; `"gemini-embedding-001"`
   works and returns a real 3072-dim vector. Fixed in `shruti/config.py`,
   full suite verified green (105/105). No implementation-plan task needed
