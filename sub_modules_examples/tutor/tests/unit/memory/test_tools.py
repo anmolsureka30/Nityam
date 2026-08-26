@@ -99,3 +99,18 @@ async def test_log_artifact_evidence_appends_to_buffer(redis_client):
         assert ctx.state["artifact_events"] == [{"event": "discovered_optimum", "artifact_id": "artifact-abc123"}]
     finally:
         redis_client.delete("session:test_session_artifact_evidence:artifact_events")
+
+
+@pytest.mark.asyncio
+async def test_log_turn_refreshes_heartbeat_and_started_at(redis_client):
+    ctx = make_tool_context({}, session_id="test_session_heartbeat_1")
+    try:
+        await tools.log_turn("hi", "student", "", "", ctx)
+        assert redis_client.ttl("session:test_session_heartbeat_1:heartbeat") > 0
+        assert redis_client.get("session:test_session_heartbeat_1:started_at") is not None
+    finally:
+        redis_client.delete(
+            "session:test_session_heartbeat_1:turns",
+            "session:test_session_heartbeat_1:heartbeat",
+            "session:test_session_heartbeat_1:started_at",
+        )

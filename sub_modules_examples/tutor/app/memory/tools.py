@@ -11,6 +11,7 @@ import functools
 
 from google.adk.tools import ToolContext
 
+from app import config
 from app.memory import short_term, store
 
 
@@ -91,6 +92,8 @@ async def log_turn(text: str, role: str, concept_id: str, artifact_id: str, tool
     buffer.append(turn)
     tool_context.state["turn_buffer"] = buffer
     await short_term.append_turn(tool_context.session.id, turn)
+    await short_term.ensure_started_at(tool_context.session.id)
+    await short_term.refresh_heartbeat(tool_context.session.id, config.SESSION_IDLE_TIMEOUT_SECONDS)
     return {"buffer_length": len(buffer)}
 
 
@@ -111,4 +114,5 @@ async def log_artifact_evidence(event: str, artifact_id: str, tool_context: Tool
     events.append(entry)
     tool_context.state["artifact_events"] = events
     await short_term.append_artifact_event(tool_context.session.id, entry)
+    await short_term.refresh_heartbeat(tool_context.session.id, config.SESSION_IDLE_TIMEOUT_SECONDS)
     return {"logged": True}

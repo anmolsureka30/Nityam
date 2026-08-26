@@ -12,6 +12,7 @@ Every function below is instrumented (docs/superpowers/specs/2026-08-27-smriti-o
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 import redis.asyncio as redis
 
@@ -19,6 +20,30 @@ from app import config
 from app.memory import instrumentation
 
 _SAFETY_TTL_SECONDS = 60 * 60 * 6  # 6h - close_session should flush well before this
+
+
+async def refresh_heartbeat(session_id: str, ttl_seconds: int) -> None:
+    client = _client()
+    await client.set(f"session:{session_id}:heartbeat", "1", ex=ttl_seconds)
+    await client.aclose()
+
+
+async def ensure_started_at(session_id: str) -> None:
+    """NX so the first call from a session wins; later calls are no-ops."""
+    client = _client()
+    await client.set(
+        f"session:{session_id}:started_at",
+        datetime.now(timezone.utc).isoformat(),
+        nx=True,
+    )
+    await client.aclose()
+
+
+async def get_started_at(session_id: str) -> datetime | None:
+    client = _client()
+    raw = await client.get(f"session:{session_id}:started_at")
+    await client.aclose()
+    return datetime.fromisoformat(raw) if raw else None
 
 
 def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
