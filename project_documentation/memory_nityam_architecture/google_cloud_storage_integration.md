@@ -474,21 +474,65 @@ directly. Worth revisiting if the write-through approach outgrows a hand-rolled 
 
 ---
 
+## 6.5 Corroborating source, and one pattern worth carrying forward
+
+["Architecting Agentic Memory on Google Cloud with Vertex AI Agent Engine" — Sangalo Mwenyinyo,
+Aug 2025](https://medium.com/@mwenyinyo/architecting-agentic-memory-on-google-cloud-with-vertex-ai-agent-engine-ee3df9842e87)
+describes the generic GCP reference pattern for agentic memory: Memorystore for short-term/working
+memory, Vertex AI Vector Search for long-term semantic memory, Firestore for long-term
+episodic/structured memory, Vertex AI Memory Bank for extraction/consolidation, all orchestrated
+through Agent Engine. This confirms the shape of the split this document already arrived at
+independently (short-term → cache, structured/episodic → document store) — worth noting because
+it's an independent source landing on the same layering, not because it changes anything here.
+
+**Where we deliberately diverge from that generic pattern, and why:** the article's Vector Search
+and Memory Bank recommendations are the right *default* for an agent with no existing retrieval
+pipeline and no citation requirement. We have both — Shruti's own graph+embedding fusion already
+retrieves `grounding_chunk` precisely, and every fact in `dpm_profile`/`teaching_memory` must carry
+a `session_id#turn` evidence pointer that Memory Bank's consolidation can't preserve. §1 and §3.1
+of this document already cover why Firestore's native vector field replaces Vector Search 2.0, and
+`memory_layer.md` §6 covers why Memory Bank is declined. Nothing here overturns either call — this
+is confirmation that we're the special case, not evidence we missed the standard one.
+
+**One pattern from the article worth carrying forward, not yet designed:** *Context Window
+Management* — periodically summarizing a long-running conversation via Gemini so working memory
+stays lean, rather than only ever consulting the full raw history. Our current design doesn't need
+this yet, because `TutorAgent` never reasons over the full turn buffer mid-session (only the live
+`session.state` for the current exchange) and `close_session`'s one Reflect call already receives
+the *whole* session log as a single, bounded LLM call at the end — there's no point today where an
+ever-growing raw history gets re-fed into a prompt. It becomes relevant if either changes: a single
+session runs long enough that the Reflect call's input itself gets expensive/unwieldy, or a future
+feature has `TutorAgent` consult its own mid-session history directly (not just `session.state`'s
+current-turn fields) for a long-running conversation. Flagging as a design note for that future
+case, not a gap in what's being built now — see §7's open items, added there too.
+
+---
+
 ## 7. Open items before implementation starts
 
-1. **Live smoke test** (§2) — confirm Firestore/GCS/Memorystore reach under ADC on the express-mode
-   project, before writing real code against them.
+1. ~~**Live smoke test** (§2)~~ — **Resolved 2026-08-27**: confirmed live against the real
+   `nityam-506707` project — a document round-tripped through Firestore (`smriti-testbed`
+   database) and an object round-tripped through GCS (`nityam-506707-memory-testbed` bucket), both
+   via ADC. Firestore/GCS reach is no longer an open question.
 2. **Embedding dimension** (§3.3) — decide 1536 vs. another value ≤ 2048, and where it's computed
-   (SMRITI re-embeds, or Shruti emits a second vector).
+   (SMRITI re-embeds, or Shruti emits a second vector). Deliberately not resolved by the memory
+   storage testbed either — that work uses synthetic vectors, so this stays open until the real
+   integration.
 3. **`BaseSessionService` internals** (§5.2) — if crash-resilience of ADK's *own* session bookkeeping
    (not just our buffer) is ever wanted, verify `append_event`'s persistence hook against installed
    source before building a custom `RedisSessionService`. Not needed for the recommended path.
 4. **`close_session` call site** — confirm where it's invoked today (not re-read in this pass) before
    deciding whether it needs the Redis-buffer read path from §5.3.
+5. **Context Window Management** (§6.5) — periodic Gemini-based summarization of a long-running
+   session's history, for whenever a single session runs long enough that either the Reflect call's
+   input or a future mid-session history lookup gets unwieldy. Not needed by anything currently
+   planned; a forward note, not a task.
 
 ---
 
-*v1.0. New document — companion to `memory_layer.md` v2.0 (see that file's changelog for the
-storage-tier decision this document backs). Supersedes `deferred.md`'s implicit "Memory Bank, not
+*v1.1 (2026-08-27): added §6.5 (corroborating source + Context Window Management pattern), resolved
+open item 1 (live smoke test) against real `nityam-506707` resources, added open item 5. v1.0: new
+document — companion to `memory_layer.md` v2.0 (see that file's changelog for the storage-tier
+decision this document backs). Supersedes `deferred.md`'s implicit "Memory Bank, not
 revisited" status with an explicit verdict covering Memory Bank, Agent Search, and Vector Search
 2.0 together.*
