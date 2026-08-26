@@ -1,0 +1,40 @@
+[project]
+name = "shruti"
+version = "0.1.0"
+description = "SHRUTI: Batch pipeline that turns lecture videos into a timestamped knowledge base"
+requires-python = ">=3.12"
+packages = ["shruti"]
+dependencies = [
+    "asyncpg>=0.31.0",
+    "duckdb>=1.5.5",
+    "faster-whisper>=1.2.1",
+    "google-adk==2.7.1",
+    "google-cloud-storage>=3.13.1",
+    "google-genai>=1.0",
+    "numpy>=2.5.2",
+    "opencv-python-headless>=5.0.0.93",
+    "opentelemetry-exporter-gcp-logging>=1.15.0a0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.42.1",
+    "opentelemetry-instrumentation-google-genai>=0.4b0",
+    "opentelemetry-instrumentation-sqlite3>=0.63b1",
+    "opentelemetry-instrumentation-vertexai>=2.0b0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.15.0",
+    "scenedetect>=0.7.1",
+    "typer>=0.27.1",
+]
+
+[project.scripts]
+shruti = "shruti.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.8.0",
+]

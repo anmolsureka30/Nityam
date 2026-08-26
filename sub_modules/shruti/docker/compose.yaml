@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: shruti
+      POSTGRES_PASSWORD: shruti
+      POSTGRES_DB: shruti
+    ports: ["5434:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+  gcs-emulator:
+    image: fsouza/fake-gcs-server:latest
+    command: ["-scheme", "http", "-port", "4443"]
+    ports: ["4443:4443"]
+volumes:
+  pgdata:
