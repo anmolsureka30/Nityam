@@ -141,12 +141,13 @@ Pydantic models. This is a deliberate accuracy choice: the Observatory must neve
 
 ## 5. Instrumentation: the event layer
 
-**Where it hooks in:** `app/memory/store.py`'s 8 functions (`search_grounding`,
-`search_grounding_semantic`, `get_dpm`, `put_dpm`, `get_teaching_memory`, `put_teaching_memory`,
-`put_session_log`, `get_session_log`) and `app/memory/short_term.py`'s 4 functions (`append_turn`,
-`append_artifact_event`, `get_turn_buffer`, `clear_session`) — the I/O boundary, not the
-agent-facing tools. Every memory operation, from any caller (`tools.py`, `session_close.py`,
-`scripts/seed_demo_data.py`, anything written later) flows through exactly these 12 functions, so
+**Where it hooks in:** `app/memory/store.py`'s 9 functions (`put_grounding_chunk`,
+`search_grounding`, `search_grounding_semantic`, `get_dpm`, `put_dpm`, `get_teaching_memory`,
+`put_teaching_memory`, `put_session_log`, `get_session_log`) and `app/memory/short_term.py`'s 4
+functions (`append_turn`, `append_artifact_event`, `get_turn_buffer`, `clear_session`) — the I/O
+boundary, not the agent-facing tools. Every memory operation, from any caller (`tools.py`,
+`session_close.py`, `scripts/seed_demo_data.py`, anything written later) flows through exactly
+these 13 functions, so
 one wrapping layer gives complete coverage with the smallest possible diff — consistent with this
 codebase's own established pattern (`google_cloud_storage_integration.md` §3.5: *"ops.py needs
 zero changes... session_close.py needs zero changes"*).
@@ -268,12 +269,12 @@ the `PSUBSCRIBE` already covers all sessions, not built into the UI in v1).
 
 **`diff.py`** is schema-aware, not a generic recursive differ dumped raw into the UI: for
 `DPMProfile`, it walks `weaknesses` by `concept_id` and reports `mastery: partial → known` /
-`strength: weak → strong` style changes plus new/superseded `self_reflection` entries; for
-`TeachingMemory`, `covered` status transitions and `open_doubts` lifecycle transitions
-(`active → remediating → resolved`), matching the exact enums in `memory_layer.md` §2.2–2.3. Uses
-`deepdiff` for the underlying recursive comparison, with a thin post-processing layer that turns
-raw paths into these human-readable labels — avoids hand-rolling recursive dict diffing while
-keeping the UI's language schema-literate rather than JSON-Pointer-literate.
+`strength: weak → strong` style changes plus new `self_reflection` entries; for `TeachingMemory`,
+`covered` status transitions and `open_doubts` status transitions (`active → remediating →
+resolved`), matching the exact enums in `memory_layer.md` §2.2–2.3. This is a direct field walk
+over the two known shapes (four fields total), not a generic recursive dict differ — no new
+diffing dependency, and the UI's language stays schema-literate ("mastery: partial → known")
+rather than JSON-Pointer-literate.
 
 **REST (`routes_rest.py`):**
 
@@ -398,14 +399,16 @@ fixtures are the pattern; the Observatory's own `conftest.py` reuses the same sh
    triggering HTTP request's span per `otel_to_cloud`'s app-wide instrumentation, but not yet
    verified against the installed `google-adk==2.7.1` FastAPI instrumentation; confirm in
    `test_routes.py` rather than assume.
-4. **`deepdiff` as a new backend dependency** — a mature, widely-used library; flagged only because
-   it's new to this repo's dependency set, not because of any concern about it.
+4. **Backend has zero new third-party diffing dependency** — `diff.py`'s schema-aware walk (§7)
+   replaced an earlier draft of this spec that reached for `deepdiff`; the four-field walk needs
+   nothing beyond the standard library and is easier to unit test with exact expected labels.
 5. Cross-session history (§2 out-of-scope) is deliberately not precluded by this data model
    (Firestore already holds full history; the event stream is additive) — a natural v2.
 6. **Long-term reads aren't session-scoped** (§5) — `get_dpm`/`get_teaching_memory`/
-   `search_grounding*` happen mid-session via `tools.py`, which gets zero changes, so those read
-   events carry `session_id: null` and only appear in `/ws/global`'s unscoped feed, not a specific
-   session's Long-term panel. A session's Long-term panel is instead driven by the REST snapshot
+   `search_grounding*` happen mid-session via `tools.py`, which gets zero changes **for the event
+   layer specifically** (it does gain the unrelated heartbeat-refresh line from §6.2), so those
+   read events carry `session_id: null` and only appear in `/ws/global`'s unscoped feed, not a
+   specific session's Long-term panel. A session's Long-term panel is instead driven by the REST snapshot
    (`GET /api/sessions/{id}/state`, a direct Firestore read for that session's student) for
    current state, plus write-side diffs from `close_session` (which is session-scoped). Threading
    session id into live reads too — e.g. by having `tools.py` set the same context var — is a
