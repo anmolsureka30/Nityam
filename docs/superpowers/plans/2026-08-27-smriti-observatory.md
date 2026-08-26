@@ -3731,7 +3731,7 @@ git commit -m "feat: add TierPanel and DiffView components"
 - Create: `smriti-observatory/frontend/src/lib/traceLinks.ts`
 
 **Interfaces:**
-- Produces: `cloudTraceUrl(traceId: string, gcpProject: string): string`, `adkWebUrl(tutorBaseUrl: string): string` (TS mirrors of `observatory/trace_links.py`); `<EventTimeline events={EnrichedEvent[]} gcpProject={string} tutorBaseUrl={string} />` with a Timeline ⟷ Trace toggle.
+- Produces: `cloudTraceUrl(traceId: string, gcpProject: string): string`, `adkWebUrl(tutorBaseUrl: string): string` (TS mirrors of `observatory/trace_links.py`); `<EventTimeline events={EnrichedEvent[]} gcpProject={string} />` with a Timeline ⟷ Trace toggle. (`adkWebUrl` is consumed directly by `SessionView.tsx` in Task 21, not by `EventTimeline` — `EventTimeline` only needs `gcpProject`, for `cloudTraceUrl`.)
 - Consumed by: Task 21.
 
 - [ ] **Step 1: Implement `traceLinks.ts`**
