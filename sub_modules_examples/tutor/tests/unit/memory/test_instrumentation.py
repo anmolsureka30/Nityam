@@ -83,7 +83,7 @@ def test_session_context_fills_in_when_extractor_uses_it(redis_client):
     instrumentation.set_session_context(None)  # don't leak into other tests
 
 
-def test_no_publish_when_session_id_is_none(redis_client):
+def test_publishes_even_when_both_session_and_student_id_are_none(redis_client):
     redis_client.delete("smriti:events:recent")
 
     @instrumentation.emit_memory_event(
@@ -95,7 +95,12 @@ def test_no_publish_when_session_id_is_none(redis_client):
 
     fake_search(None, ["x"])
 
-    assert redis_client.lrange("smriti:events:recent", 0, -1) == []
+    raw = redis_client.lrange("smriti:events:recent", -1, -1)
+    assert len(raw) == 1
+    event = instrumentation.MemoryEvent.model_validate_json(raw[0])
+    assert event.session_id is None
+    assert event.student_id is None
+    assert event.record_type == "grounding_chunk"
 
 
 def test_publish_failure_does_not_raise(monkeypatch, redis_client):

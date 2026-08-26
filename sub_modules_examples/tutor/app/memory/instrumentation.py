@@ -113,8 +113,6 @@ def _build_event(
 
 
 def _publish_sync(event: MemoryEvent) -> None:
-    if not event.session_id and not event.student_id:
-        return
     try:
         client = _get_sync_client()
         body = event.model_dump_json()
@@ -126,8 +124,6 @@ def _publish_sync(event: MemoryEvent) -> None:
 
 
 async def _publish_async(event: MemoryEvent) -> None:
-    if not event.session_id and not event.student_id:
-        return
     try:
         client = redis_async.Redis(
             host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True
