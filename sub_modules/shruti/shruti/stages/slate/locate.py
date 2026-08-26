@@ -30,7 +30,27 @@ def _largest_board_like_quad(frame: np.ndarray):
 
 
 def locate_board(frames: list) -> tuple:
-    """Vote the board quad across sampled frames — the board doesn't move; the teacher does."""
+    """Vote the board quad across sampled frames — the board doesn't move;
+    the teacher does. But not every sampled frame necessarily SHOWS the
+    board: a video's coarse frame samples span its full duration, and can
+    land on an intro/outro/title card with no board in view at all.
+    Confirmed live: one such frame (a "Subscribe" outro card) produced a
+    tiny, nonsense quad in a corner via the bright-region fallback above,
+    and averaging it in with the real per-frame detections dragged the
+    combined quad off the actual board entirely — which corrupted every
+    frame's perspective rectification identically, so no amount of
+    downstream occlusion-filling could recover it (composited_board.jpg
+    came back pure black despite 0% of it being flagged "unfilled" — every
+    rectified frame was equally wrong, so donating from one to another
+    changed nothing). Two changes: drop any single frame's quad whose area
+    is implausibly small for an actual board (a board being filmed should
+    dominate the frame, not occupy a sliver), and combine what's left with
+    the median rather than the mean — a robust central tendency that isn't
+    dragged off by the rare bad detection that still slips through."""
     quads = [_largest_board_like_quad(f) for f in frames]
-    avg = np.mean(np.stack(quads), axis=0)
-    return tuple(tuple(p) for p in avg)
+    frame_area = frames[0].shape[0] * frames[0].shape[1]
+    plausible = [q for q in quads if cv2.contourArea(q) >= 0.15 * frame_area]
+    if not plausible:
+        plausible = quads
+    combined = np.median(np.stack(plausible), axis=0)
+    return tuple(tuple(p) for p in combined)
