@@ -1,0 +1,104 @@
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.greeting {
+  font-family: var(--prose);
+  font-size: 36px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.subline {
+  color: var(--ink-mid);
+  font-size: 15px;
+  margin-top: 9px;
+  max-width: 600px;
+  text-wrap: pretty;
+}
+
+.countdown {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  white-space: nowrap;
+}
+.countdownValue {
+  font-family: var(--prose);
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.lower {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  align-items: stretch;
+}
+.classCard { display: flex; flex-direction: column; }
+
+.quote {
+  font-family: var(--prose);
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  text-wrap: pretty;
+}
+
+.quoteWhy {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-mid);
+  margin-top: 12px;
+  text-wrap: pretty;
+}
+
+.sources { display: flex; gap: 8px; margin-top: auto; padding-top: 18px; flex-wrap: wrap; }
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.weakList { display: flex; flex-direction: column; gap: 14px; }
+
+.weakNote {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-mid);
+  text-wrap: pretty;
+}
+
+.sparkline { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+.spark { flex: 1; border-radius: 2px 2px 0 0; }
+.sparkLow  { background: var(--danger); opacity: 0.75; }
+.sparkMid  { background: var(--warn); opacity: 0.75; }
+.sparkHigh { background: var(--good); opacity: 0.75; }
+
+@media (max-width: 900px) {
+  .actions, .lower { grid-template-columns: 1fr; }
+}

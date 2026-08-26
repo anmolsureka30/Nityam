@@ -1,0 +1,96 @@
+.wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper-warm);
+  overflow: hidden;
+  margin: 22px 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 16px;
+  background: var(--cream-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.body { display: grid; grid-template-columns: 1fr 148px; gap: 0; }
+
+.stage { padding: 14px 16px 12px; min-width: 0; }
+
+.svg { display: block; width: 100%; height: auto; max-height: 172px; }
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  margin-top: 6px;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--line);
+  border-radius: var(--r-pill);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -8px;
+  border-radius: var(--r-pill);
+  background: var(--sim);
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(22, 26, 34, 0.22);
+}
+.slider::-moz-range-track { height: 3px; background: var(--line); border-radius: var(--r-pill); }
+.slider::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: var(--r-pill);
+  background: var(--sim); border: 3px solid #fff;
+}
+
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+  margin-top: -2px;
+}
+
+.readouts {
+  border-left: 1px solid var(--line);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.readValue {
+  font-family: var(--prose);
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  margin-top: 3px;
+}
+.readValueSim { color: var(--sim); }
+
+.hint {
+  margin-top: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-mid);
+  border-top: 1px solid var(--line);
+  padding-top: 11px;
+  text-wrap: pretty;
+}
+
+.best { color: var(--good); font-weight: 600; }
+
+@media (max-width: 780px) {
+  .body { grid-template-columns: 1fr; }
+  .readouts { border-left: none; border-top: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; }
+}

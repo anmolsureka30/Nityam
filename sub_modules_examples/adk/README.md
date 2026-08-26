@@ -28,9 +28,19 @@ sub_modules/adk/
 ## Run it
 
 ```bash
-./run.sh              # backend + Vite dev server, then open localhost:5173
+./run.sh              # backend + Vite dev server, then open localhost:5273
 ./run.sh --built      # backend only, serving frontend/dist
 ```
+
+**Ports: backend `8100`, dev server `5273`.** Both are moved clear of `5173`
+and `8000`, which the product front end in `frontend/` uses. Override either:
+
+```bash
+NITYAM_ADK_API_PORT=8101 NITYAM_ADK_WEB_PORT=5274 ./run.sh
+```
+
+The Vite proxy derives its target from the API port, so moving the backend
+moves the front end's WebSocket with it.
 
 `run.sh` creates the virtualenv on first use (needs Python 3.10+; ADK does not
 support 3.9) and runs the credential preflight before starting — skipped in

@@ -6,6 +6,16 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PY=.venv/bin/python
+
+# A virtualenv bakes its absolute path into every console script, so renaming
+# or moving this folder silently breaks `.venv/bin/uvicorn` while
+# `.venv/bin/python` still looks fine. Test that it actually runs, not that it
+# exists.
+if [[ -x "$PY" ]] && ! .venv/bin/uvicorn --version >/dev/null 2>&1; then
+  echo "The virtualenv points at an old path (this folder was moved). Rebuilding…"
+  rm -rf .venv
+fi
+
 if [[ ! -x "$PY" ]]; then
   echo "No virtualenv. Creating one (needs Python 3.10+)…"
   PYBIN="$(command -v python3.12 || command -v python3.11 || command -v python3.10 || true)"
@@ -26,7 +36,8 @@ echo
 
 # A busy port used to fail silently: uvicorn exited, Vite started anyway, and
 # the page loaded with an orb that could never connect. Say so and stop.
-PORT=8000
+PORT="${NITYAM_ADK_API_PORT:-8100}"
+WEB_PORT="${NITYAM_ADK_WEB_PORT:-5273}"
 if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   echo "Port $PORT is already in use — probably a backend left over from an"
   echo "earlier run. The page would load but never connect, so stopping here."
@@ -35,6 +46,7 @@ if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   lsof -nP -iTCP:$PORT -sTCP:LISTEN | sed "s/^/    /"
   echo
   echo "  To free it:  kill \$(lsof -t -iTCP:$PORT -sTCP:LISTEN)"
+  echo "  Or move it:  NITYAM_ADK_API_PORT=8101 ./run.sh"
   exit 1
 fi
 
@@ -46,8 +58,8 @@ if [[ "${1:-}" == "--built" ]]; then
   echo "Backend on http://localhost:$PORT (serving frontend/dist)"
 else
   [[ -d frontend/node_modules ]] || (cd frontend && npm install)
-  (cd frontend && npm run dev) &
-  echo "Open http://localhost:5173"
+  (cd frontend && NITYAM_ADK_WEB_PORT="$WEB_PORT" NITYAM_ADK_API_PORT="$PORT" npm run dev) &
+  echo "Open http://localhost:$WEB_PORT"
 fi
 
 wait

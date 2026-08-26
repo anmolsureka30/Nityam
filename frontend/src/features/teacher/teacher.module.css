@@ -1,0 +1,161 @@
+/* The teacher's side is a data surface, so it uses the cool neutrals and
+   tabular numerals throughout. Deliberately distinct from the student's warm
+   paper — nobody should mistake one view for the other. */
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-bottom: 22px;
+}
+.title {
+  font-family: var(--prose);
+  font-size: 31px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.meta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-top: 9px;
+}
+.headRight { display: flex; align-items: center; gap: 10px; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+.section { margin-top: 26px; }
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line-cool);
+}
+.sectionTitle { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  text-align: left;
+  padding: 10px 14px 10px 0;
+  border-bottom: 1px solid var(--line-cool);
+  white-space: nowrap;
+}
+.table td {
+  padding: 13px 14px 13px 0;
+  border-bottom: 1px solid var(--line-cool-3);
+  vertical-align: middle;
+  font-size: 14px;
+}
+.table tbody tr:hover { background: var(--data-ground); }
+.num { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.barCell { width: 170px; }
+.name { font-weight: 600; }
+
+.trend { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.up { color: var(--good); }
+.down { color: var(--danger); }
+
+.lower { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-top: 26px; }
+
+.dist { display: flex; align-items: flex-end; gap: 10px; height: 118px; margin-top: 16px; }
+.distCol { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; height: 100%; justify-content: flex-end; }
+.distBar { width: 100%; border-radius: 3px 3px 0 0; background: var(--ink-mid); opacity: 0.72; }
+.distBarLow { background: var(--danger); opacity: 0.85; }
+.distLabel { font-family: var(--mono); font-size: 9.5px; color: var(--ink-dim); }
+.distCount { font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+.names { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+.nameChip {
+  border: 1px solid var(--line-cool);
+  background: var(--data-ground);
+  border-radius: var(--r-xs);
+  padding: 5px 10px;
+  font-size: 12.5px;
+  color: var(--ink-mid);
+}
+
+.bell {
+  background: var(--ink);
+  color: #fff;
+  border-radius: var(--r-md);
+  padding: 20px 22px;
+}
+.bell .bellLabel {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.bellText {
+  font-family: var(--prose);
+  font-size: 18px;
+  line-height: 1.45;
+  margin: 11px 0 0;
+  text-wrap: pretty;
+}
+
+.filters { display: flex; gap: 6px; }
+.filter {
+  border: 1px solid var(--line-cool);
+  background: var(--paper);
+  border-radius: var(--r-pill);
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+.filterOn { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+.sev {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: var(--r-pill);
+  margin-right: 7px;
+}
+.sevCritical { background: var(--danger); }
+.sevWatch { background: var(--warn); }
+.sevInactive { background: var(--ink-dim); }
+
+.evidence { font-family: var(--mono); font-size: 10.5px; color: var(--ink-dim); }
+
+.footBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  background: var(--data-ground);
+  border: 1px solid var(--line-cool);
+  border-radius: var(--r-md);
+}
+
+.insight { max-width: 720px; margin: 30px auto 0; }
+.insightBig {
+  font-family: var(--prose);
+  font-size: 24px;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  margin: 12px 0 0;
+  text-wrap: pretty;
+}
+
+@media (max-width: 900px) {
+  .tiles { grid-template-columns: 1fr; }
+  .lower { grid-template-columns: 1fr; }
+}

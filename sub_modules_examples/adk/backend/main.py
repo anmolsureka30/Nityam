@@ -280,7 +280,7 @@ else:
             "<h1>Backend is up</h1>"
             "<p>The React app is not built. Either run the Vite dev server:</p>"
             "<pre>cd frontend &amp;&amp; npm install &amp;&amp; npm run dev</pre>"
-            "<p>and open <a href='http://localhost:5173'>localhost:5173</a>, "
+            "<p>and open <a href='http://localhost:5273'>localhost:5273</a>, "
             "or build it once with <code>npm run build</code> and reload this page.</p>",
             status_code=200,
         )

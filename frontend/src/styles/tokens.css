@@ -1,0 +1,66 @@
+/* Design tokens, lifted from Nityam_Claude_Design/Nityam.dc.html.
+   Change a value here, not in a component. */
+
+:root {
+  /* --- ground and surfaces -------------------------------------------
+     Warm paper for the student's world; cooler greys appear only inside
+     data surfaces (teacher tables, the textbook) so charts read as data
+     rather than as part of the notebook. */
+  --ground:      #FBFAF7;
+  --paper:       #FFFFFF;
+  --paper-warm:  #FCFBF8;
+  --cream:       #F4F1EA;
+  --cream-deep:  #F1EDE6;
+  --cream-soft:  #F8F5F0;
+  --data-ground: #FAFBFC;
+  --data-cream:  #F4F5F7;
+
+  /* --- ink ---------------------------------------------------------- */
+  --ink:         #161A22;
+  --ink-mid:     #5A6070;
+  --ink-dim:     #8A90A0;
+
+  /* --- rules -------------------------------------------------------- */
+  --line:        #E9E6DF;   /* warm, for paper surfaces */
+  --line-soft:   #EFE9E1;
+  --line-cool:   #E3E5E9;   /* cool, for data surfaces */
+  --line-cool-2: #E8EAEE;
+  --line-cool-3: #EDEFF3;
+
+  /* --- accent -------------------------------------------------------
+     Nityam's magenta. One accent, spent on what the student should act on. */
+  --accent:      #E8437A;
+  --accent-deep: #C22B5F;
+  --accent-tint: #F3CFDD;
+  --accent-wash: #FDF4F7;
+
+  /* --- semantic -----------------------------------------------------
+     Kept separate from the accent: these encode state, not brand. */
+  --warn:        #C2700F;
+  --warn-wash:   #FDF8F1;
+  --danger:      #C1443A;
+  --good:        #10916B;
+  --sim:         #2A78D6;   /* simulations only — matches artifact_generator */
+
+  /* --- type --------------------------------------------------------- */
+  --ui:      "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+  --prose:   "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* --- shape -------------------------------------------------------- */
+  --r-pill:  99px;
+  --r-lg:    16px;
+  --r-md:    12px;
+  --r-sm:    10px;
+  --r-xs:    7px;
+  --r-tick:  3px;
+
+  --shadow:      0 2px 12px rgba(22, 26, 34, 0.05);
+  --shadow-lift: 0 8px 26px rgba(232, 67, 122, 0.16);
+
+  /* --- layout ------------------------------------------------------- */
+  --page-max:   1140px;
+  --rail-w:     344px;
+  --drawer-w:   min(560px, 46vw);
+  --header-h:   58px;
+}

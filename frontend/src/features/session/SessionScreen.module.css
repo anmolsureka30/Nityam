@@ -1,0 +1,140 @@
+.screen {
+  /* One source of truth for the avatar's footprint: the dock sizes itself from
+     it and the notebook reserves the same amount of scroll clearance. */
+  --avatar-w: 254px;
+  --avatar-h: 288px;
+
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 24px;
+  height: var(--header-h);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  flex: none;
+}
+
+.left { display: flex; align-items: center; gap: 14px; }
+
+.brand { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; }
+.mark { width: 9px; height: 9px; border-radius: var(--r-pill); background: var(--accent); }
+.word { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  padding: 4px 11px;
+  font-size: 12.5px;
+  color: var(--ink-mid);
+}
+
+.right { display: flex; align-items: center; gap: 12px; }
+
+.chipBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
+  font-size: 12.5px;
+  color: var(--ink-mid);
+}
+.chipBtn:hover { border-color: var(--accent); color: var(--accent-deep); }
+.chipBtnOn { background: var(--accent-wash); border-color: var(--accent-tint); color: var(--accent-deep); }
+
+.clock {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.who { font-size: 13px; color: var(--ink-mid); }
+.avatarChip {
+  width: 27px; height: 27px;
+  border-radius: var(--r-pill);
+  background: var(--cream-deep);
+  border: 1px solid var(--line);
+  display: grid; place-items: center;
+  font-size: 11.5px; font-weight: 600; color: var(--ink-mid);
+}
+
+/* concept strip — the slim always-visible progress bar */
+.concept {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 24px;
+  background: var(--cream-soft);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.conceptName { font-size: 13.5px; font-weight: 600; }
+.conceptTrack { flex: 1; min-width: 60px; max-width: 320px; }
+.conceptPct {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.delta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--good);
+  background: #F1FAF6;
+  border: 1px solid #CDEBDF;
+  border-radius: var(--r-pill);
+  padding: 2px 8px;
+}
+
+/* The canvas is the page. Every control floats over it, so nothing steals
+   width from the thing the student is actually reading. */
+.stage {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  padding: 16px 24px 0;
+}
+
+/* progress through tonight, in the strip rather than a panel */
+.plan { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.planStep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.planTick {
+  width: 14px; height: 14px;
+  flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  font-size: 8px;
+  color: var(--ink-dim);
+  background: var(--paper);
+}
+.planDone { color: var(--ink-mid); }
+.planDone .planTick { border-color: #CDEBDF; background: #F1FAF6; color: var(--good); }
+.planNow { color: var(--ink); font-weight: 500; }
+.planNow .planTick { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+@media (max-width: 1180px) { .plan { display: none; } }
+@media (max-width: 900px) {
+  .screen { height: auto; overflow: visible; }
+  .stage { padding: 12px 12px 0; }
+}

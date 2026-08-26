@@ -1,0 +1,68 @@
+/* The avatar floats over the page. No card, no border, no background — the
+   rig clears its canvas rather than filling it, so the notebook shows through
+   and she reads as standing in the room rather than sitting in a widget. */
+
+.dock {
+  position: fixed;
+  right: 18px;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* A soft floor shadow. Without it a transparent figure looks pasted on. */
+.stand {
+  position: relative;
+  pointer-events: auto;
+}
+.stand::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  width: 62%;
+  height: 16px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(22, 26, 34, 0.14), transparent 70%);
+  pointer-events: none;
+}
+
+.canvasHost {
+  width: var(--avatar-w, 254px);
+  height: var(--avatar-h, 288px);
+  position: relative;
+}
+
+/* Breathing halo while she is listening or speaking, so the student can tell
+   at a glance whether the mic is live. */
+.aura {
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 74%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.auraOn { opacity: 1; }
+.auraListening {
+  background: radial-gradient(circle, rgba(232, 67, 122, 0.16), transparent 62%);
+  animation: n-breathe 2.6s ease-in-out infinite;
+}
+.auraSpeaking {
+  background: radial-gradient(circle, rgba(27, 175, 122, 0.14), transparent 62%);
+}
+
+
+@media (max-width: 900px) {
+  .dock { right: 6px; }
+  .canvasHost { width: 168px; height: 190px; }
+}

@@ -1,0 +1,154 @@
+.scroll {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  /* Room at the bottom for the floating bar and the avatar, so the last line
+     of the lesson is never hidden behind either. */
+  /* Deep enough to scroll the last line clear of the avatar and the control
+     bar. She stands in front of the page, so the only honest fix for the
+     content behind her is to let the student scroll it out from under. */
+  padding: 0 4px calc(var(--avatar-h, 288px) + 96px);
+  scroll-behavior: smooth;
+}
+
+.sheet {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 28px 34px 34px;
+  margin-bottom: 16px;
+  animation: n-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+
+.sheetHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+/* The sheet is as wide as the screen, but a 150-character line is unreadable,
+   so running text keeps a measure while figures use the whole width. */
+.heading, .para, .callout, .pulled {
+  max-width: 74ch;
+}
+
+.heading {
+  font-family: var(--prose);
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  margin: 0 0 14px;
+}
+
+.para {
+  font-family: var(--prose);
+  font-size: 16.5px;
+  line-height: 1.62;
+  margin: 0 0 15px;
+  text-wrap: pretty;
+}
+
+/* Anchored terms. Faintly underlined so the student knows what can be
+   pointed at, without turning the page into a field of links. */
+.anchor {
+  background: linear-gradient(transparent 82%, var(--accent-tint) 82%);
+  color: inherit;
+  padding: 0 1px;
+  cursor: help;
+  transition: background 0.18s ease;
+}
+.anchor:hover { background: linear-gradient(transparent 78%, var(--accent) 78%); }
+/* Lit because the tutor is talking about this exact term right now. */
+.anchorHot {
+  background: var(--accent-wash);
+  box-shadow: 0 0 0 2px var(--accent-wash), inset 0 -2px 0 var(--accent);
+  border-radius: 2px;
+}
+
+.equation {
+  max-width: 74ch;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  background: var(--cream-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 17px 20px;
+  margin: 20px 0;
+}
+.equationTex {
+  font-family: var(--prose);
+  font-size: 25px;
+  letter-spacing: -0.01em;
+}
+
+.callout {
+  border-radius: var(--r-md);
+  padding: 15px 18px;
+  margin: 18px 0;
+}
+.calloutCorrection { background: var(--warn-wash); border: 1px solid #F2E3CB; }
+.calloutFinding { background: #F1FAF6; border: 1px solid #CDEBDF; }
+.calloutText {
+  font-family: var(--prose);
+  font-size: 15.5px;
+  line-height: 1.55;
+  margin: 7px 0 0;
+  text-wrap: pretty;
+}
+.calloutFoot { margin-top: 11px; }
+
+.pulled {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent-tint);
+  border-radius: var(--r-xs);
+  background: var(--paper-warm);
+  padding: 14px 17px;
+  margin: 18px 0;
+  animation: n-fade 0.35s ease both;
+}
+.pulledHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+.pulledQuote {
+  font-family: var(--prose);
+  font-size: 15.5px;
+  line-height: 1.55;
+  font-style: italic;
+  color: var(--ink);
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+  margin: 0 0 10px;
+}
+.pulledBody { font-size: 14px; line-height: 1.55; color: var(--ink-mid); margin: 0; }
+
+.figure {
+  background: var(--cream);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-xs);
+  padding: 18px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.next { background: var(--cream-soft); }
+.nextTitle {
+  font-family: var(--prose);
+  font-size: 21px;
+  letter-spacing: -0.015em;
+  margin: 0 0 8px;
+}
