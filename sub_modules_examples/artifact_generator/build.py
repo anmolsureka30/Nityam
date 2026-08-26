@@ -26,6 +26,7 @@ from spec import ArtifactSpec                      # noqa: E402
 from validate import validate                      # noqa: E402
 from kernel_py import parity_vectors               # noqa: E402
 import generator                                   # noqa: E402
+import render                                      # noqa: E402
 
 RUNTIME_ORDER = ["kernel.js", "evaluate.js", "probes.js", "render.js", "mount.js"]
 
@@ -98,40 +99,16 @@ def main_one(args):
         print()
         return 1
 
-    # 4 ------------------------------------------------------------- theme
-    with open(os.path.join(HERE, "examples", "themes.json")) as f:
-        themes = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
+    # 4-5 --------------------------------------------------- theme + render
     theme_key = args.theme or spec.interest
-    if theme_key not in themes:
-        theme_key = "plain"
     step("theme", f"{theme_key}  {DIM}(resolved at render, not baked into the IR){RESET}")
-
-    # 5 ------------------------------------------------------------ render
-    runtime = []
-    for fn in RUNTIME_ORDER:
-        with open(os.path.join(HERE, "runtime", fn)) as f:
-            runtime.append(f"/* ---- {fn} ---- */\n" + f.read())
-    runtime_js = "\n\n".join(runtime)
-
-    with open(os.path.join(HERE, "shell", "template.html")) as f:
-        html = f.read()
-
     build_meta = {
         "source": source,
-        "theme": theme_key,
         "checks_passed": passed,
         "checks_total": len(report.checks),
         "spec": os.path.basename(args.spec),
     }
-
-    html = (html
-            .replace("__TITLE__", ir["intent"].get("student_prompt", ir["artifact_id"]).replace("{{theme.object}}", "it").replace("{{theme.protagonist}}", "they"))
-            .replace("__ARTIFACT_ID__", ir["artifact_id"])
-            .replace("__RUNTIME_JS__", runtime_js)
-            .replace("__IR_JSON__", json.dumps(ir, ensure_ascii=False))
-            .replace("__THEMES_JSON__", json.dumps(themes, ensure_ascii=False))
-            .replace("__PARITY_JSON__", json.dumps(parity_vectors()))
-            .replace("__BUILD_JSON__", json.dumps(build_meta)))
+    html = render.render_html(ir, theme_key, build_meta)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
