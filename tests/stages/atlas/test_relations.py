@@ -1,6 +1,6 @@
 import json
-from shruti.stages.atlas.relations import extract_relations
-from shruti.contracts.atlas import Concept, BeatRef
+from shruti.stages.atlas.relations import extract_relations, filter_valid_edges
+from shruti.contracts.atlas import Concept, Edge, BeatRef
 from shruti.contracts.beat import Beat
 
 
@@ -71,3 +71,24 @@ def test_extract_relations_skips_edges_naming_an_unknown_concept():
     concepts = [Concept(id="factoring", canonical_name="factoring")]
     edges = extract_relations(client, concepts, [])
     assert edges == []
+
+
+def test_filter_valid_edges_drops_edges_citing_an_unknown_beat_id():
+    edges = [
+        Edge(id="e1", from_concept="a", to_concept="b", edge_type="REQUIRES",
+             evidence=[BeatRef(beat_id="b_real", relation="evidence_for")]),
+        Edge(id="e2", from_concept="a", to_concept="b", edge_type="REQUIRES",
+             evidence=[BeatRef(beat_id="b_hallucinated", relation="evidence_for")]),
+    ]
+    kept = filter_valid_edges(edges, concept_ids={"a", "b"}, beat_ids={"b_real"})
+    assert [e.id for e in kept] == ["e1"]
+
+
+def test_filter_valid_edges_drops_edges_with_no_evidence_or_unknown_concept():
+    edges = [
+        Edge(id="e1", from_concept="a", to_concept="unknown", edge_type="REQUIRES",
+             evidence=[BeatRef(beat_id="b1", relation="evidence_for")]),
+        Edge(id="e2", from_concept="a", to_concept="b", edge_type="REQUIRES", evidence=[]),
+    ]
+    kept = filter_valid_edges(edges, concept_ids={"a", "b"}, beat_ids={"b1"})
+    assert kept == []

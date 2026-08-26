@@ -48,3 +48,17 @@ def extract_relations(client, concepts: list[Concept], beats: list[Beat]) -> lis
                       for bid in row["evidence_beat_ids"]],
         ))
     return edges
+
+
+def filter_valid_edges(edges: list[Edge], concept_ids: set[str], beat_ids: set[str]) -> list[Edge]:
+    """extract_relations already resolves from_concept/to_concept to real
+    concept ids, but the model's evidence_beat_ids are never checked against
+    the real beats — a hallucinated or mangled beat id would otherwise reach
+    write_edges and raise an uncaught DB foreign-key error mid-run, after
+    concepts are already committed. Mirrors the same beat-id validation
+    ingest.py already does for misconceptions' pre_empted_at_beat."""
+    return [
+        e for e in edges
+        if e.from_concept in concept_ids and e.to_concept in concept_ids
+        and e.evidence and all(ref.beat_id in beat_ids for ref in e.evidence)
+    ]

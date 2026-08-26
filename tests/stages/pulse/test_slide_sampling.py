@@ -1,3 +1,5 @@
+import pytest
+
 from shruti.contracts.timeline import Shot
 from shruti.stages.pulse.slide_sampling import compute_slide_sample_spans
 
@@ -31,3 +33,9 @@ def test_spans_are_contiguous_and_cover_the_full_duration():
         assert end == next_start
     assert spans[0][0] == 0.0
     assert spans[-1][1] == 60.0
+
+
+def test_non_positive_interval_raises_instead_of_hanging():
+    shots = [Shot(start_s=0.0, end_s=10.0)]
+    with pytest.raises(ValueError):
+        compute_slide_sample_spans(shots, duration_s=10.0, interval_s=0.0)

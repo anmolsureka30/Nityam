@@ -29,6 +29,8 @@ where they diverge:
     windowing by erase events into multiple spans.
   - POINT (deixis) is capped at POINT_CAP utterances to bound API cost,
     rather than the full design's PULSE-flagged-gesture-moments approach.
+    POINT only runs for blackboard/whiteboard recordings (is_physical_board);
+    it's skipped entirely for the other three surface kinds.
   - Misconception concept_id grounding is fuzzy-matched after the fact
     (mine_misconceptions doesn't receive the mined concept list and can
     hallucinate a concept_id that doesn't exist).
@@ -63,7 +65,7 @@ from shruti.stages.weave.boundaries import candidate_boundaries
 from shruti.stages.weave.fuse import fuse_beats
 from shruti.stages.glyph.read import read_board_state
 from shruti.stages.atlas.concepts import mine_concepts
-from shruti.stages.atlas.relations import extract_relations
+from shruti.stages.atlas.relations import extract_relations, filter_valid_edges
 from shruti.stages.atlas.misconceptions import mine_misconceptions
 from shruti.stages.atlas.canonicalize import canonicalize
 from shruti.stages.atlas.embed import embed_concepts, embed_misconceptions
@@ -77,6 +79,7 @@ from shruti.lens.citations import format_citation
 
 POINT_CAP = 6  # cap deixis calls to bound API cost — see module docstring
 SLIDE_SAMPLE_INTERVAL_S = 25.0  # see compute_slide_sample_spans's docstring
+MAX_SLIDE_SAMPLES = 60  # bounds GLYPH calls for long videos — see below
 
 
 class RunArtifacts:
@@ -283,10 +286,12 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
         print("SLATE + GLYPH (board-rectification path: locate/rectify/mask/composite)")
     else:
         print(f"SLATE + GLYPH (surface_kind={recording.surface_kind.value!r} — "
-              f"no physical board to rectify; reading raw representative frames per slide instead)")
+              f"not routed through board-rectification; reading raw representative "
+              f"frames per slide instead — see is_physical_board's docstring)")
     print("=" * 70)
     art.start_stage("02_slate")
     board_states: list[BoardState] = []
+    slide_sample_points: list[float] = []
     try:
         if is_physical_board(recording.surface_kind):
             # Real physical board: geometric rectification + occlusion masking
@@ -343,9 +348,17 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
             # compute_slide_sample_spans's docstring). This produces
             # multiple BoardStates, one per sampled span, instead of one
             # degenerate state for the whole video.
-            spans = compute_slide_sample_spans(
-                shots, recording.duration_s, interval_s=SLIDE_SAMPLE_INTERVAL_S,
+            # Widen the interval for long videos so total GLYPH calls stay
+            # bounded — MAX_SLIDE_SAMPLES caps it the same way POINT_CAP
+            # bounds POINT, without a hard cliff: a 2-hour lecture gets a
+            # longer interval instead of silently stopping at sample 60.
+            effective_interval_s = max(
+                SLIDE_SAMPLE_INTERVAL_S, recording.duration_s / MAX_SLIDE_SAMPLES,
             )
+            spans = compute_slide_sample_spans(
+                shots, recording.duration_s, interval_s=effective_interval_s,
+            )
+            slide_sample_points = [start for start, _ in spans]
             print(f"Sampling {len(spans)} slide state(s) at: "
                   f"{[round(start, 1) for start, _ in spans]}")
 
@@ -423,9 +436,11 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
         art.save_json("05_point", "deixis_results", deixis_debug)
         print(f"Gestures found: {len(deixis_list)} (out of {min(POINT_CAP, len(utterances))} checked)")
     else:
-        print(f"POINT (surface_kind={recording.surface_kind.value!r} — skipped: no physical "
-              f"board region for gesture-pointing to attach to, and GLYPH already reads slide "
-              f"content directly)")
+        print(f"POINT (surface_kind={recording.surface_kind.value!r} — skipped: not routed "
+              f"through the board path (see is_physical_board's docstring); for slides/"
+              f"talking_head GLYPH already reads content directly, and mixed recordings lose "
+              f"gesture-pointing entirely today — a known, documented gap, not a design choice "
+              f"for mixed specifically)")
         print("=" * 70)
     art.end_stage("05_point")
 
@@ -434,7 +449,8 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
     print("WEAVE")
     print("=" * 70)
     art.start_stage("06_weave")
-    boundaries = candidate_boundaries(utterances, curve, coarse_times.tolist(), shots)
+    boundaries = candidate_boundaries(utterances, curve, coarse_times.tolist(), shots,
+                                       extra_boundaries=slide_sample_points)
     art.save_json("06_weave", "boundaries", boundaries)
     beats = fuse_beats(client, recording.id, boundaries, utterances, board_states, deixis_list)
     # fuse_beats accepts board_states but doesn't use them to set
@@ -478,10 +494,15 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
         )) for ref in c.taught_in[:1]]
         print(f"  - {c.canonical_name}  [{', '.join(cites)}]")
 
+    beat_ids = {b.id for b in beats}
     edges = extract_relations(client, concepts, beats) if len(concepts) >= 2 else []
     art.save_json("07_atlas", "relations_raw", [e.model_dump() for e in edges])
     valid_ids = {c.id for c in concepts}
-    edges = [e for e in edges if e.from_concept in valid_ids and e.to_concept in valid_ids and e.evidence]
+    raw_edge_count = len(edges)
+    edges = filter_valid_edges(edges, valid_ids, beat_ids)
+    if raw_edge_count and len(edges) < raw_edge_count:
+        gaps.append(f"ATLAS: {raw_edge_count - len(edges)} edge(s) dropped (unresolved concept, "
+                     f"missing evidence, or evidence cited a beat id that doesn't exist)")
     if edges:
         try:
             await write_edges(conn, edges)
@@ -498,7 +519,6 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
     misconceptions = []
     for m in misconceptions_raw:
         remapped = _remap_concept_id(m.concept_id, concepts)
-        beat_ids = {b.id for b in beats}
         if remapped and m.pre_empted_at_beat in beat_ids:
             misconceptions.append(m.model_copy(update={"concept_id": remapped}))
         else:

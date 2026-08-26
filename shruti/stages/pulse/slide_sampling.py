@@ -13,6 +13,8 @@ def compute_slide_sample_spans(
     for the whole video. Merge shot-cut points with periodic samples every
     `interval_s` seconds so a long continuous shot still gets real
     coverage."""
+    if interval_s <= 0:
+        raise ValueError(f"interval_s must be positive, got {interval_s!r}")
     points = {0.0} | {s.start_s for s in shots}
     for s in shots:
         t = s.start_s
