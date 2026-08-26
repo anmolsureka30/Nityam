@@ -23,13 +23,15 @@ class FakeClient:
         return FakeClient._Models(self)
 
 
-def test_transcribe_audio_parses_structured_utterances():
+def test_transcribe_audio_parses_structured_utterances(tmp_path):
     payload = [
         {"start_s": 0.0, "end_s": 2.0, "text": "अब हम iska derivative nikalenge",
          "speaker": "TEACHER", "confidence": 0.92},
     ]
     client = FakeClient(payload)
-    utterances = transcribe_audio(client, audio_path="fake.wav", recording_id="r1")
+    audio_path = tmp_path / "fake.wav"
+    audio_path.write_bytes(b"RIFF....WAVEfmt ")  # minimal placeholder bytes; content is never inspected
+    utterances = transcribe_audio(client, audio_path=str(audio_path), recording_id="r1")
     assert len(utterances) == 1
     assert utterances[0].text == "अब हम iska derivative nikalenge"
     assert utterances[0].speaker == "TEACHER"

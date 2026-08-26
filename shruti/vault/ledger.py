@@ -16,15 +16,33 @@ async def write_board_state(conn, board_state: BoardState) -> None:
     )
     if board_state.content:
         for region in board_state.content.regions:
+            # derives_from is informational text now (migration 006), not an
+            # enforced FK — GLYPH's model can legitimately name multiple
+            # prior derivation steps.
+            derives_from = (
+                ", ".join(region.derives_from) if isinstance(region.derives_from, list)
+                else region.derives_from
+            )
+            # GLYPH's model names region.id independently per board state
+            # (e.g. "r1", "eq1") with no awareness of other slides, so the
+            # raw label collides across slides and across re-runs of the
+            # same video. board_region.id is a global PRIMARY KEY, so an
+            # unqualified label caused later slides' regions to silently
+            # vanish under ON CONFLICT DO NOTHING (confirmed: slide 4's
+            # r1/r2/r3 were dropped because slide 1 had already claimed
+            # them). Namespacing by board_state.id makes the row id globally
+            # unique while leaving region.id itself as the model's natural
+            # per-slide label.
+            row_id = f"{board_state.id}::{region.id}"
             await conn.execute(
                 """INSERT INTO board_region (id, board_state_id, bbox, kind, latex,
                                               plain_text, description, role, step_index,
                                               derives_from, confidence)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
                    ON CONFLICT (id) DO NOTHING""",
-                region.id, board_state.id, json.dumps(region.bbox), region.kind,
+                row_id, board_state.id, json.dumps(region.bbox), region.kind,
                 region.latex, region.plain_text, region.description, region.role,
-                region.step_index, region.derives_from, region.confidence,
+                region.step_index, derives_from, region.confidence,
             )
 
 

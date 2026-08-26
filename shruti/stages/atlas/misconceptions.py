@@ -22,6 +22,7 @@ def mine_misconceptions(client, beats: list[Beat]) -> list[Misconception]:
     response = client.models.generate_content(
         model=Models().reasoner,
         contents=[_MISCONCEPTIONS_PROMPT.format(beats=beats_text)],
+        config={"response_mime_type": "application/json"},
     )
     rows = json.loads(response.text)
     return [

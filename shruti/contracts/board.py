@@ -13,7 +13,10 @@ class Region(BaseModel):
     description: str | None = None
     role: str | None = None
     step_index: int | None = None
-    derives_from: str | None = None
+    # Informational, not an enforced reference (see migration 006) — GLYPH's
+    # model naturally names descriptive derivation labels or multiple prior
+    # steps, not always a single sibling region's literal id.
+    derives_from: str | list[str] | None = None
     confidence: float | None = None
     reason: str | None = None
 

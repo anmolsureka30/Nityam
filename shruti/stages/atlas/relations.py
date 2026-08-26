@@ -21,6 +21,7 @@ def extract_relations(client, concepts: list[Concept], beats: list[Beat]) -> lis
     response = client.models.generate_content(
         model=Models().reasoner,
         contents=[_RELATIONS_PROMPT.format(concepts=concept_names, beats=beats_text)],
+        config={"response_mime_type": "application/json"},
     )
     rows = json.loads(response.text)
     return [

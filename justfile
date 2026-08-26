@@ -6,11 +6,11 @@ up:
 
 # Apply all pending SQL migrations
 migrate:
-    uv run shruti migrate
+    uv run --env-file .env python -m shruti.cli migrate
 
 # Run the E4 provenance invariant check
 provenance-check:
-    uv run shruti provenance-check
+    uv run --env-file .env python -m shruti.cli provenance-check
 
 # Run tests
 test:
@@ -31,6 +31,23 @@ lint:
 # Run everything
 check: lint test
 
-# Display timeline for a recording
+# Display the v_timeline debug view for a recording (read end to end —
+# it should read like lecture notes; [board]/[gesture] show cross-modal sync)
 timeline recording_id:
-    echo "SELECT * FROM v_timeline WHERE recording_id='{{recording_id}}'" | uv run python -c "import sys; print(sys.stdin.read())"
+    uv run --env-file .env python -m shruti.cli timeline {{recording_id}}
+
+# Display recovered board states — region/unreadable counts, one row each
+boards recording_id:
+    uv run --env-file .env python -m shruti.cli boards {{recording_id}}
+
+# Display mined concepts in teaching order
+concepts recording_id:
+    uv run --env-file .env python -m shruti.cli concepts {{recording_id}}
+
+# Ingest a video you already have as a local file
+ingest video_path *args:
+    uv run --env-file .env python scripts/ingest_video.py {{video_path}} {{args}}
+
+# Interactive: prompts for a YouTube URL, downloads it, and runs the full pipeline
+ingest-youtube:
+    uv run --env-file .env python -m shruti.cli ingest

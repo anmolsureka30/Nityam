@@ -1,7 +1,16 @@
 import json
 import uuid
+import cv2
+from google.genai import types
 from shruti.config import Models
 from shruti.contracts.speech import Utterance, Deixis
+
+
+def _encode_frame(frame) -> types.Part:
+    """Bug fix: a raw numpy array is not accepted as Gemini content — encode
+    to JPEG bytes and wrap as an inline Part."""
+    _, buf = cv2.imencode(".jpg", frame)
+    return types.Part.from_bytes(data=buf.tobytes(), mime_type="image/jpeg")
 
 _DEIXIS_PROMPT = """The teacher says: "{text}"
 
@@ -18,7 +27,8 @@ Return JSON: {{"found": bool, "phrase": str, "board_region": [x, y, w, h]
 def resolve_deixis(client, clip_frames: list, utterance: Utterance) -> Deixis | None:
     response = client.models.generate_content(
         model=Models().reasoner,
-        contents=[_DEIXIS_PROMPT.format(text=utterance.text), *clip_frames],
+        contents=[_DEIXIS_PROMPT.format(text=utterance.text), *[_encode_frame(f) for f in clip_frames]],
+        config={"response_mime_type": "application/json"},
     )
     row = json.loads(response.text)
     if not row.get("found"):

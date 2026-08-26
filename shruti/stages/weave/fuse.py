@@ -22,6 +22,7 @@ def fuse_beats(client, recording_id: str, boundaries: list[float],
     response = client.models.generate_content(
         model=Models().reasoner,
         contents=[_FUSE_PROMPT.format(boundaries=boundaries, utterances=utterance_text)],
+        config={"response_mime_type": "application/json"},
     )
     rows = json.loads(response.text)
     beats = []

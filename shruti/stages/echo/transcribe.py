@@ -1,5 +1,6 @@
 import json
 import uuid
+from google.genai import types
 from shruti.config import Models
 from shruti.contracts.speech import Utterance
 
@@ -18,9 +19,19 @@ Return a JSON array of objects: {start_s, end_s, text, speaker, confidence}.
 
 
 def transcribe_audio(client, audio_path: str, recording_id: str) -> list[Utterance]:
+    # Bug fix: a raw path string is not audio content to the SDK — it would
+    # be treated as extra prompt text, not the file. Read the bytes and wrap
+    # as an inline Part. Deliberately not client.files.upload(): that method
+    # only works in Gemini Developer API mode (raises ValueError under
+    # Vertex AI), and inline bytes work in both modes — this pipeline needs
+    # to run under either.
+    with open(audio_path, "rb") as f:
+        audio_bytes = f.read()
+    audio_part = types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav")
     response = client.models.generate_content(
         model=Models().reasoner,
-        contents=[_FIDELITY_PROMPT, audio_path],
+        contents=[_FIDELITY_PROMPT, audio_part],
+        config={"response_mime_type": "application/json"},
     )
     rows = json.loads(response.text)
     return [

@@ -19,6 +19,7 @@ def mine_concepts(client, beats: list[Beat], curriculum_spine: list[str] | None 
     response = client.models.generate_content(
         model=Models().reasoner,
         contents=[_CONCEPTS_PROMPT.format(beats=beats_text, spine=curriculum_spine or [])],
+        config={"response_mime_type": "application/json"},
     )
     rows = json.loads(response.text)
     concepts = []
