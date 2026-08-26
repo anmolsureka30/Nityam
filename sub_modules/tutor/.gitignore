@@ -66,6 +66,9 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# SMRITI memory store (app/memory/store.py DB_PATH)
+data/
+
 # Flask stuff:
 instance/
 .webassets-cache
