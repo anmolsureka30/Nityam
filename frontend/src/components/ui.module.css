@@ -1,0 +1,165 @@
+/* Shared primitives. Anything used by two or more features lives here. */
+
+.label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.labelAccent { color: var(--accent); }
+.labelWarn   { color: var(--warn); }
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 20px;
+}
+.cardLg { border-radius: var(--r-lg); padding: 24px; }
+.cardQuiet { background: var(--paper-warm); }
+
+/* A card that is also a button. Lifts on hover; the primary one lifts into
+   the accent so the eye lands on the action the student should take. */
+.actionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 22px;
+  transition: transform 0.16s ease, box-shadow 0.22s ease, border-color 0.16s ease;
+}
+.actionCard:hover { transform: translateY(-3px); border-color: var(--accent); }
+.actionCardPrimary {
+  background: linear-gradient(160deg, #fff 0%, var(--accent-wash) 100%);
+  border-color: var(--accent-tint);
+}
+.actionCardPrimary:hover { box-shadow: var(--shadow-lift); border-color: var(--accent); }
+
+.cardTitle {
+  font-family: var(--prose);
+  font-size: 21px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.cardBody {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-mid);
+  text-wrap: pretty;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  flex: none;
+}
+
+/* Buttons ------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: var(--r-pill);
+  padding: 9px 17px;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent-deep); }
+
+.btnPrimary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btnPrimary:hover { background: var(--accent-deep); border-color: var(--accent-deep); color: #fff; }
+
+.btnGhost { background: transparent; border-color: transparent; color: var(--ink-mid); }
+.btnGhost:hover { background: var(--cream); color: var(--ink); border-color: transparent; }
+
+.btnSm { padding: 6px 12px; font-size: 12px; }
+
+.btnBlock { width: 100%; justify-content: center; padding: 13px 20px; font-size: 15px; }
+
+/* Mastery ------------------------------------------------------------- */
+
+.masteryRow { display: flex; flex-direction: column; gap: 6px; }
+
+.masteryHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.masteryName { font-size: 13.5px; }
+.masteryPct {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+.track {
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--cream-deep);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Band, not brand: red/amber/green encode where the student stands. */
+.fillLow  { background: var(--danger); }
+.fillMid  { background: var(--warn); }
+.fillHigh { background: var(--good); }
+
+/* Pills / chips ------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--cream-soft);
+  border-radius: var(--r-xs);
+  padding: 5px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+.chipAccent { background: var(--accent-wash); border-color: var(--accent-tint); color: var(--accent-deep); }
+.chipWarn   { background: var(--warn-wash); border-color: #F2E3CB; color: var(--warn); }
+
+/* Stat tile ----------------------------------------------------------- */
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--paper);
+  border: 1px solid var(--line-cool);
+  border-radius: var(--r-md);
+  padding: 16px 18px;
+}
+.statValue {
+  font-family: var(--prose);
+  font-size: 29px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.statNote { font-size: 12.5px; color: var(--ink-mid); }

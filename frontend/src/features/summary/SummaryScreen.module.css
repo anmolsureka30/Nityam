@@ -1,0 +1,39 @@
+.wrap { max-width: 720px; margin: 34px auto 0; }
+.headline {
+  font-family: var(--prose);
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  margin: 12px 0 0;
+}
+
+.moved { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+.movedRow { display: flex; flex-direction: column; gap: 7px; }
+.movedHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.movedName { font-size: 14.5px; }
+.movedNums { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.from { color: var(--ink-dim); }
+.arrow { color: var(--ink-dim); margin: 0 5px; }
+.to { color: var(--good); font-weight: 500; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+
+.momentText {
+  font-family: var(--prose);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  margin: 11px 0 0;
+  text-wrap: pretty;
+}
+.body { font-size: 14.5px; line-height: 1.55; color: var(--ink-mid); margin: 11px 0 0; text-wrap: pretty; }
+
+.actions { display: flex; gap: 10px; margin-top: 24px; }
+
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }

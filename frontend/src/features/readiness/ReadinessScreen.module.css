@@ -1,0 +1,64 @@
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+.title {
+  font-family: var(--prose);
+  font-size: 33px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.sub { color: var(--ink-mid); font-size: 14.5px; margin-top: 8px; }
+
+.score { display: flex; align-items: baseline; gap: 10px; }
+.scoreValue {
+  font-family: var(--prose);
+  font-size: 46px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.table { width: 100%; border-collapse: collapse; margin-top: 26px; }
+.table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  text-align: left;
+  padding: 0 16px 10px 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.table td {
+  padding: 15px 16px 15px 0;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: middle;
+}
+.table tr:last-child td { border-bottom: none; }
+
+.name { font-size: 15px; font-weight: 600; }
+.id { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); margin-top: 3px; }
+
+.barCell { width: 190px; }
+.pct { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.issue { font-size: 14px; line-height: 1.5; color: var(--ink-mid); text-wrap: pretty; }
+
+.rowWorst { background: var(--warn-wash); }
+
+.lower { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-top: 22px; }
+.patternText {
+  font-family: var(--prose);
+  font-size: 19px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  margin: 12px 0 0;
+  text-wrap: pretty;
+}
+.recText { font-size: 14.5px; line-height: 1.55; color: var(--ink-mid); margin: 12px 0 18px; text-wrap: pretty; }
+
+@media (max-width: 860px) { .lower { grid-template-columns: 1fr; } }

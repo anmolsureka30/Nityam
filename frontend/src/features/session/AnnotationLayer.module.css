@@ -1,0 +1,11 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+/* Inert unless a tool is held, so prose stays selectable and the simulation
+   stays draggable. Picking a tool is what arms the overlay. */
+.inert { pointer-events: none; }
+.armed { pointer-events: auto; cursor: crosshair; }
+
+.svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }

@@ -1,9 +1,25 @@
-.superpowers/
+# secrets
+.env
+*.env
+!.env.example
+!*.env.example
+
+# python
 .venv/
 __pycache__/
 *.pyc
-.env
-data/
 .pytest_cache/
+
+# node
+node_modules/
+dist/
+
+# local data
+data/
+*.db
+*.sqlite3
+
+# tooling
+.superpowers/
 .local/
 .worktrees/

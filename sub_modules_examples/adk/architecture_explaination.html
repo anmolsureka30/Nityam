@@ -1,0 +1,1222 @@
+<title>Nityam Voice Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+  :root {
+    --ground:      #f1f4f7;
+    --surface:     #ffffff;
+    --surface-alt: #e9edf2;
+    --ink:         #141a21;
+    --ink-mid:     #47535f;
+    --ink-dim:     #6d7a87;
+    --line:        #d9e0e7;
+    --line-soft:   #e7ecf1;
+
+    /* Directional accents. These are semantic, not decorative:
+       up = student's voice going out, down = model's voice coming back. */
+    --up:          #a35c06;
+    --up-soft:     #fdf1e2;
+    --down:        #0a6f7d;
+    --down-soft:   #e2f3f5;
+    --event:       #64409f;
+    --event-soft:  #f0eaf9;
+
+    --radius: 3px;
+    --measure: 68ch;
+
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0d1218;
+      --surface:     #151c25;
+      --surface-alt: #1c2530;
+      --ink:         #e4eaf1;
+      --ink-mid:     #a7b4c1;
+      --ink-dim:     #7e8c9a;
+      --line:        #26313d;
+      --line-soft:   #1e2833;
+
+      --up:          #e6a752;
+      --up-soft:     #2a2013;
+      --down:        #4cc3d1;
+      --down-soft:   #10262a;
+      --event:       #b79ce8;
+      --event-soft:  #201a2e;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #0d1218;
+    --surface:     #151c25;
+    --surface-alt: #1c2530;
+    --ink:         #e4eaf1;
+    --ink-mid:     #a7b4c1;
+    --ink-dim:     #7e8c9a;
+    --line:        #26313d;
+    --line-soft:   #1e2833;
+
+    --up:          #e6a752;
+    --up-soft:     #2a2013;
+    --down:        #4cc3d1;
+    --down-soft:   #10262a;
+    --event:       #b79ce8;
+    --event-soft:  #201a2e;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    display: grid;
+    grid-template-columns: 202px minmax(0, 1fr);
+    gap: 56px;
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 64px 40px 120px;
+    align-items: start;
+  }
+
+  /* ---------------------------------------------------------- contents */
+
+  .rail { position: sticky; top: 44px; }
+
+  .rail-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 14px;
+  }
+
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 1px solid var(--line);
+  }
+
+  .rail a {
+    display: block;
+    padding: 5px 0 5px 14px;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink-mid);
+    text-decoration: none;
+  }
+
+  .rail a:hover { color: var(--ink); border-left-color: var(--line); }
+  .rail a:focus-visible { outline: 2px solid var(--down); outline-offset: 2px; }
+
+  /* ------------------------------------------------------------ header */
+
+  header { margin-bottom: 64px; }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.19em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 18px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(34px, 5vw, 48px);
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    line-height: 1.04;
+    text-wrap: balance;
+    margin: 0 0 18px;
+  }
+
+  .standfirst {
+    max-width: var(--measure);
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--ink-mid);
+    margin: 0;
+  }
+
+  /* ----------------------------------------------------------- section */
+
+  section { margin-bottom: 76px; scroll-margin-top: 32px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 8px;
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    text-wrap: balance;
+    margin: 0 0 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  h3 {
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 38px 0 12px;
+  }
+
+  p { max-width: var(--measure); margin: 0 0 17px; }
+
+  a { color: var(--down); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--down); outline-offset: 2px; }
+
+  strong { font-weight: 600; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.855em;
+    background: var(--surface-alt);
+    padding: 0.1em 0.34em;
+    border-radius: var(--radius);
+  }
+
+  ul.notes {
+    max-width: var(--measure);
+    margin: 0 0 17px;
+    padding-left: 20px;
+  }
+  ul.notes li { margin-bottom: 8px; }
+
+  /* ------------------------------------------------------------- specs */
+
+  .specs {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .specs dl {
+    display: grid;
+    grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+    margin: 0;
+  }
+
+  .specs dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-alt);
+  }
+
+  .specs dd {
+    margin: 0;
+    padding: 13px 20px;
+    border-bottom: 1px solid var(--line-soft);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    overflow-x: auto;
+  }
+
+  .specs dt:last-of-type, .specs dd:last-of-type { border-bottom: none; }
+
+  .specs dd .note {
+    font-family: var(--body);
+    font-size: 14px;
+    color: var(--ink-dim);
+    display: block;
+    margin-top: 3px;
+  }
+
+  /* -------------------------------------------------------------- code */
+
+  figure { margin: 26px 0; }
+
+  .code {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .code-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding: 9px 16px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+  }
+
+  .code-head .path { font-weight: 700; color: var(--ink); }
+  .code-head .what { color: var(--ink-dim); text-align: right; }
+
+  .code pre {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.68;
+    tab-size: 4;
+  }
+
+  .code pre .c { color: var(--ink-dim); }
+  .code pre .k { color: var(--event); font-weight: 500; }
+  .code pre .s { color: var(--down); }
+  .code pre b  { color: var(--up); font-weight: 700; }
+
+  figcaption {
+    max-width: var(--measure);
+    margin-top: 11px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
+  /* ---------------------------------------------------------- diagrams */
+
+  .fig-frame {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    overflow-x: auto;
+  }
+
+  .fig-frame svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+
+  svg text {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    fill: currentColor;
+  }
+
+  .s-up   { color: var(--up); }
+  .s-down { color: var(--down); }
+  .s-ev   { color: var(--event); }
+
+  /* ------------------------------------------------------------ tables */
+
+  .tw { overflow-x: auto; margin: 24px 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    text-align: left;
+    padding: 8px 14px 8px 0;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 11px 14px 11px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+
+  td code { font-size: 12.5px; background: none; padding: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* -------------------------------------------------------------- flow */
+
+  ol.flow {
+    counter-reset: hop;
+    list-style: none;
+    margin: 28px 0 0;
+    padding: 0;
+    max-width: 760px;
+  }
+
+  ol.flow > li {
+    counter-increment: hop;
+    position: relative;
+    padding: 0 0 26px 52px;
+    border-left: 1px solid var(--line);
+    margin-left: 15px;
+  }
+
+  ol.flow > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+
+  ol.flow > li::before {
+    content: counter(hop);
+    position: absolute;
+    left: -15px;
+    top: -2px;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-mid);
+  }
+
+  ol.flow h4 {
+    font-family: var(--display);
+    font-size: 15.5px;
+    font-weight: 600;
+    margin: 3px 0 6px;
+  }
+
+  ol.flow p { margin: 0 0 6px; max-width: 62ch; }
+
+  .where {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-dim);
+  }
+
+  .dir {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    vertical-align: 2px;
+    margin-left: 8px;
+  }
+  .dir.up   { color: var(--up);   background: var(--up-soft); }
+  .dir.down { color: var(--down); background: var(--down-soft); }
+
+  /* -------------------------------------------------------------- aside */
+
+  .callout {
+    max-width: var(--measure);
+    margin: 26px 0;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--event);
+    border-radius: var(--radius);
+  }
+
+  .callout p:last-child { margin-bottom: 0; }
+
+  .callout .label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--event);
+    margin-bottom: 7px;
+  }
+
+  footer {
+    margin-top: 20px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    max-width: var(--measure);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 900px) {
+    .page { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 40px 22px 90px; }
+    .rail { position: static; margin-bottom: 48px; }
+    .rail ol { flex-direction: row; flex-wrap: wrap; gap: 0 4px; border-left: none; }
+    .rail a { padding: 4px 9px; border: 1px solid var(--line); border-radius: 2px; }
+    .specs dl { grid-template-columns: minmax(0, 1fr); }
+    .specs dt { border-bottom: none; padding-bottom: 4px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="page">
+
+  <nav class="rail" aria-label="Contents">
+    <p class="rail-title">Contents</p>
+    <ol>
+      <li><a href="#spec">Spec sheet</a></li>
+      <li><a href="#onemodel">One model, not three</a></li>
+      <li><a href="#roundtrip">The round trip</a></li>
+      <li><a href="#tools">Tool calling</a></li>
+      <li><a href="#agents">Agents &amp; handoff</a></li>
+      <li><a href="#addagent">Adding an agent</a></li>
+      <li><a href="#files">File map</a></li>
+      <li><a href="#traps">Traps</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header>
+      <p class="kicker">sub_modules / adk</p>
+      <h1>Nityam Voice Pipeline</h1>
+      <p class="standfirst">How the voice tutor actually works: which Gemini model, where tool
+        calling happens, and how one agent hands the student to another mid-conversation.</p>
+    </header>
+
+    <!-- ================================================== SPEC -->
+    <section id="spec">
+      <p class="eyebrow">Answers first</p>
+      <h2>Spec sheet</h2>
+
+      <div class="specs">
+        <dl>
+          <dt>Model</dt>
+          <dd>gemini-live-2.5-flash
+            <span class="note">Half-cascade. The only model in the app.</span></dd>
+
+          <dt>Resolved path</dt>
+          <dd>projects/nityam-506707/locations/us-central1<wbr>/publishers/google/models/gemini-live-2.5-flash
+            <span class="note">Vertex Live rejects a bare model name. Built by <code>auth.resolve_model()</code>.</span></dd>
+
+          <dt>Platform</dt>
+          <dd>Vertex AI &middot; us-central1
+            <span class="note">Express mode, keyed rather than project-scoped.</span></dd>
+
+          <dt>Auth</dt>
+          <dd>GOOGLE_OAUTH_ACCESS_TOKEN, passed as api_key
+            <span class="note">Expires roughly hourly. Everything else on this project is refused.</span></dd>
+
+          <dt>Framework</dt>
+          <dd>google-adk 2.7.1 &middot; FastAPI &middot; React 18 + Vite
+            <span class="note">Python 3.12 in a local venv.</span></dd>
+
+          <dt>Voices</dt>
+          <dd>Leda (tutor) &middot; Puck (quiz master)
+            <span class="note">Eight available: Puck, Charon, Kore, Fenrir, Aoede, Leda, Orus, Zephyr.</span></dd>
+
+          <dt>Audio in</dt>
+          <dd>PCM16 &middot; 16 000 Hz &middot; mono
+            <span class="note">Nothing converts this for you. Wrong rate is garbage, not an error.</span></dd>
+
+          <dt>Audio out</dt>
+          <dd>PCM16 &middot; 24 000 Hz &middot; mono
+            <span class="note">Vertex sends a bare <code>audio/pcm</code> and leaves the rate implicit.</span></dd>
+
+          <dt>Response modality</dt>
+          <dd>["AUDIO"] &middot; StreamingMode.BIDI
+            <span class="note">Captions come from the API's own transcription, not from the reply.</span></dd>
+
+          <dt>Not used</dt>
+          <dd>Whisper &middot; ElevenLabs &middot; Deepgram &middot; any separate STT or TTS
+            <span class="note">One vendor, one model, one connection.</span></dd>
+        </dl>
+      </div>
+
+      <p style="margin-top:22px">There is also <code>gemini-3.5-flash-lite</code> in <code>.env</code>, but the app
+        never touches it — it exists only so the credential preflight can check the key with a cheap
+        text call before opening a voice session.</p>
+    </section>
+
+    <!-- ================================================== ONE MODEL -->
+    <section id="onemodel">
+      <p class="eyebrow">The central idea</p>
+      <h2>One model, not three</h2>
+
+      <p>The usual way to build a voice assistant is three services in a row: speech-to-text,
+        then an LLM, then text-to-speech. This is <strong>not</strong> that. Gemini's Live API takes
+        audio in and gives audio out, over a single persistent connection.</p>
+
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 760 250" role="img" aria-label="Comparison: a conventional three-service voice stack has two extra network hops and cannot be interrupted, while the Live API is one connection carrying audio both ways at once.">
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- LEFT: conventional -->
+            <text x="0" y="14" font-size="10.5" font-weight="700" letter-spacing="1.6" opacity="0.65">THE USUAL STACK</text>
+
+            <g fill="none" stroke="currentColor" stroke-width="1" opacity="0.85">
+              <rect x="0" y="34" width="86" height="40" rx="2"/>
+              <rect x="118" y="34" width="86" height="40" rx="2"/>
+              <rect x="236" y="34" width="86" height="40" rx="2"/>
+            </g>
+            <text x="43" y="58" font-size="11.5" text-anchor="middle">STT</text>
+            <text x="161" y="58" font-size="11.5" text-anchor="middle">LLM</text>
+            <text x="279" y="58" font-size="11.5" text-anchor="middle">TTS</text>
+
+            <g stroke="currentColor" stroke-width="1.2" fill="none" marker-end="url(#ar)">
+              <line x1="88" y1="54" x2="114" y2="54"/>
+              <line x1="206" y1="54" x2="232" y2="54"/>
+            </g>
+            <text x="101" y="94" font-size="10" text-anchor="middle" opacity="0.7">hop</text>
+            <text x="219" y="94" font-size="10" text-anchor="middle" opacity="0.7">hop</text>
+
+            <text x="0" y="126" font-size="11" opacity="0.75">turn-taking only &mdash; each stage waits</text>
+            <text x="0" y="144" font-size="11" opacity="0.75">for the one before it to finish</text>
+            <text x="0" y="168" font-size="11" font-weight="700">no interruption possible</text>
+
+            <!-- divider -->
+            <line x1="380" y1="20" x2="380" y2="230" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+
+            <!-- RIGHT: live api -->
+            <text x="424" y="14" font-size="10.5" font-weight="700" letter-spacing="1.6" opacity="0.65">WHAT WE USE</text>
+
+            <g fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="424" y="34" width="200" height="40" rx="2"/>
+            </g>
+            <text x="524" y="58" font-size="11.5" text-anchor="middle">gemini-live-2.5-flash</text>
+
+            <!-- the two simultaneous streams -->
+            <g class="s-up">
+              <line x1="424" y1="104" x2="640" y2="104" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+              <text x="424" y="96" font-size="10.5" font-weight="700">your voice &rarr; 16 kHz</text>
+            </g>
+            <g class="s-down">
+              <line x1="640" y1="134" x2="424" y2="134" stroke="currentColor" stroke-width="1.6" marker-end="url(#ar)"/>
+              <text x="424" y="152" font-size="10.5" font-weight="700">her voice &larr; 24 kHz</text>
+            </g>
+
+            <text x="424" y="184" font-size="11" opacity="0.75">both directions, at the same time,</text>
+            <text x="424" y="202" font-size="11" opacity="0.75">on one connection</text>
+            <text x="424" y="226" font-size="11" font-weight="700">interruption works</text>
+          </svg>
+        </div>
+        <figcaption>The three-service stack is not just slower — it structurally cannot be
+          interrupted, because nothing is listening while the TTS plays. The single connection is
+          what buys you interruption, not a faster model.</figcaption>
+      </figure>
+
+      <h3>What is inside that one model</h3>
+
+      <p><code>gemini-live-2.5-flash</code> is a <strong>half-cascade</strong> model. Audio in is
+        processed natively; the reply is generated as text internally, then spoken by Google's own
+        TTS using the voice you name. So a TTS does exist — inside Google's box. You never call it,
+        you just pick a voice.</p>
+
+      <p>Captions are a <em>third</em> stream alongside the audio: the Live API transcribes both
+        sides for you. Since we asked for audio-only replies, the text on screen is that
+        transcription, not the answer itself.</p>
+
+      <div class="callout">
+        <span class="label">Why not native audio</span>
+        <p>The <code>gemini-2.5-flash-native-audio-*</code> models are true speech-to-speech, with
+          better prosody, tone detection, and proactive audio. Every one of them returns
+          <code>1008 Publisher model not found</code> on this project, so half-cascade is the
+          fallback. The trade: you lose emotional expressiveness, but gain more reliable tool
+          calling and the ability to force a language.</p>
+      </div>
+    </section>
+
+    <!-- ================================================== ROUND TRIP -->
+    <section id="roundtrip">
+      <p class="eyebrow">Six hops</p>
+      <h2>The round trip</h2>
+
+      <p>Everything below the WebSocket is ADK; everything above it is audio plumbing. The browser
+        owns the microphone and the speaker and nothing else.</p>
+
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 800 300" role="img" aria-label="Signal chain: microphone through an AudioWorklet to PCM16 at 16 kilohertz, over a WebSocket to the LiveRequestQueue, into ADK's run_live, out to Gemini on Vertex; the reply returns as event JSON, is decoded to PCM16 at 24 kilohertz, and plays through a ring buffer.">
+            <defs>
+              <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- column headers -->
+            <text x="6" y="12" font-size="10" font-weight="700" letter-spacing="1.5" opacity="0.6">BROWSER</text>
+            <text x="286" y="12" font-size="10" font-weight="700" letter-spacing="1.5" opacity="0.6">PYTHON SERVER</text>
+            <text x="640" y="12" font-size="10" font-weight="700" letter-spacing="1.5" opacity="0.6">GOOGLE</text>
+
+            <!-- column separators -->
+            <g stroke="currentColor" stroke-width="1" opacity="0.16">
+              <line x1="266" y1="24" x2="266" y2="286"/>
+              <line x1="614" y1="24" x2="614" y2="286"/>
+            </g>
+
+            <!-- UPSTREAM row -->
+            <g class="s-up">
+              <g fill="none" stroke="currentColor" stroke-width="1.2">
+                <rect x="6" y="44" width="104" height="36" rx="2"/>
+                <rect x="146" y="44" width="104" height="36" rx="2"/>
+                <rect x="286" y="44" width="150" height="36" rx="2"/>
+              </g>
+              <text x="58" y="66" font-size="11" text-anchor="middle">mic</text>
+              <text x="198" y="61" font-size="10.5" text-anchor="middle">AudioWorklet</text>
+              <text x="198" y="74" font-size="9.5" text-anchor="middle" opacity="0.8">PCM16 16 kHz</text>
+              <text x="361" y="66" font-size="10.5" text-anchor="middle">LiveRequestQueue</text>
+
+              <g stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)">
+                <line x1="112" y1="62" x2="142" y2="62"/>
+                <line x1="252" y1="62" x2="282" y2="62"/>
+              </g>
+              <text x="267" y="36" font-size="9" text-anchor="middle" font-weight="700">binary frames</text>
+            </g>
+
+            <!-- centre: ADK -->
+            <g fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="286" y="118" width="150" height="52" rx="2"/>
+            </g>
+            <text x="361" y="140" font-size="11" text-anchor="middle" font-weight="700">ADK Runner</text>
+            <text x="361" y="155" font-size="10" text-anchor="middle" opacity="0.8">run_live()</text>
+
+            <!-- gemini -->
+            <g fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="640" y="112" width="154" height="64" rx="2"/>
+            </g>
+            <text x="717" y="134" font-size="10.5" text-anchor="middle">gemini-live-</text>
+            <text x="717" y="148" font-size="10.5" text-anchor="middle">2.5-flash</text>
+            <text x="717" y="165" font-size="9.5" text-anchor="middle" opacity="0.75">Vertex AI</text>
+
+            <!-- queue into runner -->
+            <line x1="361" y1="82" x2="361" y2="114" stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#ar2)" opacity="0.75"/>
+
+            <!-- runner <-> gemini, both ways -->
+            <g stroke="currentColor" stroke-width="1.5" fill="none">
+              <line x1="440" y1="132" x2="636" y2="132" marker-end="url(#ar2)" class="s-up"/>
+              <line x1="636" y1="158" x2="440" y2="158" marker-end="url(#ar2)" class="s-down"/>
+            </g>
+            <text x="538" y="124" font-size="9" text-anchor="middle" opacity="0.7">WebSocket</text>
+
+            <!-- DOWNSTREAM row -->
+            <g class="s-down">
+              <g fill="none" stroke="currentColor" stroke-width="1.2">
+                <rect x="286" y="212" width="150" height="36" rx="2"/>
+                <rect x="146" y="212" width="104" height="36" rx="2"/>
+                <rect x="6" y="212" width="104" height="36" rx="2"/>
+              </g>
+              <text x="361" y="228" font-size="10.5" text-anchor="middle">Event objects</text>
+              <text x="361" y="241" font-size="9.5" text-anchor="middle" opacity="0.8">JSON</text>
+              <text x="198" y="229" font-size="10.5" text-anchor="middle">ring buffer</text>
+              <text x="198" y="242" font-size="9.5" text-anchor="middle" opacity="0.8">PCM16 24 kHz</text>
+              <text x="58" y="234" font-size="11" text-anchor="middle">speaker</text>
+
+              <line x1="361" y1="174" x2="361" y2="208" stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#ar2)"/>
+              <g stroke="currentColor" stroke-width="1.5" marker-end="url(#ar2)">
+                <line x1="282" y1="230" x2="254" y2="230"/>
+                <line x1="142" y1="230" x2="114" y2="230"/>
+              </g>
+              <text x="267" y="204" font-size="9" text-anchor="middle" font-weight="700">event JSON</text>
+            </g>
+
+            <text x="6" y="284" font-size="10" opacity="0.7">two asyncio tasks, running concurrently &mdash; that is what makes interruption possible</text>
+          </svg>
+        </div>
+        <figcaption>The upstream and downstream paths are separate <code>asyncio</code> tasks under
+          one <code>gather()</code>. Neither waits for the other.</figcaption>
+      </figure>
+
+      <ol class="flow">
+        <li>
+          <h4>Capture <span class="dir up">upstream</span></h4>
+          <p>An AudioWorklet runs on the audio thread, converts Float32 to 16-bit PCM, and posts
+            chunks about eighty times a second. Off the UI thread, so a React re-render can never
+            glitch audio.</p>
+          <p class="where">frontend/public/pcm-recorder-processor.js &middot; frontend/src/audio.js</p>
+        </li>
+        <li>
+          <h4>Send as binary <span class="dir up">upstream</span></h4>
+          <p>Raw <code>ArrayBuffer</code> straight down the WebSocket. Not base64 JSON — that would
+            cost a third more bandwidth and an encode pass on a buffer arriving 80&times; a second.</p>
+          <p class="where">frontend/src/liveSession.js:13&ndash;14 (the two rates)</p>
+        </li>
+        <li>
+          <h4>Into the queue <span class="dir up">upstream</span></h4>
+          <p>The server wraps each chunk in a <code>types.Blob</code> and calls
+            <code>send_realtime()</code>. Google's side detects when you stopped talking on its own,
+            so there is no push-to-talk.</p>
+          <p class="where">backend/main.py:144</p>
+        </li>
+        <li>
+          <h4>Model turn</h4>
+          <p>ADK holds the connection to Gemini. If the model wants a tool, ADK runs it and returns
+            the result without any code from us. If it wants another agent, ADK switches.</p>
+          <p class="where">backend/main.py:166 &mdash; <code>runner.run_live()</code></p>
+        </li>
+        <li>
+          <h4>Events out <span class="dir down">downstream</span></h4>
+          <p>Every event — audio chunk, transcription fragment, tool call, interruption — is
+            serialised and forwarded verbatim to the browser. The front end reads real ADK events.</p>
+          <p class="where">backend/main.py:166&ndash;177</p>
+        </li>
+        <li>
+          <h4>Playback <span class="dir down">downstream</span></h4>
+          <p>Base64 decoded, pushed into a ring buffer inside a second AudioWorklet. The buffer is
+            not optional: audio arrives on network time and plays on clock time, and any gap between
+            them is an audible click.</p>
+          <p class="where">frontend/public/pcm-player-processor.js &middot; liveSession.js:75</p>
+        </li>
+      </ol>
+
+      <p style="margin-top:28px">Interruption is one line. When an event carries
+        <code>interrupted</code>, the queued audio is dropped rather than drained — otherwise she
+        keeps speaking her old sentence for another two seconds:</p>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">frontend/src/liveSession.js:80</span><span class="what">discard, don't drain</span></div>
+<pre><span class="c">// The student talked over the model: bin whatever is still queued.</span>
+<span class="k">if</span> (payload.interrupted &amp;&amp; <span class="k">this</span>.playerNode) {
+  <span class="k">this</span>.playerNode.port.postMessage({ command: <span class="s">"endOfAudio"</span> });
+}</pre>
+        </div>
+        <figcaption>Inside the worklet, <code>endOfAudio</code> sets <code>readIndex =
+          writeIndex</code>. That is the entire operation — the buffer is emptied by moving a
+          pointer.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ================================================== TOOLS -->
+    <section id="tools">
+      <p class="eyebrow">Function calling</p>
+      <h2>Tool calling</h2>
+
+      <p>All of it lives in one file: <code>backend/nityam_agents/agent.py</code>. There is no
+        registry, no schema file, no dispatch table. A tool is a Python function with a docstring.</p>
+
+      <h3>Step 1 &mdash; write a function</h3>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">backend/nityam_agents/agent.py:43</span><span class="what">the tutor's tool</span></div>
+<pre><span class="k">def</span> <b>show_formula</b>(name: str, tool_context: ToolContext) -&gt; dict:
+    <span class="s">"""Display a physics formula on the student's screen.
+
+    Call this whenever you state a formula out loud, so the student can read it
+    while you explain it.
+
+    Args:
+      name: Which formula to show. One of: projectile_range, projectile_max_height,
+        time_of_flight, kinematic_v, kinematic_s.
+    """</span>
+    formulas = {
+        <span class="s">"projectile_range"</span>: (<span class="s">"Range"</span>, <span class="s">"R = u² sin(2θ) / g"</span>),
+        <span class="s">"projectile_max_height"</span>: (<span class="s">"Maximum height"</span>, <span class="s">"H = (u sinθ)² / 2g"</span>),
+        <span class="s">"time_of_flight"</span>: (<span class="s">"Time of flight"</span>, <span class="s">"T = 2u sinθ / g"</span>),
+        <span class="s">"kinematic_v"</span>: (<span class="s">"Velocity"</span>, <span class="s">"v = u + at"</span>),
+        <span class="s">"kinematic_s"</span>: (<span class="s">"Displacement"</span>, <span class="s">"s = ut + ½at²"</span>),
+    }
+    <span class="k">if</span> name <span class="k">not in</span> formulas:
+        <span class="k">return</span> {<span class="s">"status"</span>: <span class="s">"unknown_formula"</span>, <span class="s">"available"</span>: sorted(formulas)}
+
+    label, tex = formulas[name]
+    tool_context.state[<span class="s">"last_formula"</span>] = name
+    <span class="k">return</span> {<span class="s">"status"</span>: <span class="s">"shown"</span>, <span class="s">"label"</span>: label, <span class="s">"formula"</span>: tex}</pre>
+        </div>
+        <figcaption>The docstring is not documentation — ADK reads it, plus the type hints, to build
+          the schema the model sees. The <code>Args:</code> block is how the model learns what to
+          pass. <code>tool_context.state</code> is per-session memory that survives across turns and
+          across agent handoffs.</figcaption>
+      </figure>
+
+      <h3>Step 2 &mdash; hand it to an agent</h3>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">backend/nityam_agents/agent.py:149</span><span class="what">one line</span></div>
+<pre>root_agent = Agent(
+    name=<span class="s">"tutor"</span>,
+    model=_voice(<span class="s">"Leda"</span>),
+    instruction=(...),
+    <b>tools=[show_formula]</b>,
+    sub_agents=[quiz_master],
+)</pre>
+        </div>
+      </figure>
+
+      <h3>Step 3 &mdash; nothing</h3>
+
+      <p>That is the whole integration. ADK sees the declaration, the model asks for the call, ADK
+        executes your Python and feeds the return value back into the conversation. The result also
+        reaches the browser as a <code>functionResponse</code> event, which is how the formula card
+        appears:</p>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">frontend/src/useLiveSession.js</span><span class="what">tool result &rarr; UI</span></div>
+<pre><span class="k">const</span> response = part.functionResponse;
+<span class="k">if</span> (response?.name === <span class="s">"show_formula"</span> &amp;&amp; response.response?.formula) {
+  setFormula({ label: response.response.label,
+               formula: response.response.formula });
+}</pre>
+        </div>
+        <figcaption>This is the seam where the artifact generator and canvas modules attach later: a
+          tool that returns an artifact IR instead of a formula string is the whole
+          integration.</figcaption>
+      </figure>
+
+      <h3>Watching it happen</h3>
+
+      <p><code>trace()</code> at <code>backend/main.py:198</code> prints one line per interesting
+        event. This is how you tell a working tool call from a hallucinated one:</p>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">terminal</span><span class="what">what a real call looks like</span></div>
+<pre><span class="c">INFO nityam:</span>   tutor says: <span class="s">"नमस्ते! आज हम क्या पढ़ेंगे?"</span>
+<span class="c">INFO nityam:</span> <b>→ TOOL CALL</b> tutor calls show_formula({<span class="s">'name'</span>: <span class="s">'projectile_range'</span>})
+<span class="c">INFO nityam:</span> <b>← TOOL DONE</b> tutor got show_formula -&gt; {<span class="s">'status'</span>: <span class="s">'shown'</span>,
+                            <span class="s">'label'</span>: <span class="s">'Range'</span>, <span class="s">'formula'</span>: <span class="s">'R = u² sin(2θ) / g'</span>}</pre>
+        </div>
+      </figure>
+
+      <div class="callout">
+        <span class="label">The failure mode to know about</span>
+        <p>A model will happily <em>say</em> it called a tool without calling it. In an early
+          session the tutor announced &ldquo;मैंने टूल कॉल कर लिया है&rdquo; — I have called the tool
+          — with no <code>→ TOOL CALL</code> line anywhere and an empty formula card.</p>
+        <p>The cause was the instruction, not ADK. It said &ldquo;whenever you <em>state</em> a
+          formula, call show_formula&rdquo;, so when she talked <em>about</em> a formula without
+          stating it, the trigger never fired. The fix was to make the tool mandatory, tie it to the
+          student <em>asking</em>, and forbid the claim: <em>never say you have shown something
+          unless you called the tool in this same turn.</em> That moved it from 0/1 to 3/3 on the
+          same conversation.</p>
+        <p>Rule of thumb: <strong>no <code>→ TOOL CALL</code> line means it did not happen</strong>,
+          whatever she says.</p>
+      </div>
+    </section>
+
+    <!-- ================================================== AGENTS -->
+    <section id="agents">
+      <p class="eyebrow">Multi-agent</p>
+      <h2>Agents &amp; handoff</h2>
+
+      <p>Two agents. <code>main.py</code> does not know that — it is handed one
+        <code>root_agent</code> and reads one event stream.</p>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Agent</th><th>Voice</th><th>Tool</th><th>Job</th><th class="num">Line</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>tutor</code> <span style="color:var(--ink-dim)">(root)</span></td>
+              <td><code>Leda</code></td>
+              <td><code>show_formula</code></td>
+              <td>Explains, conversationally, in Hindi or English</td>
+              <td class="num"><code>121</code></td>
+            </tr>
+            <tr>
+              <td><code>quiz_master</code></td>
+              <td><code>Puck</code></td>
+              <td><code>record_answer</code></td>
+              <td>Asks questions one at a time, keeps score</td>
+              <td class="num"><code>92</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Voice belongs to the agent, not the session</h3>
+
+      <p>This is the detail that makes the handoff <em>audible</em>. You could set one
+        <code>speech_config</code> on the session, but then both agents would sound identical.
+        Instead each gets its own model instance:</p>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">backend/nityam_agents/agent.py:29</span><span class="what">a voice per agent</span></div>
+<pre><span class="k">def</span> <b>_voice</b>(name: str) -&gt; Gemini:
+    <span class="s">"""A model instance that speaks with one specific voice."""</span>
+    <span class="k">return</span> Gemini(
+        model=MODEL,
+        speech_config=types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=name)
+            )
+        ),
+    )</pre>
+        </div>
+        <figcaption>Agent-level config beats session-level config where both are set. Same model
+          underneath — only the voice differs.</figcaption>
+      </figure>
+
+      <h3>How the switch happens</h3>
+
+      <p>There is <strong>no routing code anywhere</strong>. Listing <code>quiz_master</code> in
+        <code>sub_agents</code> causes ADK to give the tutor a <code>transfer_to_agent</code> tool
+        automatically, and to pick the target by reading each sub-agent's
+        <code>description</code>.</p>
+
+      <figure>
+        <div class="fig-frame">
+          <svg viewBox="0 0 700 232" role="img" aria-label="One run_live loop and one queue serve both agents. The tutor calls transfer_to_agent, ADK opens a new model connection for the quiz master, and events continue on the same stream with a different author and voice.">
+            <defs>
+              <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- the single persistent loop -->
+            <g fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.5" stroke-dasharray="3 3">
+              <rect x="4" y="150" width="692" height="42" rx="2"/>
+            </g>
+            <text x="350" y="176" font-size="10.5" text-anchor="middle" opacity="0.8">one run_live() loop &middot; one LiveRequestQueue &middot; one session &mdash; unchanged throughout</text>
+
+            <!-- tutor -->
+            <g fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="4" y="44" width="164" height="56" rx="2"/>
+            </g>
+            <text x="86" y="66" font-size="11.5" text-anchor="middle" font-weight="700">tutor</text>
+            <text x="86" y="82" font-size="10" text-anchor="middle" opacity="0.8">voice Leda</text>
+            <text x="86" y="120" font-size="9.5" text-anchor="middle" opacity="0.7">show_formula</text>
+
+            <!-- transfer -->
+            <g class="s-ev">
+              <line x1="172" y1="72" x2="266" y2="72" stroke="currentColor" stroke-width="1.6" fill="none" marker-end="url(#ar3)"/>
+              <text x="219" y="52" font-size="10" text-anchor="middle" font-weight="700">transfer_</text>
+              <text x="219" y="64" font-size="10" text-anchor="middle" font-weight="700">to_agent</text>
+              <text x="219" y="92" font-size="9" text-anchor="middle" opacity="0.85">ADK adds this</text>
+              <text x="219" y="104" font-size="9" text-anchor="middle" opacity="0.85">tool itself</text>
+            </g>
+
+            <!-- ADK reconnect -->
+            <g fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.85">
+              <rect x="270" y="44" width="164" height="56" rx="2"/>
+            </g>
+            <text x="352" y="64" font-size="10" text-anchor="middle">ADK opens a new</text>
+            <text x="352" y="78" font-size="10" text-anchor="middle">model connection</text>
+            <text x="352" y="92" font-size="9" text-anchor="middle" opacity="0.75">new voice, new tools</text>
+
+            <line x1="438" y1="72" x2="528" y2="72" stroke="currentColor" stroke-width="1.6" fill="none" marker-end="url(#ar3)"/>
+
+            <!-- quiz master -->
+            <g fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="532" y="44" width="164" height="56" rx="2"/>
+            </g>
+            <text x="614" y="66" font-size="11.5" text-anchor="middle" font-weight="700">quiz_master</text>
+            <text x="614" y="82" font-size="10" text-anchor="middle" opacity="0.8">voice Puck</text>
+            <text x="614" y="120" font-size="9.5" text-anchor="middle" opacity="0.7">record_answer</text>
+
+            <!-- events carry author -->
+            <g stroke="currentColor" stroke-width="1" opacity="0.45">
+              <line x1="86" y1="132" x2="86" y2="150"/>
+              <line x1="614" y1="132" x2="614" y2="150"/>
+            </g>
+
+            <text x="4" y="222" font-size="10" opacity="0.75">every event carries event.author &mdash; that single field drives the badge, the transcript, and the trace log</text>
+          </svg>
+        </div>
+        <figcaption>Nothing is torn down. Same queue, same session, same loop — only the agent
+          driving the model changes, and <code>event.author</code> tells you which one it is.</figcaption>
+      </figure>
+
+      <p>In the terminal a handoff reads:</p>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">terminal</span><span class="what">a real handoff, both ways</span></div>
+<pre><span class="c">INFO nityam:</span>   student said: <span class="s">"toh bhejo, quiz master par shift ho jaate hai?"</span>
+<span class="c">INFO nityam:</span> <b>→ TRANSFER</b>  tutor hands off to quiz_master
+<span class="c">INFO google_adk...:</span> Establishing live connection for agent: quiz_master
+<span class="c">INFO nityam:</span>   quiz_master says: <span class="s">"पहला सवाल, ..."</span>
+                  ...
+<span class="c">INFO nityam:</span> <b>→ TRANSFER</b>  quiz_master hands off to tutor</pre>
+        </div>
+        <figcaption>Transfers go both ways. A sub-agent can return the student to its parent, which
+          is why the quiz master can send them back after three questions.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <span class="label">Two consequences worth knowing</span>
+        <p><strong>Transcription becomes mandatory.</strong> The moment an agent has
+          <code>sub_agents</code>, ADK forces input and output transcription on regardless of your
+          <code>RunConfig</code> — transfer passes text context to the next agent. You get free
+          captions and cannot switch them off.</p>
+        <p><strong>Caching matters.</strong> Each transfer swaps the system instruction and the tool
+          set, so the prompt prefix changes and would be re-sent uncached on every handoff. That is
+          what <code>context_cache_config</code> at <code>main.py:58</code> is for; ADK warns at
+          startup if you omit it.</p>
+      </div>
+    </section>
+
+    <!-- ================================================== ADD AGENT -->
+    <section id="addagent">
+      <p class="eyebrow">Extending it</p>
+      <h2>Adding an agent</h2>
+
+      <p>Only <code>agent.py</code> changes. Two edits.</p>
+
+      <figure>
+        <div class="code">
+          <div class="code-head"><span class="path">backend/nityam_agents/agent.py</span><span class="what">a third agent</span></div>
+<pre><span class="c"># 1. define it</span>
+doubt_solver = Agent(
+    name=<span class="s">"doubt_solver"</span>,
+    model=_voice(<span class="s">"Aoede"</span>),                <span class="c"># a distinct voice</span>
+    <b>description=</b><span class="s">"Works through a specific problem the student is stuck on."</span>,
+    instruction=(
+        <span class="s">"You work through one problem at a time with the student. "</span>
+        <span class="s">"Ask what they have tried before you explain anything. "</span>
+        <span class="s">"When the problem is solved, transfer back to the tutor."</span>
+    ),
+    tools=[show_formula],
+)
+
+<span class="c"># 2. list it on the parent</span>
+root_agent = Agent(
+    name=<span class="s">"tutor"</span>,
+    ...
+    sub_agents=[quiz_master, <b>doubt_solver</b>],
+)</pre>
+        </div>
+        <figcaption>Restart and it works. The UI needs no change at all, because it only ever
+          renders <code>event.author</code>.</figcaption>
+      </figure>
+
+      <ul class="notes">
+        <li><strong><code>description</code> is the router.</strong> It is not documentation — it is
+          the text ADK matches against to choose a target. Write it as <em>when to use me</em>, not
+          <em>what I am</em>.</li>
+        <li><strong>Pick a voice from the eight.</strong> Puck, Charon, Kore, Fenrir, Aoede, Leda,
+          Orus, Zephyr. Anything else fails at connection time, not gracefully at runtime.</li>
+        <li><strong>Say how to leave.</strong> An agent with no exit instruction keeps the student
+          forever. Both current agents are told when to transfer back.</li>
+        <li><strong>Make tools mandatory in the instruction</strong>, in the blunt way described
+          above, or they will be narrated instead of called.</li>
+      </ul>
+    </section>
+
+    <!-- ================================================== FILES -->
+    <section id="files">
+      <p class="eyebrow">Where things live</p>
+      <h2>File map</h2>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>File</th><th>Owns</th><th>Touches ADK?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>backend/nityam_agents/agent.py</code></td><td>Agents, voices, tools, instructions</td><td>yes &mdash; <code>Agent</code>, <code>Gemini</code>, <code>ToolContext</code></td></tr>
+            <tr><td><code>backend/main.py</code></td><td>WebSocket, queue, run loop, trace log</td><td>yes &mdash; <code>Runner</code>, <code>RunConfig</code>, <code>LiveRequestQueue</code></td></tr>
+            <tr><td><code>backend/auth.py</code></td><td>Platform choice, model path, preflight</td><td>no</td></tr>
+            <tr><td><code>backend/mock_live.py</code></td><td>Fake Live API for offline demos</td><td>no &mdash; imitates the event shapes</td></tr>
+            <tr><td><code>frontend/src/liveSession.js</code></td><td>Mic, speaker, socket, interruption</td><td>no &mdash; reads ADK events</td></tr>
+            <tr><td><code>frontend/src/useLiveSession.js</code></td><td>Events &rarr; UI state, captions</td><td>no</td></tr>
+            <tr><td><code>frontend/public/pcm-*.js</code></td><td>The two AudioWorklets</td><td>no</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The line worth keeping: <strong><code>main.py</code> is the only file that knows about
+        HTTP, and <code>agent.py</code> the only one that knows about physics.</strong></p>
+
+      <h3>Tests</h3>
+
+      <div class="tw">
+        <table>
+          <thead><tr><th>Command</th><th class="num">Assertions</th><th>Needs credentials?</th></tr></thead>
+          <tbody>
+            <tr><td><code>node tests/audio.mjs</code></td><td class="num">9</td><td>no &mdash; PCM maths, base64, rates</td></tr>
+            <tr><td><code>node tests/session.mjs</code></td><td class="num">11</td><td>no &mdash; drives the real WebSocket protocol</td></tr>
+            <tr><td><code>node tests/browser.mjs</code></td><td class="num">14</td><td>no &mdash; real React app, headless Chrome, fake mic</td></tr>
+            <tr><td><code>node tests/live.mjs</code></td><td class="num">9</td><td><strong>yes</strong> &mdash; the real Live API. Costs money.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================================================== TRAPS -->
+    <section id="traps">
+      <p class="eyebrow">Hard-won</p>
+      <h2>Traps</h2>
+
+      <ul class="notes">
+        <li><strong>Vertex Live rejects bare model names.</strong> <code>gemini-live-2.5-flash</code>
+          alone returns <code>1007 Invalid resource field value</code>. The SDK only expands to a
+          <em>relative</em> <code>publishers/google/models/…</code>, so <code>auth.py</code> builds
+          the absolute <code>projects/…</code> path. ADK cooperates: it flips its client to
+          enterprise mode when the model name starts with <code>projects/</code>.</li>
+
+        <li><strong>Express mode needs project and location <em>absent</em></strong> from the
+          environment, or the SDK takes the ADC path and ignores your key. The project id survives
+          inside the model path, which is why the order of operations in
+          <code>configure()</code> matters.</li>
+
+        <li><strong>Transcription arrives twice.</strong> A run of <code>partial=true</code>
+          fragments spells a sentence out, then one <code>partial=false</code> event repeats the
+          <em>whole</em> sentence. Append both and every caption prints twice. The client tracks
+          confirmed text plus a trailing fragment instead.</li>
+
+        <li><strong>Vertex omits the sample rate.</strong> It sends bare <code>audio/pcm</code>
+          where AI Studio spells out <code>;rate=24000</code>. Playback is built at 24 kHz either
+          way; <code>checkRate()</code> warns if a model ever declares otherwise, because the
+          symptom would be pitch-shifted speech with no error anywhere.</li>
+
+        <li><strong>The token expires hourly.</strong> Voice returning
+          <code>401 UNAUTHENTICATED</code> means exactly that. Installing gcloud and switching to
+          <code>NITYAM_AUTH=vertex</code> removes the chore permanently.</li>
+
+        <li><strong>The Live API never speaks first.</strong> It waits for input, so an agent told
+          to &ldquo;open by greeting them&rdquo; sits silent. <code>main.py</code> sends a bracketed
+          stage direction as user-role content on connect; the student never sees it, because input
+          transcription only covers audio.</li>
+
+        <li><strong>Sessions are capped</strong> at roughly ten minutes by the platform.
+          <code>session_resumption</code> in <code>RunConfig</code> is what reconnects instead of
+          dropping the student mid-lesson — you will see <code>Received go away signal</code> then
+          <code>Attempting to reconnect</code> in the log, and the conversation carries on.</li>
+      </ul>
+
+      <footer>
+        Nityam &middot; sub_modules/adk &middot; google-adk 2.7.1 &middot; gemini-live-2.5-flash on Vertex AI us-central1<br>
+        Line numbers refer to the state of the module at the time of writing.
+      </footer>
+    </section>
+
+  </main>
+</div>
