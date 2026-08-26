@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import contextlib
 import os
 from collections.abc import AsyncIterator
@@ -24,6 +25,7 @@ from google.adk.runners import Runner
 
 from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
+from app.app_utils.idle_watcher import watch_idle_sessions
 from app.app_utils.memory_routes import router as memory_router
 
 load_dotenv()
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.runner = runner
     app.state.agent_app_name = adk_app.name
+    idle_watcher_task = asyncio.create_task(watch_idle_sessions())
     await attach_a2a_routes(
         app,
         agent=root_agent,
@@ -55,6 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         rpc_path=f"/a2a/{adk_app.name}",
     )
     yield
+    idle_watcher_task.cancel()
 
 
 app: FastAPI = get_fast_api_app(
