@@ -2,7 +2,7 @@
 
 Durable, source-cited research notes on the Google stack Nityam and SHRUTI are being built on. Plain markdown, hand-maintained — not run through any auto-ingestion pipeline. Pages get edited in place as research deepens; each carries a "Last verified" date so staleness is visible at a glance. Every factual claim is cited to the URL it came from — if a page says something without a link next to it, treat it as synthesis/opinion, not a sourced fact.
 
-This wiki answers "what does the platform actually do" — for "what did we decide to build," see [`platform_alignment.md`](../../submodules/shruti/docs/platform_alignment.md), which is the decisions document that *consumes* this research.
+This wiki answers "what does the platform actually do" — for "what did we decide to build," see [`platform_alignment.md`](../../sub_modules/shruti/docs/platform_alignment.md), which is the decisions document that *consumes* this research.
 
 ## Pages
 
