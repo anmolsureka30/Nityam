@@ -15,7 +15,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: 0 8px 30px rgba(22, 26, 34, 0.11);
-  padding: 15px 18px;
+  padding: 13px 18px 15px;
   animation: n-fade 0.3s ease both;
 }
 
@@ -36,6 +36,81 @@
   bottom: -8px;
   border-top-color: var(--paper);
 }
+
+/* Minimise sits top-left, where the eye lands first and where it cannot be
+   mistaken for part of what she said. */
+.head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 8px;
+}
+
+.min {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink-dim);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.min:hover { border-color: var(--accent-tint); background: var(--accent-wash); color: var(--accent-deep); }
+
+/* Collapsed: a little thought-cloud left hovering where the tail used to
+   point, so it still reads as coming out of her head. */
+.cloud {
+  position: fixed;
+  right: 108px;
+  /* Clear of the top of her frame, so she never covers it — and above her in
+     the stack, so the puffs read as rising off her head, not hiding behind it. */
+  bottom: calc(var(--avatar-h, 288px) - 2px);
+  z-index: 31;
+  width: 58px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: 0 6px 20px rgba(22, 26, 34, 0.10);
+  padding: 0;
+  cursor: pointer;
+  animation: n-fade 0.25s ease both;
+}
+.cloud:hover { border-color: var(--accent-tint); background: var(--accent-wash); }
+
+/* Two puffs trailing down toward her, the cartoon shorthand for "she is
+   thinking of saying this". */
+.cloud::before,
+.cloud::after {
+  content: "";
+  position: absolute;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: inherit;
+}
+.cloud::before { width: 11px; height: 11px; left: 20px; bottom: -8px; }
+.cloud::after  { width: 6px;  height: 6px;  left: 12px; bottom: -18px; }
+
+.dots { display: flex; align-items: center; gap: 4px; }
+.dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--ink-dim);
+}
+
+/* Something was said while it was collapsed. */
+.cloudNew { border-color: var(--accent-tint); background: var(--accent-wash); }
+.cloudNew::before, .cloudNew::after { border-color: var(--accent-tint); }
+.cloudNew .dots i { background: var(--accent); }
 
 .text {
   font-family: var(--prose);
@@ -71,7 +146,6 @@
   border: 1px solid var(--accent-tint);
   border-radius: var(--r-pill);
   padding: 2px 8px;
-  margin-bottom: 9px;
   display: inline-block;
 }
 
@@ -81,4 +155,5 @@
 @media (max-width: 900px) {
   .bubble { left: 10px; right: 10px; width: auto; bottom: 232px; }
   .bubble::before, .bubble::after { display: none; }
+  .cloud { right: 66px; bottom: 190px; }
 }

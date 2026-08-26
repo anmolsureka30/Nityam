@@ -75,6 +75,31 @@ await sleep(600);
 const replied = await ev("const b=document.querySelector('[role=status]'); return b? b.innerText : '';");
 check("the tutor answers about that exact term", /whole story|2θ = 90/.test(replied), replied.slice(0,90).replace(/\n/g,' '));
 
+/* She can talk over the notebook, so her bubble has to be dismissable — and
+   dismissing it must not lose the words, only fold them into the cloud. */
+const said = replied;
+await ev("document.querySelector('[aria-label=\"Minimise her words\"]').click(); return 1;");
+await sleep(350);
+const folded = await ev(`
+  const cloud = document.querySelector('[aria-expanded="false"]');
+  const bubble = [...document.querySelectorAll('[role=status]')].find(e => e.innerText.length > 40);
+  const av = document.querySelector('canvas').getBoundingClientRect();
+  if (!cloud) return { cloud: false };
+  const r = cloud.getBoundingClientRect();
+  return { cloud: true, bubbleGone: !bubble, w: Math.round(r.width), h: Math.round(r.height),
+           aboveHer: r.bottom <= av.top + 40, visible: r.width > 0 && r.bottom < window.innerHeight };
+`);
+check("the bubble minimises to a cloud", folded.cloud && folded.bubbleGone,
+      folded.cloud ? `cloud is ${folded.w}x${folded.h}` : "no cloud");
+check("the cloud stays over her head", !!folded.aboveHer && !!folded.visible);
+
+await ev("document.querySelector('[aria-expanded=\"false\"]').click(); return 1;");
+await sleep(350);
+const restored = await ev("const b=[...document.querySelectorAll('[role=status]')].find(e=>e.innerText.length>40); return b? b.innerText : '';");
+check("clicking the cloud brings the same words back",
+      restored.replace(/\s+/g,' ').includes(said.replace(/\s+/g,' ').slice(-40)),
+      restored.slice(0,60).replace(/\n/g,' '));
+
 // The rig draws on a canvas it clears each frame, so "is she there" means
 // "are there non-transparent pixels", not "does the element exist".
 const painted = await ev(`

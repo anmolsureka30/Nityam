@@ -75,6 +75,11 @@ Two things that look like details and are not:
   footprint from the same `--avatar-h`, so they cannot drift.
 - **The bubble sits above her head, not beside her.** Beside her there is only
   notebook, and a bubble there covers the figure she is talking about.
+- **The bubble minimises.** Even above her head it can land on a readout, so the
+  minus at its top-left folds it into a small thought cloud over her hair;
+  clicking the cloud brings the words back. Minimising is a preference, not a
+  dismissal — she keeps talking, and the cloud goes accent-coloured to admit
+  that something new was said rather than silently swallowing it.
 
 ## The avatar
 
