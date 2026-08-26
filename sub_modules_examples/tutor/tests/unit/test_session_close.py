@@ -7,7 +7,7 @@ apply -> persist) is under test."""
 from datetime import datetime, timezone
 
 import app.session_close as session_close
-from app.memory import store
+from app.memory import instrumentation, store
 from app.memory.schemas import DPMProfile, TeachingMemory
 from app.session_close import ReflectOp, ReflectResult, apply_operations, build_session_log, close_session
 
@@ -149,3 +149,35 @@ def test_close_session_runs_build_persist_reflect_apply_persist_in_order(firesto
         conn.collection("session_logs").document("test_s1").delete()
         conn.collection("dpm_profiles").document("test_demo_student").delete()
         conn.collection("teaching_memories").document("test_demo_student").delete()
+
+
+def test_close_session_scopes_long_term_writes_to_session_context(firestore_db, monkeypatch, redis_client):
+    """The whole point of Task 4: put_dpm/put_teaching_memory don't receive
+    a session_id argument, so close_session must set the context var itself
+    before calling them."""
+    redis_client.delete("smriti:events:recent")
+    stub_result = ReflectResult(
+        summary="", operations=[ReflectOp(op="set_mastery", args={
+            "concept_id": "projectile.range", "mastery": "partial",
+            "strength": "weak", "evidence": ["s1#2"],
+        })],
+    )
+    monkeypatch.setattr(session_close, "reflect", lambda client, log: stub_result)
+
+    try:
+        close_session(
+            firestore_db, "test_s_ctx_1", "test_demo_student_ctx", datetime.now(timezone.utc),
+            [{"turn": 1, "role": "student", "text": "x", "concept_id": None, "artifact_id": None}],
+            client=None,
+        )
+        events = [
+            instrumentation.MemoryEvent.model_validate_json(raw)
+            for raw in redis_client.lrange("smriti:events:recent", 0, -1)
+        ]
+        dpm_writes = [e for e in events if e.record_type == "dpm_profile" and e.operation == "write"]
+        assert len(dpm_writes) == 1
+        assert dpm_writes[0].session_id == "test_s_ctx_1"
+    finally:
+        firestore_db.collection("session_logs").document("test_s_ctx_1").delete()
+        firestore_db.collection("dpm_profiles").document("test_demo_student_ctx").delete()
+        firestore_db.collection("teaching_memories").document("test_demo_student_ctx").delete()

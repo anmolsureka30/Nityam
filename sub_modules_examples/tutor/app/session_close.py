@@ -13,7 +13,7 @@ from google.cloud import firestore
 from pydantic import BaseModel, ValidationError
 
 from app import config
-from app.memory import ops, store
+from app.memory import instrumentation, ops, store
 from app.memory.schemas import DPMProfile, SessionLog, TeachingMemory, Turn
 
 
@@ -106,6 +106,7 @@ def close_session(
     buffer: list[dict],
     client: genai.Client,
 ) -> SessionLog:
+    instrumentation.set_session_context(session_id)
     log = build_session_log(session_id, student_id, started_at, buffer)
     store.put_session_log(conn, log)
 
