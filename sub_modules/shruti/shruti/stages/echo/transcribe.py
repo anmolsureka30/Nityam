@@ -39,12 +39,29 @@ def transcribe_audio(client, audio_path: str, recording_id: str) -> list[Utteran
     with open(audio_path, "rb") as f:
         audio_bytes = f.read()
     audio_part = types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav")
-    response = client.models.generate_content(
-        model=Models().reasoner,
-        contents=[_FIDELITY_PROMPT, audio_part],
-        config={"response_mime_type": "application/json"},
-    )
-    rows = json.loads(response.text)
+    # ECHO's JSON output is occasionally malformed on long audio (confirmed
+    # live: a 26-minute lecture's response broke mid-document with
+    # "Expecting ',' delimiter", not a token-limit truncation — this is the
+    # same underlying non-determinism as the timestamp-reliability gap
+    # (memory_nityam_architecture/README.md gap 4a), just surfacing as an
+    # outright parse failure instead of bad content this time. One retry
+    # recovers most of these without a bigger chunk-and-stitch redesign;
+    # if both attempts fail, the real error propagates rather than
+    # returning an empty transcript.
+    last_error = None
+    for _attempt in range(2):
+        response = client.models.generate_content(
+            model=Models().reasoner,
+            contents=[_FIDELITY_PROMPT, audio_part],
+            config={"response_mime_type": "application/json"},
+        )
+        try:
+            rows = json.loads(response.text)
+            break
+        except json.JSONDecodeError as e:
+            last_error = e
+    else:
+        raise last_error
     return [
         Utterance(
             id=str(uuid.uuid4()),
