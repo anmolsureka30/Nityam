@@ -75,11 +75,15 @@ from shruti.vault.ledger import write_board_state as vault_write_board_state
 from shruti.vault.atlas_store import (
     write_concepts, write_edges, write_misconceptions, ProvenanceViolation,
 )
+from shruti.vault.narrative import build_recording_narrative
+from shruti.vault.wiki import write_concept_wiki_page
 from shruti.lens.citations import format_citation
 
 POINT_CAP = 6  # cap deixis calls to bound API cost — see module docstring
 SLIDE_SAMPLE_INTERVAL_S = 25.0  # see compute_slide_sample_spans's docstring
 MAX_SLIDE_SAMPLES = 60  # bounds GLYPH calls for long videos — see below
+NOTES_DIR = Path("vault/notes")  # per-recording narrative, git-tracked knowledge, not .local/ scratch
+WIKI_DIR = Path("vault/wiki")  # per-concept pages, git-tracked knowledge, not .local/ scratch
 
 
 class RunArtifacts:
@@ -468,12 +472,18 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
     for b in beats:
         print(f"  [{b.start_s:6.1f}-{b.end_s:6.1f}s] {b.kind:8s} salience={b.salience}: {b.transcript[:70]}")
 
+    NOTES_DIR.mkdir(parents=True, exist_ok=True)
+    narrative_path = NOTES_DIR / f"{recording.slug}.md"
+    narrative_path.write_text(build_recording_narrative(recording, beats, board_states))
+    print(f"Recording narrative written to {narrative_path}")
+
     print()
     print("=" * 70)
     print("ATLAS")
     print("=" * 70)
     art.start_stage("07_atlas")
-    concepts_raw = mine_concepts(client, beats, curriculum_spine=[chapter] if chapter else None)
+    concepts_raw = mine_concepts(client, beats, curriculum_spine=[chapter] if chapter else None,
+                                  board_states=board_states)
     art.save_json("07_atlas", "concepts_raw", [c.model_dump() for c in concepts_raw])
     concepts = canonicalize(concepts_raw)
     if subject or grade or chapter:
@@ -493,6 +503,11 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
             (b.start_s for b in beats if b.id == ref.beat_id), 0.0
         )) for ref in c.taught_in[:1]]
         print(f"  - {c.canonical_name}  [{', '.join(cites)}]")
+
+    WIKI_DIR.mkdir(parents=True, exist_ok=True)
+    for c in concepts:
+        write_concept_wiki_page(WIKI_DIR, c, beats, board_states, recording.slug)
+    print(f"Wiki pages updated in {WIKI_DIR}")
 
     beat_ids = {b.id for b in beats}
     edges = extract_relations(client, concepts, beats) if len(concepts) >= 2 else []
