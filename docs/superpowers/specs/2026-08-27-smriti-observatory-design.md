@@ -67,13 +67,13 @@ Two new pieces plus one small addition to the existing tutor app; nothing else i
  └───────────────┬──────────────────────────────────────────────┘
                   │ every store/short_term call publishes 1 event
                   ▼
-            Redis Pub/Sub + capped lists           (existing Redis instance,
-       session:{id}:events:live (channel)           already a dependency)
-       session:{id}:events      (capped list, backlog)
+            Redis Pub/Sub + one capped list        (existing Redis instance,
+       smriti:events:live   (channel, all events)    already a dependency)
+       smriti:events:recent (capped list, backlog)
                   │
                   ▼
  smriti-observatory/backend  (NEW, standalone FastAPI service, §7)
-   - subscribes session:*:events:live (Redis PSUBSCRIBE)
+   - subscribes smriti:events:live (plain Redis SUBSCRIBE)
    - imports app.memory.store / app.memory.schemas from the tutor
      package directly (path dependency — never re-implements reads)
    - maintains an in-memory per-student snapshot cache, diffs each
@@ -192,15 +192,34 @@ class MemoryEvent(BaseModel):
     payload: dict | list | None   # the write value, or the read result
 ```
 
-`session_id`/`student_id` are recovered from `args`/`kwargs` by function-specific extractors (each
-`store.py`/`short_term.py` function already takes one of `student_id`, `session_id`, or a model
-carrying one — no new parameters needed anywhere). `trace_id`/`span_id` come from
-`opentelemetry.trace.get_current_span().get_span_context()`, formatted as
-`format(ctx.trace_id, "032x")` / `format(ctx.span_id, "016x")`; `None` when there's no ambient
-span (e.g. a bare script call). Published to two places:
-- `PUBLISH session:{session_id}:events:live <json>` — for anyone currently watching
-- `RPUSH session:{session_id}:events <json>` (capped to the last 500 via `LTRIM`, no TTL — the
+`session_id`/`student_id` are recovered from `args`/`kwargs` by function-specific extractors.
+**Four of the eight `store.py` functions never receive a `session_id` at all** —
+`get_dpm`/`put_dpm`/`get_teaching_memory`/`put_teaching_memory` take only `student_id` or a
+profile/memory object with no session reference (by design: a DPM/TeachingMemory record outlives
+any one session). Rather than changing those signatures, `instrumentation.py` exposes a
+`contextvars.ContextVar[str | None]` and a `set_session_context(session_id)` setter;
+`session_close.py`'s `close_session(...)` calls it once, at the top, with the session id it
+already has in scope — since each invocation runs in its own asyncio Task, contextvars don't leak
+across concurrent calls, so no explicit reset is needed. The four extractors fall back to this
+context var when their own arguments don't carry a session id. This means long-term **writes**
+(which only ever happen inside `close_session`, per `memory_layer.md` §3: *"the only path that
+updates them is close_session"*) get correctly session-scoped events; long-term **reads** during a
+live conversation (`get_dpm`/`get_teaching_memory`/`search_grounding*`, called from `tools.py`)
+do not — `tools.py` itself gets zero changes, so these read events carry `session_id: null` and
+surface only in the global/unscoped feed, not a specific session's panel. Documented as a known v1
+limitation in §10, not silently decided.
+
+`trace_id`/`span_id` come from `opentelemetry.trace.get_current_span().get_span_context()`,
+formatted as `format(ctx.trace_id, "032x")` / `format(ctx.span_id, "016x")`; `None` when there's no
+ambient span (e.g. a bare script call). Every event — scoped or not — publishes to one **global**
+channel/list pair, not a per-session one, precisely so unscoped reads are never silently dropped:
+- `PUBLISH smriti:events:live <json>` — for anyone currently watching (backend does one plain
+  `SUBSCRIBE`, not a pattern subscribe — there's only one channel)
+- `RPUSH smriti:events:recent <json>` (capped to the last 2000 via `LTRIM`, no TTL — the
   Observatory backend owns the reconnect-backlog concern, not `short_term.py`'s TTL semantics)
+
+The Observatory backend filters this single stream by `session_id` server-side to serve
+`/ws/sessions/{id}`; `/ws/global` passes everything through unfiltered, including unscoped reads.
 
 This is a **pure side effect** — the decorated functions still return exactly what they returned
 before, so every existing test in `tests/unit/memory/` and `tests/unit/test_session_close.py`
@@ -237,7 +256,8 @@ closing the gap the research found, not just working around it for a demo.
 
 FastAPI, `uvicorn`, `redis.asyncio`, reusing `app.memory.store`/`schemas` per §4.
 
-**Ingest loop** (`ingest.py`): one background task, `PSUBSCRIBE session:*:events:live`. On each
+**Ingest loop** (`ingest.py`): one background task, `SUBSCRIBE smriti:events:live` (a single global
+channel — see §5 for why events aren't split per-session at the source). On each
 message: parse into `MemoryEvent`; if `record_type` is `dpm_profile` or `teaching_memory` and
 `operation == "write"`, look up the previous value in `snapshot_cache.py` (seeded on backend
 startup by reading current Firestore state via `store.get_dpm`/`get_teaching_memory` for any
@@ -259,7 +279,7 @@ keeping the UI's language schema-literate rather than JSON-Pointer-literate.
 
 | Route | Returns |
 |---|---|
-| `GET /api/sessions` | Sessions with observed activity — `{session_id, student_id, status: live\|closed, started_at, last_event_at, turn_count}`, from `session:*:heartbeat`/`events` keys plus a cross-reference against Firestore `session_logs` for closed ones |
+| `GET /api/sessions` | Sessions with observed activity — `{session_id, student_id, status: live\|closed, started_at, last_event_at, turn_count}`, derived from distinct `session_id`s seen on `smriti:events:recent` plus live `session:{id}:heartbeat` keys (§6.2), cross-referenced against Firestore `session_logs` for closed ones |
 | `GET /api/sessions/{id}/state` | Full current snapshot: workflow (`short_term.get_turn_buffer`), episodic (`store.get_session_log`, may be absent), long-term (`store.get_dpm` + `get_teaching_memory` for that session's student) — for initial page load before live events arrive |
 | `GET /api/sessions/{id}/events?since=<event_id>` | Backlog from the capped Redis list, paginated — so a client connecting mid-session isn't blind to what already happened |
 | `POST /api/sessions/{id}/close` | Proxies to the tutor app's `POST /memory/sessions/{id}/close` (§6.1) — no reimplementation |
@@ -382,6 +402,14 @@ fixtures are the pattern; the Observatory's own `conftest.py` reuses the same sh
    it's new to this repo's dependency set, not because of any concern about it.
 5. Cross-session history (§2 out-of-scope) is deliberately not precluded by this data model
    (Firestore already holds full history; the event stream is additive) — a natural v2.
+6. **Long-term reads aren't session-scoped** (§5) — `get_dpm`/`get_teaching_memory`/
+   `search_grounding*` happen mid-session via `tools.py`, which gets zero changes, so those read
+   events carry `session_id: null` and only appear in `/ws/global`'s unscoped feed, not a specific
+   session's Long-term panel. A session's Long-term panel is instead driven by the REST snapshot
+   (`GET /api/sessions/{id}/state`, a direct Firestore read for that session's student) for
+   current state, plus write-side diffs from `close_session` (which is session-scoped). Threading
+   session id into live reads too — e.g. by having `tools.py` set the same context var — is a
+   small, deferrable follow-up if the unscoped feed proves confusing in practice.
 
 ---
 
