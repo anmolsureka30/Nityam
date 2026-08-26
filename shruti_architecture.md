@@ -551,7 +551,7 @@ async def retrieve(query: str, learner: LearnerProfile) -> Evidence:
 | Graph | **Edge tables + recursive CTEs** | **Not Neo4j.** Your graph is ~2,000 nodes per subject. Recursive CTEs handle 2-hop traversal in single-digit milliseconds at that scale. A second database is operational cost you cannot justify until ~100k nodes. |
 | Board images, audio | **GCS**, content-addressed paths | |
 | Local dev / analytics | **DuckDB** mirror | The one thing `sense` got completely right: `CREATE VIEW v_timeline` with formatted timecodes makes debugging a pipeline enormously faster. Keep it. |
-| Index | **pgvector**, `gemini-embedding-001` | Gemini File Search is tempting (managed chunking + citations) but you can't tune retrieval or inspect scores, and Beat-level chunking is domain-specific enough that you want control. |
+| Index | **pgvector**, `gemini-embedding-2` | Gemini File Search is tempting (managed chunking + citations) but you can't tune retrieval or inspect scores, and Beat-level chunking is domain-specific enough that you want control. |
 
 ### 5.5 Updating
 
