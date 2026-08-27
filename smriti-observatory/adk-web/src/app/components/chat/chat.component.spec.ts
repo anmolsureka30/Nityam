@@ -1,0 +1,2152 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {Location} from '@angular/common';
+import {HttpErrorResponse} from '@angular/common/http';
+import {ChangeDetectionStrategy, Component, ElementRef, ErrorHandler} from '@angular/core';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {MatDialog, MatDialogModule} from '@angular/material/dialog';
+import { SnackbarService } from '../../core/services/snackbar.service';
+import {By} from '@angular/platform-browser';
+import {NoopAnimationsModule} from '@angular/platform-browser/animations';
+import {ActivatedRoute, NavigationEnd, Router, UrlTree} from '@angular/router';
+// 1p-ONLY-IMPORTS: import {beforeEach, describe, expect, it}
+import {BehaviorSubject, NEVER, of, ReplaySubject, Subject, throwError} from 'rxjs';
+
+import {EvalCase} from '../../core/models/Eval';
+import {Session} from '../../core/models/Session';
+import {UiEvent} from '../../core/models/UiEvent';
+import {AGENT_SERVICE, AgentService} from '../../core/services/interfaces/agent';
+import {AGENT_BUILDER_SERVICE} from '../../core/services/interfaces/agent-builder';
+import {ARTIFACT_SERVICE, ArtifactService,} from '../../core/services/interfaces/artifact';
+import {AUDIO_PLAYING_SERVICE} from '../../core/services/interfaces/audio-playing';
+import {AUDIO_RECORDING_SERVICE} from '../../core/services/interfaces/audio-recording';
+import {DOWNLOAD_SERVICE, DownloadService,} from '../../core/services/interfaces/download';
+import {EVAL_SERVICE, EvalService} from '../../core/services/interfaces/eval';
+import {EVENT_SERVICE, EventService} from '../../core/services/interfaces/event';
+import {FEATURE_FLAG_SERVICE, FeatureFlagService,} from '../../core/services/interfaces/feature-flag';
+import {GRAPH_SERVICE, GraphService} from '../../core/services/interfaces/graph';
+import {LOCAL_FILE_SERVICE} from '../../core/services/interfaces/localfile';
+import {SAFE_VALUES_SERVICE} from '../../core/services/interfaces/safevalues';
+import {SESSION_SERVICE, SessionService,} from '../../core/services/interfaces/session';
+import {STREAM_CHAT_SERVICE} from '../../core/services/interfaces/stream-chat';
+import {STRING_TO_COLOR_SERVICE} from '../../core/services/interfaces/string-to-color';
+import {TRACE_SERVICE, TraceService} from '../../core/services/interfaces/trace';
+import {STORAGE_SERVICE} from '../../core/services/interfaces/storage';
+import {UI_STATE_SERVICE} from '../../core/services/interfaces/ui-state';
+import {VIDEO_SERVICE, VideoService} from '../../core/services/interfaces/video';
+import {WEBSOCKET_SERVICE, WebSocketService,} from '../../core/services/interfaces/websocket';
+import {LOCATION_SERVICE} from '../../core/services/location.service';
+import {MockAgentService} from '../../core/services/testing/mock-agent.service';
+import {MockArtifactService} from '../../core/services/testing/mock-artifact.service';
+import {MockAudioPlayingService} from '../../core/services/testing/mock-audio-playing.service';
+import {MockAudioRecordingService} from '../../core/services/testing/mock-audio-recording.service';
+import {MockDownloadService} from '../../core/services/testing/mock-download.service';
+import {MockEvalService} from '../../core/services/testing/mock-eval.service';
+import {MockEventService} from '../../core/services/testing/mock-event.service';
+import {MockFeatureFlagService} from '../../core/services/testing/mock-feature-flag.service';
+import {MockGraphService} from '../../core/services/testing/mock-graph.service';
+import {MockLocalFileService} from '../../core/services/testing/mock-local-file.service';
+import {MockSafeValuesService} from '../../core/services/testing/mock-safevalues.service';
+import {MockSessionService} from '../../core/services/testing/mock-session.service';
+import {MockStorageService} from '../../core/services/testing/mock-storage.service';
+import {MockStreamChatService} from '../../core/services/testing/mock-stream-chat.service';
+import {MockStringToColorService} from '../../core/services/testing/mock-string-to-color.service';
+import {MockTraceService} from '../../core/services/testing/mock-trace.service';
+import {MockUiStateService} from '../../core/services/testing/mock-ui-state.service';
+import {MockVideoService} from '../../core/services/testing/mock-video.service';
+import {MockWebSocketService} from '../../core/services/testing/mock-websocket.service';
+import {fakeAsync, initTestBed, tick} from '../../testing/utils';
+import {ChatPanelComponent} from '../chat-panel/chat-panel.component';
+import {EVAL_TAB_COMPONENT, EvalTabComponent,} from '../eval-tab/eval-tab.component';
+import {MARKDOWN_COMPONENT} from '../markdown/markdown.component.interface';
+import {MockMarkdownComponent} from '../markdown/testing/mock-markdown.component';
+import {SidePanelComponent} from '../side-panel/side-panel.component';
+import {THEME_SERVICE} from '../../core/services/interfaces/theme';
+import {MockThemeService} from '../../core/services/testing/mock-theme.service';
+import {TelemetryService} from '../../core/services/telemetry.service';
+import {TelemetryConsentDialogComponent} from '../telemetry-consent-dialog/telemetry-consent-dialog.component';
+import {computed, signal} from '@angular/core';
+
+import {ChatComponent, HIDE_SIDE_PANEL_QUERY_PARAM, INITIAL_USER_INPUT_QUERY_PARAM} from './chat.component';
+
+// Mock EvalTabComponent to satisfy the required viewChild in ChatComponent
+@Component({
+  changeDetection: ChangeDetectionStrategy.Default,
+  selector: 'app-eval-tab',
+  template: '',
+  standalone: true,
+})
+class MockEvalTabComponent {
+  showEvalHistory = false;
+  toggleEvalHistoryButton() {
+    this.showEvalHistory = !this.showEvalHistory;
+  }
+}
+
+@Component({
+  changeDetection: ChangeDetectionStrategy.Default,
+  selector: 'test-host-component',
+  template: `<app-chat>
+    <div adk-web-chat-container-top id="projected-content">
+      This is projected content.
+    </div>
+  </app-chat>`,
+  standalone: true,
+  imports: [ChatComponent],
+})
+class TestHostComponent {
+}
+
+const SESSION_1_ID = 'session-1';
+const SESSION_2_ID = 'session-2';
+const TEST_APP_1_NAME = 'test-app';
+const TEST_APP_2_NAME = 'test-app-2';
+const ANOTHER_APP_NAME = 'another-app';
+const INVALID_APP_NAME = 'invalid-app';
+const USER_ID = 'user';
+const EVENT_1_ID = 'event1';
+const OK_BUTTON_TEXT = 'OK';
+const APP_QUERY_PARAM = 'app';
+const SESSION_QUERY_PARAM = 'session';
+const STATE_KEY = 'key';
+const STATE_VALUE = 'value';
+const TEST_MESSAGE = 'test message';
+const TEST_FILE_NAME = 'test.txt';
+const BOT_RESPONSE = 'bot response';
+const NEW_RESPONSE = 'new response';
+const A2A_DATA_PART_TAG_START = '<a2a_datapart_json>';
+const A2A_DATA_PART_TAG_END = '</a2a_datapart_json>';
+const A2UI_MIME_TYPE = 'application/json+a2ui';
+
+class MockTelemetryService {
+  readonly telemetryStatus = signal<boolean|null|undefined>(undefined);
+  readonly telemetryEnabled = computed(() => this.telemetryStatus() === true);
+  fetchTelemetryStatus = jasmine.createSpy('fetchTelemetryStatus').and.callFake(async () => {
+    return this.telemetryStatus();
+  });
+  setTelemetry = jasmine.createSpy('setTelemetry').and.callFake(async (enabled: boolean) => {
+    this.telemetryStatus.set(enabled);
+  });
+}
+
+describe('ChatComponent', () => {
+  let component: ChatComponent;
+  let fixture: ComponentFixture<ChatComponent>;
+  let mockTelemetryService: MockTelemetryService;
+  let mockSessionService: MockSessionService;
+  let mockArtifactService: MockArtifactService;
+  let mockWebSocketService: MockWebSocketService;
+  let mockVideoService: MockVideoService;
+  let mockStreamChatService: MockStreamChatService;
+  let mockEventService: MockEventService;
+  let mockDownloadService: MockDownloadService;
+  let mockEvalService: MockEvalService;
+  let mockTraceService: MockTraceService;
+  let mockAgentService: MockAgentService;
+  let mockFeatureFlagService: MockFeatureFlagService;
+  let mockStringToColorService: MockStringToColorService;
+  let mockSafeValuesService: MockSafeValuesService;
+  let mockLocalFileService: MockLocalFileService;
+  let mockDialog: jasmine.SpyObj<MatDialog>;
+  let mockSnackBar: jasmine.SpyObj<SnackbarService>;
+  let mockRouter: jasmine.SpyObj<Router>;
+  let mockActivatedRoute: Partial<ActivatedRoute>;
+  let mockLocation: jasmine.SpyObj<Location>;
+  let graphService: MockGraphService;
+  let mockUiStateService: MockUiStateService;
+  let mockErrorHandler: jasmine.SpyObj<ErrorHandler>;
+  let mockAgentBuilderService: jasmine.SpyObj<any>;
+
+  beforeEach(async () => {
+    mockTelemetryService = new MockTelemetryService();
+    mockSessionService = new MockSessionService();
+    mockArtifactService = new MockArtifactService();
+    mockWebSocketService = new MockWebSocketService();
+    mockVideoService = new MockVideoService();
+    mockStreamChatService = new MockStreamChatService();
+    mockEventService = new MockEventService();
+    mockDownloadService = new MockDownloadService();
+    mockEvalService = new MockEvalService();
+    mockTraceService = new MockTraceService();
+    mockAgentService = new MockAgentService();
+    (mockAgentService as any).getVersionResponse = new ReplaySubject<any>(1);
+    (mockAgentService as any).getVersion = jasmine.createSpy('getVersion').and.returnValue((mockAgentService as any).getVersionResponse);
+    (mockAgentService as any).getVersionResponse.next({version: '0.0.0'});
+    mockFeatureFlagService = new MockFeatureFlagService();
+    mockStringToColorService = new MockStringToColorService();
+    mockSafeValuesService = new MockSafeValuesService();
+    mockLocalFileService = new MockLocalFileService();
+    mockUiStateService = new MockUiStateService();
+    mockErrorHandler = jasmine.createSpyObj('ErrorHandler', ['handleError']);
+    mockSessionService.canEdit =
+        jasmine.createSpy('canEdit').and.returnValue(of(true));
+    mockStringToColorService.stc.and.returnValue('#8c8526ff');
+
+    mockSessionService.createSessionResponse.next(
+        {id: SESSION_1_ID, state: {}});
+    mockTraceService.selectedTraceRow$.next(undefined);
+    mockTraceService.hoveredMessageIndices$.next([]);
+    mockFeatureFlagService.isImportSessionEnabledResponse.next(true);
+    mockFeatureFlagService.isEditFunctionArgsEnabledResponse.next(true);
+    mockFeatureFlagService.isSessionUrlEnabledResponse.next(true);
+    mockFeatureFlagService.isApplicationSelectorEnabledResponse.next(true);
+    mockFeatureFlagService.isTokenStreamingEnabledResponse.next(true);
+    mockFeatureFlagService.isEventFilteringEnabledResponse.next(true);
+    mockFeatureFlagService.isDeleteSessionEnabledResponse.next(true);
+    mockFeatureFlagService.isInfinityMessageScrollingEnabledResponse.next(
+        false);
+    mockFeatureFlagService.isNewSessionButtonEnabledResponse.next(true);
+
+    mockDialog = jasmine.createSpyObj('MatDialog', ['open']);
+    mockDialog.open.and.returnValue({
+      afterClosed: () => of(false),
+      close: () => {},
+    } as any);
+    mockSnackBar = jasmine.createSpyObj('SnackbarService', ['open']);
+    mockRouter = jasmine.createSpyObj(
+        'Router',
+        ['navigate', 'createUrlTree', 'parseUrl', 'navigateByUrl'],
+        {events: of(new NavigationEnd(1, '', ''))},
+    );
+    mockRouter.parseUrl.and.returnValue({queryParams: {}} as any);
+    mockLocation = jasmine.createSpyObj('Location', ['replaceState', 'path']);
+    mockAgentBuilderService = jasmine.createSpyObj(
+        'AgentBuilderService', ['clear', 'setLoadedAgentData']);
+
+    mockActivatedRoute = {
+      snapshot: {
+        queryParams: {},
+      } as any,
+      queryParams: of({}),
+    };
+
+    const appName = new BehaviorSubject<string>(TEST_APP_1_NAME);
+    mockAgentService.setApp.and.callFake((p) => {
+      appName.next(p);
+    });
+    mockAgentService.getApp.and.callFake(() => {
+      return appName;
+    });
+    mockAgentService.getLoadingStateResponse.next(false);
+    mockAgentService.getAgentBuilderResponse.next('');
+    mockAgentService.getAgentBuilderTmpResponse.next('');
+    mockRouter.createUrlTree.and.returnValue({
+      toString: () => '/?session=session-id',
+    } as any);
+
+    graphService = new MockGraphService();
+    graphService.render.and.returnValue(Promise.resolve('svg'));
+    mockEventService.getEventResponse.next({
+      dotSrc: 'digraph {A -> B}',
+    });
+
+    initTestBed();  // required for 1p compat
+    await TestBed
+        .configureTestingModule({
+          imports: [
+            ChatComponent,
+            MatDialogModule,
+            NoopAnimationsModule,
+            MockEvalTabComponent,
+            TestHostComponent,
+          ],
+          providers: [
+            {provide: EVAL_TAB_COMPONENT, useValue: EvalTabComponent},
+            {provide: SESSION_SERVICE, useValue: mockSessionService},
+            {provide: ARTIFACT_SERVICE, useValue: mockArtifactService},
+            {provide: AUDIO_PLAYING_SERVICE, useClass: MockAudioPlayingService},
+            {provide: AUDIO_RECORDING_SERVICE, useClass: MockAudioRecordingService},
+            {provide: WEBSOCKET_SERVICE, useValue: mockWebSocketService},
+            {provide: VIDEO_SERVICE, useValue: mockVideoService},
+            {provide: EVENT_SERVICE, useValue: mockEventService},
+            {provide: STREAM_CHAT_SERVICE, useValue: mockStreamChatService},
+            {provide: DOWNLOAD_SERVICE, useValue: mockDownloadService},
+            {provide: EVAL_SERVICE, useValue: mockEvalService},
+            {provide: TRACE_SERVICE, useValue: mockTraceService},
+            {provide: AGENT_SERVICE, useValue: mockAgentService},
+            {provide: FEATURE_FLAG_SERVICE, useValue: mockFeatureFlagService},
+            {
+              provide: STRING_TO_COLOR_SERVICE,
+              useValue: mockStringToColorService,
+            },
+            {provide: GRAPH_SERVICE, useValue: graphService},
+            {provide: SAFE_VALUES_SERVICE, useValue: mockSafeValuesService},
+            {provide: STORAGE_SERVICE, useClass: MockStorageService},
+            {provide: LOCAL_FILE_SERVICE, useValue: mockLocalFileService},
+            {provide: MatDialog, useValue: mockDialog},
+            {provide: SnackbarService, useValue: mockSnackBar},
+            {provide: Router, useValue: mockRouter},
+            {provide: ActivatedRoute, useValue: mockActivatedRoute},
+            {provide: LOCATION_SERVICE, useValue: mockLocation},
+            {provide: MARKDOWN_COMPONENT, useValue: MockMarkdownComponent},
+            {provide: UI_STATE_SERVICE, useValue: mockUiStateService},
+            {provide: ErrorHandler, useValue: mockErrorHandler},
+            {provide: AGENT_BUILDER_SERVICE, useValue: mockAgentBuilderService},
+            {provide: TelemetryService, useValue: mockTelemetryService},
+            {provide: THEME_SERVICE, useClass: MockThemeService},
+          ],
+        });
+
+    TestBed.overrideProvider(MatDialog, { useValue: mockDialog });
+    await TestBed.compileComponents();
+
+    fixture = TestBed.createComponent(ChatComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
+
+  describe('Component Initialization', () => {
+    it('should create', () => {
+      expect(component).toBeTruthy();
+    });
+
+    it('rubricPassed reads backend verdict, falling back to score', () => {
+      expect(component.rubricPassed({verdict: true})).toBe(true);
+      expect(component.rubricPassed({verdict: false, score: 1})).toBe(false);
+      expect(component.rubricPassed({score: 1})).toBe(true);
+      expect(component.rubricPassed({score: 0})).toBe(false);
+      expect(component.rubricPassed({})).toBe(false);
+    });
+
+    it(
+        'should pre-fill user input from "q" query param only when app is selected',
+        fakeAsync(() => {
+          mockAgentService.setApp('');  // Initially no app
+          mockActivatedRoute.snapshot!
+              .queryParams = {[INITIAL_USER_INPUT_QUERY_PARAM]: 'hello'};
+          mockActivatedRoute.queryParams =
+              of({[INITIAL_USER_INPUT_QUERY_PARAM]: 'hello'});
+          fixture = TestBed.createComponent(ChatComponent);
+          component = fixture.componentInstance;
+          fixture.detectChanges();
+          expect(component.userInput).toBe('');  // Should be empty initially
+
+          mockAgentService.setApp(TEST_APP_1_NAME);
+          tick();
+
+          expect(component.userInput).toBe('hello');  // Should be set now
+        }));
+
+    it(
+        'should hide side panel when hideSidePanel query param is true',
+        fakeAsync(() => {
+          mockAgentService.setApp(TEST_APP_1_NAME);
+          mockActivatedRoute.snapshot!.queryParams = {
+            [INITIAL_USER_INPUT_QUERY_PARAM]: 'hello',
+            [HIDE_SIDE_PANEL_QUERY_PARAM]: 'true'
+          };
+          mockActivatedRoute.queryParams = of({
+            [INITIAL_USER_INPUT_QUERY_PARAM]: 'hello',
+            [HIDE_SIDE_PANEL_QUERY_PARAM]: 'true'
+          });
+
+          fixture = TestBed.createComponent(ChatComponent);
+          component = fixture.componentInstance;
+          fixture.detectChanges();
+          tick();
+
+          expect(component.showSidePanel).toBeFalse();
+        }));
+
+    it(
+        'should project content into adk-web-chat-container-top', () => {
+          const hostFixture = TestBed.createComponent(TestHostComponent);
+          hostFixture.detectChanges();
+          const projectedContent =
+              hostFixture.debugElement.query(By.css('#projected-content'));
+          expect(projectedContent).toBeTruthy();
+          expect(projectedContent.nativeElement.textContent)
+              .toContain('This is projected content.');
+        });
+
+    describe('when listApps fails', () => {
+      let error: HttpErrorResponse;
+      beforeEach(() => {
+        error = new HttpErrorResponse({error: 'Failed to load apps'});
+        mockAgentService.listAppsResponse.error(error);
+        fixture = TestBed.createComponent(ChatComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+      });
+      it('should set loadingError', () => {
+        expect(component.loadingError()).toBe(error.message);
+      });
+    });
+
+    describe('when app in URL is invalid', () => {
+      beforeEach(async () => {
+        mockAgentService.listAppsResponse.next(
+            [TEST_APP_1_NAME, TEST_APP_2_NAME]);
+
+        mockActivatedRoute.snapshot!.queryParams = {
+          [APP_QUERY_PARAM]: INVALID_APP_NAME,
+        };
+        mockActivatedRoute.queryParams = of({
+          [APP_QUERY_PARAM]: INVALID_APP_NAME,
+        });
+        mockAgentService.listAppsResponse.next([TEST_APP_1_NAME]);
+        fixture = TestBed.createComponent(ChatComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        await fixture.whenStable();
+      });
+      it('should show snackbar', () => {
+        expect(mockSnackBar.open)
+            .toHaveBeenCalledWith(
+                `Agent '${INVALID_APP_NAME}' not found`,
+                OK_BUTTON_TEXT,
+            );
+      });
+    });
+
+    describe('when infinity scrolling is enabled', () => {
+      beforeEach(() => {
+        mockFeatureFlagService.isInfinityMessageScrollingEnabledResponse.next(
+            true);
+        fixture = TestBed.createComponent(ChatComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+      });
+
+      describe('when loading new messages fails', () => {
+        beforeEach(async () => {
+          mockUiStateService.newMessagesLoadingFailedResponse.next(
+              {message: 'Failed to load messages'});
+        });
+
+        it('should show snackbar', () => {
+          expect(mockSnackBar.open)
+              .toHaveBeenCalledWith('Failed to load messages', 'OK');
+        });
+      });
+
+      describe('when loading new messages succeeds', () => {
+        const events = [
+          {
+            id: 'event-2',
+            author: 'bot',
+            content: {parts: [{text: 'bot response'}]},
+          },
+          {
+            id: 'event-1',
+            author: 'user',
+            content: {parts: [{text: 'user message'}]},
+          },
+        ];
+
+        beforeEach(async () => {
+          component.uiEvents.set([]);
+          component.eventData = new Map();
+          mockUiStateService.newMessagesLoadedResponse.next({
+            items: events,
+            nextPageToken: '',
+          });
+        });
+
+        it('should add messages to the chat', () => {
+          const messages = component.uiEvents();
+          expect(component.uiEvents().length).toBe(2);
+          expect(component.uiEvents()[0].text).toBe('user message');
+          expect(component.uiEvents()[1].text).toBe('bot response');
+        });
+
+        it(
+            'should not clear existing messages or events when new messages are loaded',
+            fakeAsync(() => {
+              component.uiEvents.set([
+                new UiEvent({role: 'user', text: 'existing message', event: {} as any}),
+              ]);
+              component.eventData.set('event-old', {id: 'event-old'} as any);
+              mockUiStateService.newMessagesLoadedResponse.next({
+                items: events,
+                nextPageToken: '',
+              });
+              tick();
+              const messages = component.uiEvents();
+              expect(component.uiEvents().length).toBe(3);
+              expect(component.uiEvents()[0].text).toBe('user message');
+              expect(component.uiEvents()[1].text).toBe('bot response');
+              expect(component.uiEvents()[2].text).toBe('existing message');
+              expect(component.eventData.has('event-old')).toBeTrue();
+            }));
+
+        it(
+            'should clear existing messages and events when new messages are loaded for a different session',
+            fakeAsync(() => {
+              component.uiEvents.set([
+                new UiEvent({role: 'user', text: 'existing message', event: {} as any}),
+              ]);
+              component.eventData.set('event-old', {id: 'event-old'} as any);
+              component.sessionId = 'session-2';  // change session
+              mockUiStateService.newMessagesLoadedResponse.next({
+                items: events,
+                nextPageToken: '',
+              });
+              tick();
+              const messages = component.uiEvents();
+              expect(component.uiEvents().length).toBe(2);
+              expect(component.uiEvents()[0].text).toBe('user message');
+              expect(component.uiEvents()[1].text).toBe('bot response');
+              expect(component.eventData.has('event-old')).toBeFalse();
+            }));
+
+        it('should store events', () => {
+          expect(component.eventData.has('event-1')).toBeTrue();
+          expect(component.eventData.has('event-2')).toBeTrue();
+        });
+
+        it('should combine A2UI data parts in history messages', () => {
+          const createA2uiPart = (content: any) => {
+            const json = JSON.stringify({
+              kind: 'data',
+              metadata: {mimeType: A2UI_MIME_TYPE},
+              data: content
+            });
+            return {
+              inlineData: {
+                mimeType: 'text/plain',
+                data: btoa(`${A2A_DATA_PART_TAG_START}${json}${
+                    A2A_DATA_PART_TAG_END}`)
+              }
+            };
+          };
+
+          const historyEvent = {
+            id: 'event-history',
+            author: 'bot',
+            customMetadata: {'a2a:response': 'true'},
+            content: {
+              role: 'bot',
+              parts: [
+                createA2uiPart({beginRendering: {id: '1'}}),
+                createA2uiPart({surfaceUpdate: {components: []}})
+              ]
+            },
+          };
+
+          mockUiStateService.newMessagesLoadedResponse.next({
+            items: [historyEvent],
+            nextPageToken: '',
+            isBackground: true
+          } as any);
+          fixture.detectChanges();
+
+          const messages = component.uiEvents();
+          expect(component.uiEvents().length).toBe(1);
+          expect(component.uiEvents()[0].a2uiData).toEqual({
+            beginRendering: {beginRendering: {id: '1'}},
+            surfaceUpdate: {surfaceUpdate: {components: []}}
+          });
+        });
+      });
+    });
+  });
+
+  describe('Session Management', () => {
+    describe('when session ID is provided in URL', () => {
+      beforeEach(() => {
+        mockAgentService.listAppsResponse.next([TEST_APP_1_NAME]);
+        mockFeatureFlagService.isSessionUrlEnabledResponse.next(true);
+        mockActivatedRoute.snapshot!.queryParams = {
+          [APP_QUERY_PARAM]: TEST_APP_1_NAME,
+          [SESSION_QUERY_PARAM]: SESSION_2_ID,
+        };
+        mockSessionService.getSessionResponse.next(
+            {id: SESSION_2_ID, state: {}, events: []});
+      });
+
+      describe('on initial load without application selector', () => {
+        beforeEach(async () => {
+          mockFeatureFlagService.isApplicationSelectorEnabledResponse.next(
+              false);
+          fixture = TestBed.createComponent(ChatComponent);
+          component = fixture.componentInstance;
+          fixture.detectChanges();
+          await fixture.whenStable();
+        });
+        it('should load session from URL', () => {
+          expect(mockSessionService.getSession)
+              .toHaveBeenCalledWith(
+                  USER_ID,
+                  TEST_APP_1_NAME,
+                  SESSION_2_ID,
+              );
+          expect(component.sessionId).toBe(SESSION_2_ID);
+        });
+      });
+    });
+
+    describe(
+        'when updateWithSelectedSession() is called with a session', () => {
+          const mockSession = {
+            id: SESSION_1_ID,
+            state: {},
+            events: [
+              {
+                id: 'event-1',
+                author: 'user',
+                content: {parts: [{text: 'user message'}]},
+              },
+              {
+                id: 'event-2',
+                author: 'bot',
+                content: {parts: [{text: 'bot response'}]},
+                actions: {
+                  artifactDelta: {'test_file.pdf': 0},
+                },
+              },
+            ],
+          };
+          beforeEach(() => {
+            mockArtifactService.getArtifactVersion.and.returnValue(of({
+              inlineData: {
+                mimeType: 'application/pdf',
+                data: 'base64data',
+              },
+            }));
+            mockEventService.getTraceResponse.next([]);
+            component['updateWithSelectedSession'](mockSession as any);
+            fixture.detectChanges();
+          });
+
+          it('should update session id and state', () => {
+            expect(component.sessionId).toBe(SESSION_1_ID);
+            expect(component.currentSessionState).toEqual({});
+          });
+
+          it('should reset trace service', () => {
+            expect(mockTraceService.resetTraceService).toHaveBeenCalled();
+          });
+
+          it('should populate messages from session events', () => {
+            expect(component.uiEvents().length).toBe(2);
+            expect(component.uiEvents()[0]).toEqual(jasmine.objectContaining({
+              role: 'user',
+              text: 'user message'
+            }));
+            expect(component.uiEvents()[1]).toEqual(jasmine.objectContaining({
+              role: 'bot',
+              text: 'bot response',
+              inlineData: jasmine.objectContaining({
+                data: 'data:application/pdf;base64,base64data==',
+                mimeType: 'application/pdf',
+              }),
+            }));
+          });
+
+          it('should render artifacts', () => {
+            expect(mockArtifactService.getArtifactVersion)
+                .toHaveBeenCalledWith(
+                    USER_ID,
+                    TEST_APP_1_NAME,
+                    SESSION_1_ID,
+                    'test_file.pdf',
+                    0,
+                );
+          });
+
+          it('should call getTrace', () => {
+            expect(mockEventService.getTrace)
+                .toHaveBeenCalledWith(component.appName, SESSION_1_ID);
+          });
+
+          describe('canEdit', () => {
+            it('should be called', () => {
+              expect(mockSessionService.canEdit)
+                  .toHaveBeenCalledWith(USER_ID, mockSession);
+            });
+
+            describe('when canEdit returns false', () => {
+              beforeEach(() => {
+                mockSessionService.canEdit.and.returnValue(of(false));
+                mockEventService.getTraceResponse.next([]);
+                component['updateWithSelectedSession'](mockSession as any);
+                fixture.detectChanges();
+              });
+
+              it('should set canEditSession to false', () => {
+                expect(component.chatPanel()?.canEditSession()).toBe(false);
+              });
+            });
+
+            describe('when canEdit returns true', () => {
+              beforeEach(() => {
+                mockSessionService.canEdit.and.returnValue(of(true));
+                mockEventService.getTraceResponse.next([]);
+                component['updateWithSelectedSession'](mockSession as any);
+                fixture.detectChanges();
+              });
+
+              it('should set canEditSession to true', () => {
+                expect(component.chatPanel()?.canEditSession()).toBe(true);
+              });
+            });
+
+            describe('when canEdit throws an error', () => {
+              beforeEach(() => {
+                mockSessionService.canEditResponse.error(new Error('error'));
+                mockEventService.getTraceResponse.next([]);
+                component['updateWithSelectedSession'](mockSession as any);
+                fixture.detectChanges();
+              });
+              it('should set canEditSession to true', () => {
+                expect(component.chatPanel()?.canEditSession()).toBe(true);
+              });
+            });
+          });
+        });
+    });
+
+    describe('Read-only Session Management', () => {
+      it('should set type to Test Case and save original session', () => {
+        component.sessionId = SESSION_1_ID;
+        component['updateWithSelectedTest']('my-test', []);
+        
+        expect(component.sessionId).toBe('my-test');
+        expect(component['readonlySessionType']()).toBe('Test Case');
+        expect(component['readonlySessionName']()).toBe('my-test');
+        expect(component['originalSessionId']).toBe(SESSION_1_ID);
+      });
+
+      it('should set type to File and save original session', () => {
+        component.sessionId = SESSION_1_ID;
+        component['performViewSessionLoading']({ events: [] } as any, 'my-file.json');
+        
+        expect(component.sessionId).toBe('File: my-file.json');
+        expect(component['readonlySessionType']()).toBe('File');
+        expect(component['readonlySessionName']()).toBe('my-file.json');
+        expect(component['originalSessionId']).toBe(SESSION_1_ID);
+      });
+
+      it('should create new session on close', () => {
+        component.sessionId = SESSION_1_ID;
+        component['updateWithSelectedTest']('my-test', []);
+        
+        spyOn(component as any, 'createSessionAndReset');
+        
+        component['closeReadonlySession']();
+        
+        expect(component['isViewOnlySession']()).toBeFalse();
+        expect((component as any).createSessionAndReset).toHaveBeenCalled();
+      });
+
+      it('should reset to empty state on close if no original session', () => {
+        component.sessionId = '';
+        component['updateWithSelectedTest']('my-test', []);
+        
+        component['closeReadonlySession']();
+        
+        expect(component.sessionId).toBe('');
+        expect(component['isViewOnlySession']()).toBeFalse();
+        expect(component['canEditSession']()).toBeTrue();
+      });
+    });
+
+    describe('live eval result rendering', () => {
+      // A live run's persisted session is a noisy stream of audio chunks,
+      // partial transcriptions, and turn-complete markers.
+      const noisyLiveSessionEvents = [
+        {
+          id: 'e1',
+          author: 'user',
+          content: {
+            parts: [
+              {text: 'hello'},
+              {inlineData: {mimeType: 'audio/pcm', data: 'AAAA'}},
+            ],
+          },
+        },
+        {
+          id: 'e2',
+          author: 'bot',
+          content: {parts: [{inlineData: {mimeType: 'audio/pcm', data: 'BBBB'}}]},
+        },
+        {id: 'e3', author: 'bot', outputTranscription: {text: 'hi there'}},
+        {id: 'e4', author: 'bot', content: {parts: []}},
+      ];
+
+      // A valid base64 PCM chunk (4 bytes -> 2 16-bit samples).
+      const pcmChunk = btoa('\x01\x02\x03\x04');
+
+      // The clean per-invocation view the backend also returns. The first turn
+      // streams its model audio across many chunk events (mirroring a real live
+      // run) plus one real tool call.
+      const evalCaseResult = {
+        evalMetricResultPerInvocation: [
+          {
+            actualInvocation: {
+              userContent: {
+                parts: [
+                  {text: 'hello'},
+                  {inlineData: {mimeType: 'audio/pcm', data: pcmChunk}},
+                ],
+              },
+              finalResponse: {parts: [{text: 'hi there'}]},
+              intermediateData: {
+                invocationEvents: [
+                  {
+                    id: 'ie-fc',
+                    author: 'bot',
+                    content: {
+                      parts: [{functionCall: {name: 'do_thing', args: {}}}],
+                    },
+                  },
+                  {
+                    id: 'ie-a1',
+                    author: 'bot',
+                    content: {parts: [{inlineData: {mimeType: 'audio/pcm', data: pcmChunk}}]},
+                  },
+                  {
+                    id: 'ie-a2',
+                    author: 'bot',
+                    content: {parts: [{inlineData: {mimeType: 'audio/pcm', data: pcmChunk}}]},
+                  },
+                  {
+                    id: 'ie-partial',
+                    author: 'bot',
+                    partial: true,
+                    content: {parts: [{inlineData: {mimeType: 'audio/pcm', data: pcmChunk}}]},
+                  },
+                ],
+              },
+            },
+            evalMetricResults: [
+              {metricName: 'response_match_score', evalStatus: 1, score: 1, threshold: 0.7},
+            ],
+          },
+          {
+            actualInvocation: {
+              userContent: {parts: [{text: 'and again'}]},
+              finalResponse: {parts: [{text: 'sure thing'}]},
+              intermediateData: {},
+            },
+            evalMetricResults: [
+              {metricName: 'response_match_score', evalStatus: 2, score: 0.2, threshold: 0.7},
+            ],
+          },
+        ],
+      };
+
+      function liveResultSession() {
+        return {
+          id: SESSION_1_ID,
+          state: {},
+          events: noisyLiveSessionEvents,
+          isEvalResult: true,
+          evalCaseResult: {
+            ...evalCaseResult,
+            sessionDetails: {events: noisyLiveSessionEvents},
+          },
+        };
+      }
+
+      beforeEach(() => {
+        mockEventService.getTraceResponse.next([]);
+      });
+
+      it('detects a live eval result from audio/transcription session events',
+         () => {
+           expect(component['isLiveEvalResult'](liveResultSession().evalCaseResult))
+               .toBeTrue();
+           expect(component['isLiveEvalResult']({sessionDetails: {events: []}}))
+               .toBeFalse();
+         });
+
+      it('renders one bubble per turn (+tool call), not per raw audio chunk', () => {
+        component['updateWithSelectedSession'](liveResultSession() as any);
+        fixture.detectChanges();
+
+        // Turn 1: user + tool-call bot event + response bot event.
+        // Turn 2: user + response bot event. The many raw audio-chunk events
+        // (and the partial) are folded/dropped, NOT rendered as bubbles.
+        const roles = component.uiEvents().map((e: any) => e.role);
+        expect(roles).toEqual(['user', 'bot', 'bot', 'user', 'bot']);
+      });
+
+      it('renders transcript text and the tool call', () => {
+        component['updateWithSelectedSession'](liveResultSession() as any);
+        fixture.detectChanges();
+
+        const events = component.uiEvents();
+        expect(events[0]).toEqual(jasmine.objectContaining({role: 'user', text: 'hello'}));
+        // The tool call survives; audio-only chunk events do not.
+        expect(events[1].functionCalls?.[0]?.name).toBe('do_thing');
+        expect(events[2]).toEqual(jasmine.objectContaining({role: 'bot', text: 'hi there'}));
+      });
+
+      it('folds the turn\'s PCM chunks into one playable WAV clip', () => {
+        component['updateWithSelectedSession'](liveResultSession() as any);
+        fixture.detectChanges();
+
+        const events = component.uiEvents();
+        // Exactly one audio clip in the whole conversation (turn 1's response),
+        // not one per raw chunk.
+        const audioEvents = events.filter(
+            (e: any) => e.inlineData?.mimeType?.startsWith('audio/'));
+        expect(audioEvents.length).toBe(1);
+        // It is a playable WAV data URL (not raw audio/pcm).
+        expect(audioEvents[0].inlineData!.mimeType).toBe('audio/wav');
+        expect(audioEvents[0].inlineData!.data).toContain('data:audio/wav;base64,');
+        // No unplayable raw-PCM parts leak through.
+        expect(events.some((e: any) => e.inlineData?.mimeType === 'audio/pcm'))
+            .toBeFalse();
+        // The clip rides on turn 1's response bubble (which also has text).
+        expect(audioEvents[0].text).toBe('hi there');
+      });
+
+      it('attaches per-turn PASS/FAIL to live bot bubbles, as non-live does',
+         () => {
+           component['updateWithSelectedSession'](liveResultSession() as any);
+           fixture.detectChanges();
+
+           // Bubbles: [user, bot tool call, bot response] for the passing turn
+           // 1, then [user, bot response] for the failing turn 2.
+           const events = component.uiEvents();
+           expect(events[1].evalStatus).toBe(1);
+           expect(events[2].evalStatus).toBe(1);
+           expect(events[4].evalStatus).toBe(2);
+
+           // User bubbles are never annotated.
+           expect(events[0].evalStatus).toBeUndefined();
+           expect(events[3].evalStatus).toBeUndefined();
+         });
+
+      it('attaches the failing metric detail to the live response bubble', () => {
+        component['updateWithSelectedSession'](liveResultSession() as any);
+        fixture.detectChanges();
+
+        // Turn 2's response failed response_match_score; its bubble carries the
+        // "Match score / Threshold" detail, as in a non-live result.
+        const failedResponse = component.uiEvents()[4];
+        expect(failedResponse.failedMetric).toBe('response_match_score');
+        expect(failedResponse.evalScore).toBe(0.2);
+        expect(failedResponse.evalThreshold).toBe(0.7);
+      });
+
+      it('falls back to raw session events for a non-live eval result', () => {
+        const nonLive = {
+          id: SESSION_1_ID,
+          state: {},
+          events: [
+            {id: 'u', author: 'user', content: {parts: [{text: 'q'}]}},
+            {id: 'b', author: 'bot', content: {parts: [{text: 'a'}]}},
+          ],
+          isEvalResult: true,
+          evalCaseResult: {
+            evalMetricResultPerInvocation: [],
+            sessionDetails: {events: []},
+          },
+        };
+        component['updateWithSelectedSession'](nonLive as any);
+        fixture.detectChanges();
+
+        expect(component.uiEvents().map((e: any) => e.text)).toEqual(['q', 'a']);
+      });
+    });
+
+  describe('UI and State', () => {
+    beforeEach(() => {
+      mockAgentService.listAppsResponse.next(
+          [TEST_APP_1_NAME, TEST_APP_2_NAME]);
+    });
+
+    describe('toggleSidePanel', () => {
+      beforeEach(() => {
+        spyOn(component.sideDrawer()!, 'open');
+        spyOn(component.sideDrawer()!, 'close');
+      });
+
+      describe('when panel is open', () => {
+        beforeEach(() => {
+          component.showSidePanel = true;
+          component.toggleSidePanel();
+        });
+        it('closes panel', () => {
+          expect(component.sideDrawer()!.close).toHaveBeenCalled();
+          expect(component.showSidePanel).toBe(false);
+        });
+      });
+
+      describe('when panel is closed', () => {
+        beforeEach(() => {
+          component.showSidePanel = false;
+          component.toggleSidePanel();
+        });
+        it('opens panel', () => {
+          expect(component.sideDrawer()!.open).toHaveBeenCalled();
+          expect(component.showSidePanel).toBe(true);
+        });
+      });
+    });
+
+    describe('new session button', () => {
+      describe('when isNewSessionButtonEnabled is false', () => {
+        beforeEach(() => {
+          mockFeatureFlagService.isNewSessionButtonEnabledResponse.next(false);
+          fixture.detectChanges();
+        });
+
+        it('should not be visible', () => {
+          const newSessionButton = fixture.debugElement.query(
+              By.css('#toolbar-new-session-button'));
+          expect(newSessionButton).toBeFalsy();
+        });
+      });
+
+      describe('when isNewSessionButtonEnabled is true', () => {
+        beforeEach(() => {
+          mockFeatureFlagService.isNewSessionButtonEnabledResponse.next(true);
+          component.sessionId = 'test-session';
+          fixture.detectChanges();
+        });
+
+        it('should be visible', () => {
+          const newSessionButton = fixture.debugElement.query(
+              By.css('#toolbar-new-session-button'));
+          expect(newSessionButton).toBeTruthy();
+        });
+      });
+    });
+
+
+
+    describe('delete session button', () => {
+      describe('when isDeleteSessionEnabled is false', () => {
+        beforeEach(() => {
+          mockFeatureFlagService.isDeleteSessionEnabledResponse.next(false);
+          fixture.detectChanges();
+        });
+
+        it('should not be visible', () => {
+          const deleteButton = fixture.debugElement.query(
+              By.css('#toolbar-delete-session-button'));
+          expect(deleteButton).toBeFalsy();
+        });
+      });
+    });
+
+    describe('when removeStateUpdate() is called', () => {
+      beforeEach(() => {
+        component.updatedSessionState.set({[STATE_KEY]: STATE_VALUE});
+        component.removeStateUpdate();
+      });
+      it('should remove state update', () => {
+        expect(component.updatedSessionState()).toBeNull();
+      });
+    });
+  });
+
+  describe('ChatPanel integration', () => {
+    beforeEach(() => {
+      mockAgentService.listAppsResponse.next(
+          [TEST_APP_1_NAME, TEST_APP_2_NAME]);
+    });
+
+    describe('when appName is set', () => {
+      it('should display chat-panel', () => {
+        const chatPanel =
+            fixture.debugElement.query(By.directive(ChatPanelComponent));
+        expect(chatPanel).toBeTruthy();
+      });
+    });
+
+    describe('Message Passing', () => {
+      beforeEach(async () => {
+        component.uiEvents.set([new UiEvent({role: 'user', text: TEST_MESSAGE, event: {} as any})]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+      });
+      it('should pass messages to chat-panel', () => {
+        const chatPanelComponent =
+            fixture.debugElement.query(By.directive(ChatPanelComponent))
+                .componentInstance;
+        expect(chatPanelComponent.uiEvents).toEqual(component.uiEvents());
+        const messageCards = fixture.debugElement.queryAll(
+            By.css('app-chat-panel .content-bubble'));
+        expect(messageCards.length).toBe(1);
+        expect(messageCards[0].nativeElement.textContent)
+            .toContain(TEST_MESSAGE);
+      });
+
+      describe('when getTrace fails in sendMessage', () => {
+        beforeEach(async () => {
+          mockEventService.getTraceResponse.error(new Error('trace error'));
+          component.uiEvents.set([]);
+          component.userInput = 'test message';
+          await component.sendMessage(
+              new KeyboardEvent('keydown', {key: 'Enter'}));
+          mockAgentService.runSseResponse.complete();
+          fixture.detectChanges();
+        });
+
+        it('sets trace data to empty array', () => {
+          expect(component.traceData).toEqual([]);
+        });
+
+        it('should not call error handler', () => {
+          expect(mockErrorHandler.handleError).not.toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('when chat-panel emits sendMessage', () => {
+      const mockEvent = new KeyboardEvent('keydown', {key: 'Enter'});
+      beforeEach(() => {
+        spyOn(component, 'handleChatInput').and.callThrough();
+        mockAgentService.runSseResponse.next(
+            {id: 'test-id', content: {role: 'bot', parts: []}} as any);
+        const chatPanelDebugEl =
+            fixture.debugElement.query(By.directive(ChatPanelComponent));
+        chatPanelDebugEl.triggerEventHandler('sendMessage', mockEvent);
+      });
+      it('should call sendMessage', () => {
+        expect(component.handleChatInput).toHaveBeenCalledWith(mockEvent);
+      });
+    });
+
+    describe('when chat-panel emits clickEvent', () => {
+      beforeEach(() => {
+        spyOn(component, 'clickEvent');
+        const chatPanelDebugEl =
+            fixture.debugElement.query(By.directive(ChatPanelComponent));
+        chatPanelDebugEl.triggerEventHandler('clickEvent', 0);
+      });
+      it('should call clickEvent', () => {
+        expect(component.clickEvent).toHaveBeenCalledWith(0);
+      });
+    });
+
+    describe('when chat-panel emits updateState', () => {
+      beforeEach(() => {
+        spyOn(component, 'updateState');
+        const chatPanelDebugEl =
+            fixture.debugElement.query(By.directive(ChatPanelComponent));
+        chatPanelDebugEl.triggerEventHandler('updateState', undefined);
+      });
+      it('should call updateState', () => {
+        expect(component.updateState).toHaveBeenCalled();
+      });
+    });
+
+    describe('when chat-panel emits toggleAudioRecording', () => {
+      beforeEach(() => {
+        spyOn(component, 'toggleAudioRecording');
+        const chatPanelDebugEl =
+            fixture.debugElement.query(By.directive(ChatPanelComponent));
+        chatPanelDebugEl.triggerEventHandler('toggleAudioRecording', undefined);
+      });
+      it('should call toggleAudioRecording', () => {
+        expect(component.toggleAudioRecording).toHaveBeenCalled();
+      });
+    });
+
+    describe('Bidi (live) streaming restart', () => {
+      const SESSION_ID = 'test-session-id';
+
+      beforeEach(() => {
+        component.sessionId = SESSION_ID;
+        component.appName = TEST_APP_1_NAME;
+        component.userId = USER_ID;
+        // Session already exists, so no lazy creation is required.
+        spyOn(component, 'ensureSessionActive').and.resolveTo(true);
+        mockSnackBar.open.calls.reset();
+      });
+
+      describe('audio', () => {
+        it('allows restarting after stopping without warning', async () => {
+          await component.startAudioRecording();
+          expect(component.activeBidiSessions.has(SESSION_ID)).toBe(true);
+
+          component.stopAudioRecording();
+          expect(component.activeBidiSessions.has(SESSION_ID)).toBe(false);
+          expect(component.isAudioRecording).toBe(false);
+
+          await component.startAudioRecording();
+          expect(component.isAudioRecording).toBe(true);
+          expect(mockStreamChatService.startAudioChat)
+              .toHaveBeenCalledTimes(2);
+          expect(mockSnackBar.open).not.toHaveBeenCalled();
+        });
+
+        it('prevents starting a second concurrent audio stream', async () => {
+          await component.startAudioRecording();
+          await component.startAudioRecording();
+
+          expect(mockStreamChatService.startAudioChat)
+              .toHaveBeenCalledTimes(1);
+          expect(mockSnackBar.open).toHaveBeenCalledWith(
+              'Another streaming request is already in progress. Please stop it before starting a new one.',
+              'OK');
+        });
+
+        it('stops video when the call ends', async () => {
+          spyOn(component, 'chatPanel').and.returnValue({
+            videoContainer: {nativeElement: document.createElement('div')},
+          } as any);
+          await component.startAudioRecording();
+          component.startVideoRecording();
+          expect(component.isVideoRecording).toBe(true);
+
+          component.stopAudioRecording();
+
+          expect(component.isVideoRecording).toBe(false);
+          expect(mockStreamChatService.stopVideoStreaming).toHaveBeenCalled();
+        });
+      });
+
+      describe('video', () => {
+        let videoContainer: ElementRef;
+        let chatPanelSpy: jasmine.Spy;
+
+        beforeEach(() => {
+          videoContainer = {nativeElement: document.createElement('div')} as
+              ElementRef;
+          chatPanelSpy = spyOn(component, 'chatPanel').and.returnValue({
+            videoContainer,
+          } as any);
+        });
+
+        it('streams frames over the existing connection without opening a new one',
+           () => {
+             component.startVideoRecording();
+             expect(mockStreamChatService.startVideoStreaming)
+                 .toHaveBeenCalledWith(videoContainer);
+             expect(mockStreamChatService.startVideoChat).not.toHaveBeenCalled();
+
+             component.stopVideoRecording();
+             expect(mockStreamChatService.stopVideoStreaming)
+                 .toHaveBeenCalledWith(videoContainer);
+           });
+
+        it('starts during an active call without tripping the in-progress warning',
+           () => {
+             // Audio call already active for this session.
+             component.activeBidiSessions.add(SESSION_ID);
+
+             component.startVideoRecording();
+
+             expect(component.isVideoRecording).toBe(true);
+             expect(mockStreamChatService.startVideoStreaming)
+                 .toHaveBeenCalledWith(videoContainer);
+             expect(mockSnackBar.open).not.toHaveBeenCalled();
+           });
+
+        it('does not touch the session lock', () => {
+          component.activeBidiSessions.add(SESSION_ID);
+
+          component.startVideoRecording();
+          component.stopVideoRecording();
+
+          // The call (audio) owns the lock; video must leave it intact.
+          expect(component.activeBidiSessions.has(SESSION_ID)).toBe(true);
+        });
+
+        it('can be toggled off and on within the same call', () => {
+          component.startVideoRecording();
+          component.stopVideoRecording();
+          component.startVideoRecording();
+
+          expect(component.isVideoRecording).toBe(true);
+          expect(mockStreamChatService.startVideoStreaming)
+              .toHaveBeenCalledTimes(2);
+          expect(mockSnackBar.open).not.toHaveBeenCalled();
+        });
+
+        it('is a no-op when videoContainer is missing', () => {
+          chatPanelSpy.and.returnValue({videoContainer: undefined} as any);
+
+          component.startVideoRecording();
+
+          expect(component.isVideoRecording).toBe(false);
+          expect(mockStreamChatService.startVideoStreaming)
+              .not.toHaveBeenCalled();
+        });
+      });
+    });
+  });
+
+  describe('File Handling', () => {
+    beforeEach(() => {
+      mockAgentService.listAppsResponse.next(
+          [TEST_APP_1_NAME, TEST_APP_2_NAME]);
+    });
+
+    describe('when onFileSelect() is called', () => {
+      beforeEach(() => {
+        const file = new File([''], TEST_FILE_NAME, {type: 'text/plain'});
+        const event = {target: {files: [file]}} as unknown as Event;
+        component.onFileSelect(event);
+      });
+      it('should add file to selectedFiles', () => {
+        expect(component.selectedFiles.length).toBe(1);
+        expect(component.selectedFiles[0].file.name).toBe(TEST_FILE_NAME);
+      });
+    });
+
+    describe('when removeFile() is called', () => {
+      beforeEach(() => {
+        component.selectedFiles =
+            [{file: new File([''], TEST_FILE_NAME), url: 'blob:url'}];
+        component.removeFile(0);
+      });
+      it('should remove file from selectedFiles', () => {
+        expect(component.selectedFiles.length).toBe(0);
+      });
+    });
+  });
+
+  describe('Eval Case Editing', () => {
+    const mockEvalCase: EvalCase = {
+      evalId: 'eval-1',
+      sessionInput: {},
+      creationTimestamp: 12345,
+      conversation: [{
+        invocationId: 'inv-1',
+        creationTimestamp: 12345,
+        userContent: {parts: [{text: 'user message'}]},
+        finalResponse: {parts: [{text: BOT_RESPONSE}]},
+      }],
+    };
+    const mockMessage: any = new UiEvent({
+      role: 'bot',
+      text: BOT_RESPONSE,
+      isEditing: false,
+      invocationIndex: 0,
+      finalResponsePartIndex: 0,
+      event: {} as any
+    });
+
+    beforeEach(() => {
+      mockAgentService.listAppsResponse.next(
+          [TEST_APP_1_NAME, TEST_APP_2_NAME]);
+
+      component.evalCase = mockEvalCase;
+      component.uiEvents.set([mockMessage]);
+      fixture.detectChanges();
+    });
+
+    describe('when editEvalCase() is called', () => {
+      beforeEach(() => {
+        (component as any).editEvalCase();
+      });
+      it('should set isEvalEditMode to true', () => {
+        expect(component.isEvalEditMode()).toBe(true);
+      });
+    });
+
+    describe('when editEvalCaseMessage() is called', () => {
+      const message = new UiEvent({role: 'user', text: 'hello', isEditing: false, event: {} as any});
+      let mockTextarea: any;
+
+      beforeEach(() => {
+        mockTextarea = {
+          value: message.text,
+          focus: jasmine.createSpy('focus'),
+          setSelectionRange: jasmine.createSpy('setSelectionRange'),
+        };
+        component.chatPanel()!.textarea = {
+          nativeElement: mockTextarea,
+        };
+      });
+
+      it('should set editing state', () => {
+        component['editEvalCaseMessage'](message);
+
+        expect(component.isEvalCaseEditing()).toBe(true);
+        expect(component.userEditEvalCaseMessage).toBe(message.text!);
+        expect(message.isEditing).toBe(true);
+      });
+
+      it('should set cursor position', fakeAsync(() => {
+                    component['editEvalCaseMessage'](message);
+
+                    tick();
+                    expect(mockTextarea.setSelectionRange)
+                        .toHaveBeenCalledWith(
+                            message.text!.length, message.text!.length);
+                  }));
+
+      it('should focus textarea ', fakeAsync(() => {
+                    component['editEvalCaseMessage'](message);
+
+                    tick();
+                    expect(mockTextarea.focus).toHaveBeenCalled();
+                  }));
+    });
+
+    describe('when editEvalCaseMessage() is called with newline at end', () => {
+      const message = new UiEvent({role: 'user', text: 'hello\n', isEditing: false, event: {} as any});
+      let mockTextarea: any;
+
+      beforeEach(() => {
+        mockTextarea = {
+          value: message.text,
+          focus: jasmine.createSpy('focus'),
+          setSelectionRange: jasmine.createSpy('setSelectionRange'),
+        };
+        component.chatPanel()!.textarea = {
+          nativeElement: mockTextarea,
+        };
+      });
+
+      it('should set cursor position before newline', fakeAsync(() => {
+                    component['editEvalCaseMessage'](message);
+
+                    tick();
+                    expect(mockTextarea.setSelectionRange)
+                        .toHaveBeenCalledWith(
+                            message.text!.length - 1, message.text!.length - 1);
+                  }));
+
+      it('should focus textarea', fakeAsync(() => {
+                    component['editEvalCaseMessage'](message);
+
+                    tick();
+                    expect(mockTextarea.focus).toHaveBeenCalled();
+                  }));
+    });
+
+    describe('when cancelEditMessage() is called', () => {
+      beforeEach(() => {
+        mockMessage.isEditing = true;
+        component.isEvalCaseEditing.set(true);
+        (component as any).cancelEditMessage(mockMessage);
+      });
+      it('should exit editing mode', () => {
+        expect(mockMessage.isEditing).toBe(false);
+        expect(component.isEvalCaseEditing()).toBe(false);
+      });
+    });
+
+    describe('when saveEditMessage() is called', () => {
+      beforeEach(() => {
+        mockMessage.isEditing = true;
+        component.isEvalCaseEditing.set(true);
+        component.userEditEvalCaseMessage = NEW_RESPONSE;
+        (component as any).saveEditMessage(mockMessage);
+      });
+      it('should save message', () => {
+        expect(mockMessage.text).toBe(NEW_RESPONSE);
+        expect(component.hasEvalCaseChanged()).toBe(true);
+        expect(component.updatedEvalCase!.conversation![0]
+                   .finalResponse!.parts![0]!.text)
+            .toBe(NEW_RESPONSE);
+      });
+      it('should exit editing mode', () => {
+        expect(mockMessage.isEditing).toBe(false);
+        expect(component.isEvalCaseEditing()).toBe(false);
+      });
+    });
+
+    describe('when deleteEvalCaseMessage() is called', () => {
+      beforeEach(() => {
+        (component as any).deleteEvalCaseMessage(mockMessage, 0);
+      });
+      it('should delete message', () => {
+        expect(component.uiEvents().length).toBe(0);
+        expect(component.hasEvalCaseChanged()).toBe(true);
+        expect(component.updatedEvalCase!.conversation![0]
+                   .finalResponse!.parts!.length)
+            .toBe(0);
+      });
+    });
+
+    describe('when saveEvalCase() is called', () => {
+      beforeEach(() => {
+        component.updatedEvalCase = mockEvalCase;
+        mockEvalService.updateEvalCaseResponse.next({});
+        (component as any).saveEvalCase();
+      });
+      it('should call updateEvalCase', () => {
+        expect(mockEvalService.updateEvalCase).toHaveBeenCalled();
+      });
+      it('should reset edit mode', () => {
+        expect(component.isEvalEditMode()).toBe(false);
+      });
+    });
+
+    describe('when cancelEditEvalCase() is called', () => {
+      beforeEach(() => {
+        component.isEvalEditMode.set(true);
+        (component as any).cancelEditEvalCase();
+      });
+      it('should reset edit mode', () => {
+        expect(component.isEvalEditMode()).toBe(false);
+      });
+    });
+  });
+
+  describe('Artifacts', () => {
+    it(
+        'should only fetch artifact version once for the same artifactId and versionId',
+        async () => {
+          mockArtifactService.getArtifactVersion.and.returnValue(
+              of({
+                inlineData: {
+                  mimeType: 'image/png',
+                  data:
+                      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                },
+              }),
+          );
+          const sseEvent = {
+            id: 'event-1',
+            author: 'bot',
+            content: {role: 'bot', parts: []},
+            actions: {
+              artifactDelta: {'artifact-1': 'version-1'},
+            },
+          };
+          component.userInput = 'test message';
+
+          await component.sendMessage(
+              new KeyboardEvent('keydown', {key: 'Enter'}),
+          );
+          mockAgentService.runSseResponse.next(sseEvent);
+          mockAgentService.runSseResponse.next(sseEvent);
+          fixture.detectChanges();
+
+          expect(mockArtifactService.getArtifactVersion)
+              .toHaveBeenCalledTimes(1);
+        },
+    );
+  });
+
+  describe('isEventA2aResponse', () => {
+    it('should return true for valid A2A response', () => {
+      const event = {
+        customMetadata: {'a2a:response': 'true'},
+      };
+      expect((component as any).isEventA2aResponse(event)).toBeTrue();
+    });
+
+    it('should return false when customMetadata is missing', () => {
+      const event = {};
+      expect((component as any).isEventA2aResponse(event)).toBeFalse();
+    });
+
+    it('should return false when a2a:response is missing', () => {
+      const event = {
+        customMetadata: {'other': 'value'},
+      };
+      expect((component as any).isEventA2aResponse(event)).toBeFalse();
+    });
+
+    it('should return false for null event', () => {
+      expect((component as any).isEventA2aResponse(null)).toBeFalse();
+    });
+  });
+
+  describe('isA2aDataPart', () => {
+    it('should return true for valid A2A data part', () => {
+      const part = {
+        inlineData: {
+          mimeType: 'text/plain',
+          data: btoa(`${A2A_DATA_PART_TAG_START}{"test": true}${
+              A2A_DATA_PART_TAG_END}`)
+        }
+      };
+      expect((component as any).isA2aDataPart(part)).toBeTrue();
+    });
+
+    it('should return false when inlineData is missing', () => {
+      const part = {};
+      expect((component as any).isA2aDataPart(part)).toBeFalse();
+    });
+
+    it('should return false when mimeType is not text/plain', () => {
+      const part = {
+        inlineData: {
+          mimeType: 'application/json',
+          data: btoa(`${A2A_DATA_PART_TAG_START}{}${A2A_DATA_PART_TAG_END}`)
+        }
+      };
+      expect((component as any).isA2aDataPart(part)).toBeFalse();
+    });
+
+    it('should return false when tags are missing', () => {
+      const part = {
+        inlineData: {mimeType: 'text/plain', data: btoa('some random text')}
+      };
+      expect((component as any).isA2aDataPart(part)).toBeFalse();
+    });
+  });
+
+  describe('extractA2aDataPartJson', () => {
+    it('should return parsed JSON for valid A2A data part', () => {
+      const data = {key: 'value'};
+      const part = {
+        inlineData: {
+          mimeType: 'text/plain',
+          data: btoa(`${A2A_DATA_PART_TAG_START}${JSON.stringify(data)}${
+              A2A_DATA_PART_TAG_END}`)
+        }
+      };
+      expect((component as any).extractA2aDataPartJson(part)).toEqual(data);
+    });
+
+    it('should return null for non-A2A data part', () => {
+      const part = {
+        inlineData: {mimeType: 'application/json', data: btoa('{}')}
+      };
+      expect((component as any).extractA2aDataPartJson(part)).toBeNull();
+    });
+
+    it('should return null for invalid JSON', () => {
+      const part = {
+        inlineData: {
+          mimeType: 'text/plain',
+          data: btoa(
+              `${A2A_DATA_PART_TAG_START}{invalid-json${A2A_DATA_PART_TAG_END}`)
+        }
+      };
+      expect((component as any).extractA2aDataPartJson(part)).toBeNull();
+    });
+  });
+
+  describe('combineA2uiDataParts', () => {
+    it('should return empty array for empty input', () => {
+      expect((component as any).combineA2uiDataParts([])).toEqual([]);
+    });
+
+    it(
+        'should return original parts if no A2UI parts are present', () => {
+          const parts = [{text: 'hello'}, {text: 'world'}];
+          expect((component as any).combineA2uiDataParts(parts)).toEqual(parts);
+        });
+
+    it('should combine multiple A2UI parts into the first one', () => {
+      const a2ui1 = {
+        kind: 'data',
+        metadata: {mimeType: A2UI_MIME_TYPE},
+        data: {key: 'value1'}
+      };
+      const a2ui2 = {
+        kind: 'data',
+        metadata: {mimeType: A2UI_MIME_TYPE},
+        data: {key: 'value2'}
+      };
+
+      const part1 = {
+        inlineData: {
+          mimeType: 'text/plain',
+          data: btoa(`${A2A_DATA_PART_TAG_START}${JSON.stringify(a2ui1)}${
+              A2A_DATA_PART_TAG_END}`)
+        }
+      };
+      const part2 = {
+        inlineData: {
+          mimeType: 'text/plain',
+          data: btoa(`${A2A_DATA_PART_TAG_START}${JSON.stringify(a2ui2)}${
+              A2A_DATA_PART_TAG_END}`)
+        }
+      };
+
+      const result = (component as any).combineA2uiDataParts([part1, part2]);
+      expect(result.length).toBe(1);
+
+      const combinedJson = (component as any).extractA2aDataPartJson(result[0]);
+      expect(combinedJson.kind).toBe('data');
+      expect(combinedJson.metadata.mimeType).toBe(A2UI_MIME_TYPE);
+      expect(combinedJson.data).toEqual([a2ui1, a2ui2]);
+    });
+
+    it('should preserve order of non-A2UI parts', () => {
+      const a2ui = {
+        kind: 'data',
+        metadata: {mimeType: A2UI_MIME_TYPE},
+        data: {key: 'value'}
+      };
+      const partA2UI = {
+        inlineData: {
+          mimeType: 'text/plain',
+          data: btoa(`${A2A_DATA_PART_TAG_START}${JSON.stringify(a2ui)}${
+              A2A_DATA_PART_TAG_END}`)
+        }
+      };
+      const partText = {text: 'hello'};
+
+      const result = (component as any).combineA2uiDataParts([
+        partText, partA2UI, partText
+      ]);
+      expect(result.length).toBe(3);
+      expect(result[0]).toBe(partText);
+      expect(result[2]).toBe(partText);
+      // The middle one should be the combined one (which is essentially
+      // partA2UI but modified/recreated)
+      const combinedJson = (component as any).extractA2aDataPartJson(result[1]);
+      expect(combinedJson.data).toEqual([a2ui]);
+    });
+
+    it(
+        'should handle mixed content (Text + A2UI + Text + A2UI) correctly',
+        () => {
+          const a2ui1 = {
+            kind: 'data',
+            metadata: {mimeType: A2UI_MIME_TYPE},
+            data: {id: 1}
+          };
+          const a2ui2 = {
+            kind: 'data',
+            metadata: {mimeType: A2UI_MIME_TYPE},
+            data: {id: 2}
+          };
+
+          const partA2UI1 = {
+            inlineData: {
+              mimeType: 'text/plain',
+              data: btoa(`${A2A_DATA_PART_TAG_START}${JSON.stringify(a2ui1)}${
+                  A2A_DATA_PART_TAG_END}`)
+            }
+          };
+          const partA2UI2 = {
+            inlineData: {
+              mimeType: 'text/plain',
+              data: btoa(`${A2A_DATA_PART_TAG_START}${JSON.stringify(a2ui2)}${
+                  A2A_DATA_PART_TAG_END}`)
+            }
+          };
+          const partText1 = {text: 'start'};
+          const partText2 = {text: 'middle'};
+
+          const result = (component as any).combineA2uiDataParts([
+            partText1, partA2UI1, partText2, partA2UI2
+          ]);
+          expect(result.length).toBe(3);
+          expect(result[0]).toBe(partText1);
+          expect(result[2]).toBe(partText2);
+
+          const combinedJson =
+              (component as any).extractA2aDataPartJson(result[1]);
+          expect(combinedJson.data).toEqual([a2ui1, a2ui2]);
+        });
+  });
+
+  describe('extractA2uiJsonFromText', () => {
+    it('should do nothing if message has no text', () => {
+      const uiEvent = new UiEvent({role: 'bot', event: {} as any});
+      (component as any).extractA2uiJsonFromText(uiEvent);
+      expect(uiEvent.a2uiData).toBeUndefined();
+    });
+
+    it('should do nothing if text has no <a2ui-json> tags', () => {
+      const uiEvent = new UiEvent({
+        role: 'bot',
+        text: 'hello world',
+        event: {} as any
+      });
+      (component as any).extractA2uiJsonFromText(uiEvent);
+      expect(uiEvent.a2uiData).toBeUndefined();
+      expect(uiEvent.text).toBe('hello world');
+    });
+
+    it('should extract and parse inline <a2ui-json> block, and strip it from text and textParts', () => {
+      const payload = [{beginRendering: {surfaceId: 'cloud_dash'}}];
+      const text = `Here is the UI:\n<a2ui-json>\n${JSON.stringify(payload)}\n</a2ui-json>\nEnjoy!`;
+      const uiEvent = new UiEvent({
+        role: 'bot',
+        text,
+        textParts: [{ text, thought: false }],
+        event: {} as any
+      });
+
+      (component as any).extractA2uiJsonFromText(uiEvent);
+      expect(uiEvent.a2uiData).toEqual({beginRendering: {beginRendering: {surfaceId: 'cloud_dash'}}});
+      expect(uiEvent.text).toBe('Here is the UI:\n\nEnjoy!');
+      expect(uiEvent.textParts).toEqual([{ text: 'Here is the UI:\n\nEnjoy!', thought: false }]);
+    });
+
+    it('should keep tags and log warning if JSON parsing fails', () => {
+      const uiEvent = new UiEvent({
+        role: 'bot',
+        text: `broken tags: <a2ui-json>{broken-json}</a2ui-json>`,
+        event: {} as any
+      });
+
+      (component as any).extractA2uiJsonFromText(uiEvent);
+      expect(uiEvent.a2uiData).toBeUndefined();
+      expect(uiEvent.text).toBe('broken tags: <a2ui-json>{broken-json}</a2ui-json>');
+    });
+  });
+
+  describe('thought and text parts processing', () => {
+    it('should build UiEvent with textParts separating thoughts and final response text', () => {
+      const event = {
+        id: 'event-thought-test',
+        author: 'bot',
+        content: {
+          parts: [
+            {
+              text: '/*PLANNING*/Thinking about the question...',
+              thought: true
+            },
+            {
+              text: 'The actual response text.',
+            }
+          ]
+        }
+      };
+
+      const uiEvent = (component as any).buildUiEventFromEvent(event);
+      
+      expect(uiEvent.text).toBe('Thinking about the question...The actual response text.');
+      expect(uiEvent.textParts).toEqual([
+        { text: 'Thinking about the question...', thought: true },
+        { text: 'The actual response text.', thought: false }
+      ]);
+    });
+
+    it('should correctly merge streaming partial updates with thought and non-thought parts', () => {
+      const initialEvent = new UiEvent({
+        role: 'bot',
+        text: 'Thinking',
+        thought: true,
+        textParts: [{ text: 'Thinking', thought: true }],
+        event: { id: 'stream-event', partial: true } as any
+      });
+
+      // Stream update 1: more thought text
+      const update1 = {
+        id: 'stream-event',
+        partial: true,
+        content: {
+          parts: [{ text: ' further...', thought: true }]
+        }
+      };
+
+      let merged = (component as any).mergePartialEvent(initialEvent, update1);
+      expect(merged.text).toBe('Thinking further...');
+      expect(merged.textParts).toEqual([
+        { text: 'Thinking further...', thought: true }
+      ]);
+
+      // Stream update 2: final answer text
+      const update2 = {
+        id: 'stream-event',
+        partial: true,
+        content: {
+          parts: [{ text: 'Here is the answer!' }]
+        }
+      };
+
+      merged = (component as any).mergePartialEvent(merged, update2);
+      expect(merged.text).toBe('Thinking further...Here is the answer!');
+      expect(merged.textParts).toEqual([
+        { text: 'Thinking further...', thought: true },
+        { text: 'Here is the answer!', thought: false }
+      ]);
+    });
+  });
+
+  describe('refreshLatestSession', () => {
+    beforeEach(() => {
+      mockAgentService.listAppsResponse.next([TEST_APP_1_NAME]);
+      component.appName = TEST_APP_1_NAME;
+      fixture.detectChanges();
+    });
+
+    it('should do nothing if appName is not set', () => {
+      component.appName = '';
+      (mockSessionService.listSessions as jasmine.Spy).calls.reset();
+      
+      component.refreshLatestSession();
+      
+      expect(mockSessionService.listSessions).not.toHaveBeenCalled();
+    });
+
+    it('should list sessions, sort them descending by lastUpdateTime, and load the latest session', fakeAsync(() => {
+      const mockSessions: Session[] = [
+        { id: 'session-old', lastUpdateTime: 1000 },
+        { id: 'session-newest', lastUpdateTime: 3000 },
+        { id: 'session-mid', lastUpdateTime: 2000 },
+      ];
+      
+      spyOn(component as any, 'loadSession').and.callThrough();
+      mockSessionService.getSessionResponse.next({ id: 'session-newest', state: {}, events: [] });
+      mockEventService.getTraceResponse.next([]);
+      
+      component.refreshLatestSession();
+      
+      mockSessionService.listSessionsResponse.next({ items: mockSessions });
+      tick();
+      
+      expect(mockSessionService.listSessions).toHaveBeenCalledWith(USER_ID, TEST_APP_1_NAME);
+      expect((component as any).loadSession).toHaveBeenCalledWith('session-newest');
+      expect(component.sessionId).toBe('session-newest');
+    }));
+
+    it('should show snackbar message when no sessions are found', fakeAsync(() => {
+      component.refreshLatestSession();
+      
+      mockSessionService.listSessionsResponse.next({ items: [] });
+      tick();
+      
+      expect(mockSnackBar.open).toHaveBeenCalledWith('No sessions found for this app.', 'OK');
+    }));
+
+    it('should show snackbar message on list sessions API error', fakeAsync(() => {
+      component.refreshLatestSession();
+      
+      mockSessionService.listSessionsResponse.error(new Error('API Error'));
+      tick();
+      
+      expect(mockSnackBar.open).toHaveBeenCalledWith('Failed to refresh sessions.', 'OK');
+    }));
+  });
+
+  describe('empty metadata events', () => {
+    // Actions as serialized by the ADK server on live events: keys present but
+    // every sub-object empty.
+    const EMPTY_ACTIONS = {
+      stateDelta: {},
+      artifactDelta: {},
+      requestedAuthConfigs: {},
+      requestedToolConfirmations: {},
+    };
+
+    beforeEach(() => {
+      component.uiEvents.set([]);
+      component.eventData = new Map();
+    });
+
+    describe('isEmptyMetadataEvent', () => {
+      it('returns true for a session resumption update with empty actions', () => {
+        const event = {
+          id: 'resumption-1',
+          author: 'agent',
+          liveSessionResumptionUpdate: {newHandle: 'abc', resumable: true},
+          actions: {...EMPTY_ACTIONS},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeTrue();
+      });
+
+      it('returns true for a usage-metadata-only event with empty actions', () => {
+        const event = {
+          id: 'usage-1',
+          author: 'agent',
+          usageMetadata: {totalTokenCount: 858},
+          actions: {...EMPTY_ACTIONS},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeTrue();
+      });
+
+      it('returns false when no metadata marker is present', () => {
+        const event = {
+          id: 'plain-1',
+          author: 'bot',
+          content: {parts: [{text: 'hello'}]},
+          actions: {...EMPTY_ACTIONS},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeFalse();
+      });
+
+      it('returns false when a marker event also carries content', () => {
+        const event = {
+          id: 'final-1',
+          author: 'bot',
+          usageMetadata: {totalTokenCount: 858},
+          content: {parts: [{text: 'final answer'}]},
+          actions: {...EMPTY_ACTIONS},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeFalse();
+      });
+
+      it('returns false when a marker event carries a real stateDelta', () => {
+        const event = {
+          id: 'state-1',
+          author: 'agent',
+          usageMetadata: {totalTokenCount: 1},
+          actions: {...EMPTY_ACTIONS, stateDelta: {key: 'value'}},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeFalse();
+      });
+
+      it('returns false when a marker event signals turnComplete', () => {
+        const event = {
+          id: 'turn-1',
+          author: 'agent',
+          usageMetadata: {totalTokenCount: 1},
+          turnComplete: true,
+          actions: {...EMPTY_ACTIONS},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeFalse();
+      });
+
+      it('returns false when a marker event signals voiceActivity', () => {
+        const event = {
+          id: 'vad-1',
+          author: 'agent',
+          usageMetadata: {totalTokenCount: 1},
+          voiceActivity: {voiceActivityType: 'ACTIVITY_START'},
+          actions: {...EMPTY_ACTIONS},
+        };
+        expect((component as any).isEmptyMetadataEvent(event)).toBeFalse();
+      });
+    });
+
+    describe('actionsAreEmpty', () => {
+      it('treats null/undefined actions as empty', () => {
+        expect((component as any).actionsAreEmpty(undefined)).toBeTrue();
+        expect((component as any).actionsAreEmpty(null)).toBeTrue();
+      });
+
+      it('treats an object of empty sub-objects as empty', () => {
+        expect((component as any).actionsAreEmpty({...EMPTY_ACTIONS})).toBeTrue();
+      });
+
+      it('treats a populated stateDelta as non-empty', () => {
+        expect((component as any).actionsAreEmpty({stateDelta: {k: 1}})).toBeFalse();
+      });
+
+      it('treats transferToAgent as non-empty', () => {
+        expect((component as any).actionsAreEmpty({transferToAgent: 'other_agent'}))
+            .toBeFalse();
+      });
+
+      it('treats endOfAgent === true as non-empty', () => {
+        expect((component as any).actionsAreEmpty({endOfAgent: true})).toBeFalse();
+        expect((component as any).actionsAreEmpty({endOfAgent: false})).toBeTrue();
+      });
+    });
+
+    describe('appendEventRow integration', () => {
+      it('does not render a session resumption update', () => {
+        (component as any).appendEventRow({
+          id: 'resumption-1',
+          author: 'agent',
+          liveSessionResumptionUpdate: {newHandle: 'abc', resumable: true},
+          actions: {...EMPTY_ACTIONS},
+        });
+        expect(component.uiEvents().length).toBe(0);
+      });
+
+      it('does not record a resumption-only event into eventData', () => {
+        (component as any).appendEventRow({
+          id: 'resumption-1',
+          author: 'agent',
+          liveSessionResumptionUpdate: {newHandle: 'abc', resumable: true},
+          actions: {...EMPTY_ACTIONS},
+        });
+        expect((component as any).eventData.has('resumption-1')).toBeFalse();
+      });
+
+      it('does not render a usage-metadata-only event', () => {
+        (component as any).appendEventRow({
+          id: 'usage-1',
+          author: 'agent',
+          usageMetadata: {totalTokenCount: 858},
+          actions: {...EMPTY_ACTIONS},
+        });
+        expect(component.uiEvents().length).toBe(0);
+      });
+
+      it('records a usage-metadata-only event into eventData for the Usage tab',
+         () => {
+           (component as any).appendEventRow({
+             id: 'usage-1',
+             author: 'agent',
+             usageMetadata: {totalTokenCount: 858},
+             actions: {...EMPTY_ACTIONS},
+           });
+           expect((component as any).eventData.has('usage-1')).toBeTrue();
+           expect((component as any).eventData.get('usage-1').usageMetadata
+                      .totalTokenCount)
+               .toBe(858);
+         });
+
+      it('renders a normal text event (non-live path unaffected)', () => {
+        (component as any).appendEventRow({
+          id: 'text-1',
+          author: 'bot',
+          content: {parts: [{text: 'hello world'}]},
+        });
+        expect(component.uiEvents().length).toBe(1);
+        expect(component.uiEvents()[0].text).toBe('hello world');
+      });
+
+      it('renders an event whose only signal is a real stateDelta', () => {
+        (component as any).appendEventRow({
+          id: 'state-1',
+          author: 'agent',
+          actions: {...EMPTY_ACTIONS, stateDelta: {key: 'value'}},
+        });
+        expect(component.uiEvents().length).toBe(1);
+      });
+
+      it('renders a marker event that also carries content', () => {
+        (component as any).appendEventRow({
+          id: 'final-1',
+          author: 'bot',
+          usageMetadata: {totalTokenCount: 858},
+          content: {parts: [{text: 'final answer'}]},
+          actions: {...EMPTY_ACTIONS},
+        });
+        expect(component.uiEvents().length).toBe(1);
+        expect(component.uiEvents()[0].text).toBe('final answer');
+      });
+    });
+
+    describe('Telemetry Integration', () => {
+      it('should open telemetry consent dialog when telemetryStatus is null on init', fakeAsync(() => {
+        mockTelemetryService.telemetryStatus.set(null);
+        
+        component.ngOnInit();
+        tick();
+
+        expect(mockDialog.open).toHaveBeenCalledWith(
+          TelemetryConsentDialogComponent,
+          jasmine.objectContaining({ disableClose: true })
+        );
+      }));
+
+      it('should not open telemetry consent dialog when telemetryStatus is true on init', fakeAsync(() => {
+        mockTelemetryService.telemetryStatus.set(true);
+
+        component.ngOnInit();
+        tick();
+
+        expect(mockDialog.open).not.toHaveBeenCalledWith(
+          TelemetryConsentDialogComponent,
+          jasmine.any(Object)
+        );
+      }));
+
+      it('should not open telemetry consent dialog when telemetryStatus is false on init', fakeAsync(() => {
+        mockTelemetryService.telemetryStatus.set(false);
+
+        component.ngOnInit();
+        tick();
+
+        expect(mockDialog.open).not.toHaveBeenCalledWith(
+          TelemetryConsentDialogComponent,
+          jasmine.any(Object)
+        );
+      }));
+
+      it('should call setTelemetry when onTelemetryToggle is called', async () => {
+        await component.onTelemetryToggle(true);
+        expect(mockTelemetryService.setTelemetry).toHaveBeenCalledWith(true);
+
+        await component.onTelemetryToggle(false);
+        expect(mockTelemetryService.setTelemetry).toHaveBeenCalledWith(false);
+      });
+    });
+  });
+});

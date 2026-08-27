@@ -1,0 +1,188 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {ElementRef, inject, Injectable} from '@angular/core';
+
+import {URLUtil} from '../../../utils/url-util';
+import {LiveRequest} from '../models/LiveRequest';
+
+import {AUDIO_RECORDING_SERVICE} from './interfaces/audio-recording';
+import {STREAM_CHAT_SERVICE, StreamChatService as StreamChatServiceInterface} from './interfaces/stream-chat';
+import {VIDEO_PLAYING_SERVICE} from './interfaces/video-playing';
+import {VIDEO_SERVICE} from './interfaces/video';
+import {WEBSOCKET_SERVICE} from './interfaces/websocket';
+import {VideoService} from './video.service';
+import {WebSocketService} from './websocket.service';
+
+/** Response modality requested from the /run_live endpoint. */
+export type LiveModality = 'AUDIO'|'VIDEO';
+
+/**
+ * Pre-built avatar the Live API renders in a video call. Avatar mode is
+ * refused outright unless an avatar is named.
+ */
+const DEFAULT_AVATAR_NAME = 'Kai';
+
+/**
+ * Service for supporting live streaming with audio/video.
+ */
+@Injectable({
+  providedIn: 'root',
+})
+export class StreamChatService implements StreamChatServiceInterface {
+  private readonly audioRecordingService = inject(AUDIO_RECORDING_SERVICE);
+  private readonly videoService = inject(VIDEO_SERVICE);
+  private readonly videoPlayingService = inject(VIDEO_PLAYING_SERVICE);
+  private readonly webSocketService = inject(WEBSOCKET_SERVICE);
+  private audioIntervalId: number|undefined = undefined;
+  private videoIntervalId: number|undefined = undefined;
+
+  constructor() {}
+
+  private getWsUrl(
+      appName: string, userId: string, sessionId: string,
+      modality: LiveModality): string {
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const params = new URLSearchParams({
+      app_name: appName,
+      user_id: userId,
+      session_id: sessionId,
+      modalities: modality,
+    });
+    if (modality === 'VIDEO') {
+      params.set('avatar_name', DEFAULT_AVATAR_NAME);
+    }
+    return `${protocol}://${URLUtil.getWSServerUrl()}/run_live?${params}`;
+  }
+
+  async startAudioChat({
+    appName,
+    userId,
+    sessionId,
+  }: {appName: string; userId: string; sessionId: string;}) {
+    this.webSocketService.connect(
+        this.getWsUrl(appName, userId, sessionId, 'AUDIO'));
+
+    await this.startAudioStreaming();
+  }
+
+  stopAudioChat() {
+    this.stopAudioStreaming();
+    this.webSocketService.closeConnection();
+  }
+
+  private async startAudioStreaming() {
+    try {
+      await this.audioRecordingService.startRecording();
+      this.audioIntervalId = window.setInterval(() => this.sendBufferedAudio(), 250);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+    }
+  }
+
+  private stopAudioStreaming() {
+    clearInterval(this.audioIntervalId);
+    this.audioIntervalId = undefined;
+    this.audioRecordingService.stopRecording();
+  }
+
+  private sendBufferedAudio() {
+    const combinedBuffer = this.audioRecordingService.getCombinedAudioBuffer();
+    if (!combinedBuffer) return;
+
+    const request: LiveRequest = {
+      blob: {
+        mime_type: 'audio/pcm;rate=16000',
+        data: combinedBuffer,
+      },
+    };
+    this.webSocketService.sendMessage(request);
+    this.audioRecordingService.cleanAudioBuffer();
+  }
+
+  async startVideoChat({
+    appName,
+    userId,
+    sessionId,
+    avatarContainer,
+    videoContainer,
+  }: {
+    appName: string; userId: string; sessionId: string;
+    avatarContainer: ElementRef; videoContainer: ElementRef;
+  }) {
+    // The avatar sink has to be ready before the socket opens, otherwise the
+    // first chunks (which carry the MP4 init segment) are dropped.
+    this.videoPlayingService.startPlayback(avatarContainer);
+    this.webSocketService.connect(
+        this.getWsUrl(appName, userId, sessionId, 'VIDEO'));
+
+    await this.startAudioStreaming();
+    await this.startVideoStreaming(videoContainer);
+  }
+
+  // The containers are gone already if the panel was torn down first, but the
+  // socket still has to be closed either way.
+  stopVideoChat(avatarContainer?: ElementRef, videoContainer?: ElementRef) {
+    this.stopAudioStreaming();
+    if (videoContainer) {
+      this.stopVideoStreaming(videoContainer);
+    }
+    if (avatarContainer) {
+      this.videoPlayingService.stopVideo(avatarContainer);
+    }
+    this.webSocketService.closeConnection();
+  }
+
+  async startVideoStreaming(videoContainer: ElementRef) {
+    try {
+      await this.videoService.startRecording(videoContainer);
+      this.videoIntervalId = window.setInterval(
+          async () => await this.sendCapturedFrame(),
+          1000,
+      );
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+    }
+  }
+
+  private async sendCapturedFrame() {
+    const capturedFrame = await this.videoService.getCapturedFrame();
+    if (!capturedFrame) return;
+
+    const request: LiveRequest = {
+      blob: {
+        mime_type: 'image/jpeg',
+        data: capturedFrame,
+      },
+    };
+    this.webSocketService.sendMessage(request);
+  }
+
+  stopVideoStreaming(videoContainer: ElementRef) {
+    clearInterval(this.videoIntervalId);
+    this.videoIntervalId = undefined;
+    this.videoService.stopRecording(videoContainer);
+  }
+
+  onStreamClose() {
+    return this.webSocketService.onCloseReason();
+  }
+
+  closeStream() {
+    this.webSocketService.closeConnection();
+  }
+}

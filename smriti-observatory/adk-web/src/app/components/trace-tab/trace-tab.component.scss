@@ -1,0 +1,253 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.json-viewer-container {
+  margin: 10px;
+}
+
+.event-paginator {
+  display: flex;
+  justify-content: center;
+  background-color: transparent;
+
+  /* Move the label to the right of the navigation buttons */
+  ::ng-deep {
+    .mat-mdc-paginator-range-label {
+      order: 2;
+      margin: 0 0 0 8px; /* Override default margins and add left margin */
+    }
+  }
+}
+
+.span-title {
+  font-weight: 500;
+  font-family: 'Google Sans Mono', monospace;
+  font-size: 13px;
+  color: var(--mat-sys-on-surface);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 300px;
+  margin-left: 16px;
+}
+
+.event-details-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.event-details-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.vertical-tabs-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 48px;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  padding-top: 8px;
+  align-items: center;
+  gap: 8px;
+
+  button {
+    border-radius: 6px !important;
+
+    ::ng-deep {
+      .mat-mdc-button-persistent-ripple,
+      .mat-mdc-button-ripple,
+      .mat-mdc-button-persistent-ripple::before,
+      .mat-mdc-focus-indicator {
+        border-radius: 6px !important;
+      }
+    }
+
+    &.active {
+      background-color: var(--mat-sys-secondary-container) !important;
+      color: var(--mat-sys-on-secondary-container) !important;
+    }
+  }
+}
+
+.vertical-tabs-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overflow-y: auto;
+}
+
+.event-details-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.empty-state {
+  padding: 16px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.info-tables-container {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.span-link {
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.memory-operations-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.memory-operations-title {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mat-sys-on-surface-variant);
+  margin-bottom: 6px;
+}
+
+.id-text {
+  font-family: 'Google Sans Mono', monospace;
+  font-size: 11px;
+}
+
+.id-cell,
+.value-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+
+  > :first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &:hover {
+    .copy-id-button,
+    .copy-value-button {
+      opacity: 1;
+    }
+  }
+}
+
+.copy-id-button,
+.copy-value-button {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  line-height: 28px !important;
+  flex-shrink: 0;
+  margin: -4px 0 !important;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+
+  ::ng-deep {
+    .mat-mdc-button-persistent-ripple,
+    .mat-mdc-button-ripple,
+    .mat-mdc-button-persistent-ripple::before,
+    .mat-mdc-focus-indicator {
+      border-radius: 4px !important;
+    }
+  }
+
+  .mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+  }
+}
+
+.json-viewer-wrapper {
+  position: relative;
+
+  &:hover {
+    .floating-copy-button {
+      opacity: 1;
+    }
+  }
+}
+
+.floating-copy-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  background-color: var(--mat-sys-surface-container-high) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+  width: 28px !important;
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 !important;
+
+  ::ng-deep {
+    .mat-mdc-button-persistent-ripple,
+    .mat-mdc-button-ripple,
+    .mat-mdc-button-persistent-ripple::before,
+    .mat-mdc-focus-indicator {
+      border-radius: 4px !important;
+    }
+  }
+
+  .mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+  }
+
+  &:hover {
+    background-color: var(--mat-sys-secondary-container) !important;
+    color: var(--mat-sys-on-secondary-container) !important;
+  }
+}

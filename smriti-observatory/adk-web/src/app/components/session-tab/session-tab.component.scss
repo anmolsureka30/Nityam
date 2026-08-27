@@ -1,0 +1,223 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.session-wrapper {
+  padding-left: 25px;
+  padding-right: 25px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--session-tab-session-wrapper-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+
+  .empty-state {
+    color: initial;
+    padding-top: 1em;
+    text-align: center;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .session-filter-container {
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    margin-top: 16px;
+  }
+
+  .session-filter {
+    width: 100%;
+  }
+}
+
+.session-tab-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: none;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--mat-sys-surface-variant, rgba(0, 0, 0, 0.04));
+  }
+  &.current {
+    background-color: var(--mat-sys-secondary-container, rgba(0, 0, 0, 0.08));
+  }
+
+  mat-chip {
+    margin-right: 11px;
+  }
+}
+
+.session-id {
+  color: var(--session-tab-session-id-color);
+  font-family: Roboto, sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+
+  &.is-monospace {
+    font-family: 'Google Sans Mono', monospace;
+  }
+}
+
+.session-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.session-date {
+  color: var(--session-tab-session-date-color);
+  font-family: Roboto;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.session-real-id {
+  color: var(--session-tab-session-id-color);
+  font-family: 'Google Sans Mono', monospace;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.3px;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.session-info {
+  padding: 11px;
+  flex: 1;
+  min-width: 0;
+
+  .session-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 24px;
+    margin-bottom: 2px;
+
+    .session-id {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .session-name-input {
+      flex: 1;
+      height: 20px;
+      padding: 0 4px;
+      font-family: inherit;
+      font-size: 14px;
+      border: 1px solid var(--mat-sys-outline, #ccc);
+      border-radius: 4px;
+      background: var(--mat-sys-surface, #fff);
+      color: var(--mat-sys-on-surface, #000);
+      outline: none;
+      min-width: 0;
+      margin-right: 4px;
+
+      &:focus {
+        border-color: var(--mat-sys-primary, #1976d2);
+      }
+    }
+
+    .action-btn {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      display: none;
+
+      ::ng-deep .mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        line-height: 16px;
+      }
+    }
+
+    .save-btn,
+    .cancel-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 2px;
+    }
+  }
+}
+
+.session-item:hover .action-btn.edit-btn,
+.session-item:hover .action-btn.delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner-container {
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 2em;
+  width: 100%;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 1em;
+}
+
+.readonly-badge {
+  color: var(--chat-readonly-badge-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  gap: 4px;
+  white-space: nowrap;
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    padding-top: 1px;
+    flex-shrink: 0;
+  }
+}

@@ -1,0 +1,534 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.generated-image-container {
+  max-width: 400px;
+  margin-left: 20px;
+}
+
+.generated-image {
+  max-width: 100%;
+  min-width: 40px;
+  border-radius: 8px;
+}
+
+.html-artifact-container {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.loading-bar {
+  width: 100px;
+  margin: 15px;
+}
+
+.chat-messages {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+  position: relative;
+}
+
+.chat-sub-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  height: 48px;
+  flex-shrink: 0;
+  padding: 0 20px;
+  background-color: var(--mat-sys-surface-container);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  mat-button-toggle-group {
+    border-radius: 16px;
+    height: 28px;
+    align-items: center;
+
+    ::ng-deep .mat-button-toggle-label-content {
+      line-height: 28px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+  }
+
+  .filter-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    border: none;
+    margin-left: 16px;
+  }
+
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    background-color: var(--mat-sys-surface-container-highest);
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 14px;
+    padding: 0 10px;
+    font-size: 13px;
+    height: 28px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--mat-sys-surface-variant);
+    }
+
+    .chip-label {
+      font-weight: 500;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .chip-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--mat-sys-on-surface-variant);
+      padding: 0;
+      margin-left: 4px;
+
+      mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+      }
+
+      &:hover {
+        color: var(--mat-sys-on-surface);
+      }
+    }
+  }
+
+  .add-filter-btn {
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: 14px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 500;
+    height: 28px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--mat-sys-on-surface-variant);
+
+    &:hover {
+      background-color: var(--mat-sys-surface-variant);
+      border-color: var(--mat-sys-outline);
+      color: var(--mat-sys-on-surface);
+    }
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      margin-right: 4px;
+    }
+  }
+}
+
+::ng-deep .filter-panel {
+  min-width: max-content !important;
+  max-width: 50vw; // Ensure it doesn't grow overly large
+
+  .mat-mdc-menu-item {
+    min-height: 32px !important;
+    font-size: 12px !important;
+
+    .mat-mdc-menu-item-text,
+    .mdc-list-item__primary-text {
+      font-size: 12px !important;
+      line-height: normal;
+    }
+  }
+}
+
+.trace-tree-container {
+  margin: 12px 48px 12px 12px;
+  border-radius: 12px;
+  border: none;
+  background: var(--mat-sys-surface-container-lowest, #fff);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.chat-input {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  width: min(960px, 88%);
+  margin: 0 auto;
+  position: relative;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+
+  .chat-input-content-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    width: 100%;
+  }
+}
+
+/* The agent's avatar stream. Portrait, since the Live API renders it 9:16. */
+.avatar-container {
+  display: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--mat-sys-surface-variant);
+  border: 1px solid var(--mat-sys-outline-variant);
+  width: 160px;
+
+  &.visible {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Style the video element inserted by VideoPlayingService */
+  ::ng-deep video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 12px;
+  }
+}
+
+.video-container {
+  display: none;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--mat-sys-surface-variant);
+  border: 1px solid var(--mat-sys-outline-variant);
+  width: 200px;
+
+  &.visible {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); /* Nice floating shadow */
+  }
+
+  /* Style the video element inserted by VideoService */
+  ::ng-deep video {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px;
+    object-fit: cover;
+    border-radius: 12px;
+    transform: scaleX(-1);
+  }
+}
+
+.input-field {
+  flex-grow: 1;
+  position: relative;
+
+  textarea {
+    color: var(--mat-sys-on-surface);
+    border: none;
+    box-sizing: content-box;
+    caret-color: var(--mat-sys-primary);
+
+    &::placeholder {
+      color: var(--mat-sys-on-surface-variant);
+    }
+  }
+
+  button:not(:disabled):not(.stop-message-btn) {
+    color: var(--mat-sys-primary) !important;
+  }
+
+  ::ng-deep {
+    .mat-mdc-form-field-flex {
+      align-items: flex-end !important;
+    }
+    .mat-mdc-form-field-icon-prefix,
+    .mat-mdc-form-field-icon-suffix {
+      align-self: flex-end !important;
+      margin-bottom: 8px !important;
+    }
+  }
+}
+
+button.stop-message-btn:not(:disabled) {
+  color: #ea4335 !important;
+
+  &:hover {
+    background-color: rgba(234, 67, 53, 0.08) !important;
+  }
+}
+
+button:disabled {
+  color: var(--mat-sys-on-surface-variant) !important;
+  opacity: 0.38 !important;
+  cursor: not-allowed;
+}
+
+button.input-prefix-menu-btn {
+  margin-left: 12px !important;
+
+  &:not(:disabled) {
+    color: var(--mat-sys-on-surface-variant) !important;
+  }
+}
+
+.input-suffix-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-right: 12px !important;
+}
+
+.file-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.image-container {
+  position: relative;
+  display: inline-block;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.image-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  width: 80px;
+  height: 80px;
+}
+
+.delete-button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  border: none;
+  border-radius: 50%;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--mat-sys-error);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scale: 0.7;
+}
+
+.delete-button mat-icon {
+  font-size: 20px;
+}
+
+.file-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 80px;
+  border-radius: 12px;
+}
+
+.file-info {
+  margin-right: 60px;
+  padding-top: 20px;
+  padding-left: 16px;
+}
+
+.chat-input-box {
+  caret-color: white;
+}
+
+button.send-message-btn {
+}
+
+.loading-spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.messages-loading-container {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.agent-loading-indicator {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  padding: 0 20px;
+  width: 240px;
+}
+
+.readme-content {
+  padding: 0 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--mat-sys-on-surface);
+
+  ::ng-deep {
+    pre code {
+      font-size: 12px !important;
+    }
+  }
+}
+
+.empty-eval-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .empty-eval-result-hint {
+    max-width: 360px;
+    font-size: 12px;
+    opacity: 0.85;
+  }
+}
+
+.branches-container {
+  margin: 8px -20px;
+  border-radius: 8px;
+  overflow: hidden;
+
+  :host-context(.light-theme) & {
+    ::ng-deep .mat-mdc-tab-header {
+      background: transparent !important;
+    }
+
+    ::ng-deep .mat-mdc-tab {
+      background: var(--mat-sys-surface-container-highest) !important;
+    }
+
+    ::ng-deep .mat-mdc-tab.mdc-tab--active {
+      background: #e8f5e9 !important;
+    }
+
+    ::ng-deep .mdc-tab-indicator__content--underline {
+      border-color: #2e7d32 !important;
+    }
+  }
+
+  ::ng-deep {
+    .mat-mdc-tab-header {
+      height: 32px !important;
+      background: transparent !important;
+      justify-content: flex-start !important;
+    }
+
+    .mat-mdc-tab-label-container {
+      border-bottom: none !important;
+    }
+
+    .mdc-tab-indicator__content--underline {
+      border-color: #4caf50 !important;
+    }
+
+    .mat-mdc-tab {
+      height: 32px !important;
+      font-size: 12px !important;
+      min-width: auto !important;
+      padding: 0 16px !important;
+      flex: 0 0 auto !important;
+      border-top-left-radius: 8px !important;
+      border-top-right-radius: 8px !important;
+      background: var(--mat-sys-surface-container-highest) !important;
+      margin-right: 2px;
+      overflow: hidden !important;
+
+      .mdc-tab__text-label {
+        color: var(--mat-sys-on-surface-variant) !important;
+        opacity: 0.6;
+      }
+    }
+
+    .mat-mdc-tab.mdc-tab--active {
+      background: #1b4d24 !important;
+
+      .mdc-tab__text-label {
+        color: var(--mat-sys-on-surface) !important;
+        opacity: 1 !important;
+      }
+    }
+
+    .mat-mdc-tab-body-content {
+      padding: 0 !important;
+    }
+
+    .mdc-tab__text-label {
+      font-size: 12px !important;
+    }
+
+    .tab-name {
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+    }
+  }
+
+  .branch-events-content {
+    padding: 8px 20px;
+    background: #1b4d24;
+
+    :host-context(.light-theme) & {
+      background: #e8f5e9;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-messages {
+    padding: 12px !important;
+  }
+  .chat-input {
+    width: 100% !important;
+    padding: 8px !important;
+  }
+  .chat-input-content-row {
+    gap: 8px !important;
+  }
+  .input-suffix-container {
+    gap: 4px !important;
+    margin-right: 4px !important;
+  }
+  button.input-prefix-menu-btn {
+    margin-left: 4px !important;
+  }
+}

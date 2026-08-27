@@ -1,0 +1,245 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+@let isSessionLoading = uiStateService.isSessionLoading() | async;
+@if (appName != "" && !isSessionLoading) {
+
+<div #autoScroll class="chat-messages" (scroll)="onScroll.next($event)" (wheel)="onManualScroll()" (touchmove)="onManualScroll()" (mousedown)="onManualScroll()" (keydown)="onManualScroll()">
+  @if (showEvalSummary() && evalCaseResult()) {
+    @let result = evalCaseResult();
+    <div class="eval-result-summary" style="margin: 16px; padding: 16px; border-radius: 8px; background: var(--mat-sys-surface-container); border: 1px solid var(--mat-sys-outline-variant);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; color: var(--mat-sys-primary);">Evaluation Result</h3>
+        <div class="status-card__summary">
+          @if (result.finalEvalStatus == 1) {
+            <span class="status-card__passed" style="font-size: 16px; font-weight: 600; font-family: monospace;">PASS</span>
+          } @else {
+            <span class="status-card__failed" style="font-size: 16px; font-weight: 600; font-family: monospace;">FAIL</span>
+          }
+        </div>
+      </div>
+      <div style="margin-top: 12px; display: flex; gap: 24px;">
+        <div>
+          <span style="color: var(--mat-sys-on-surface-variant); font-size: 13px;">Case ID</span>
+          <div style="font-weight: 500;">{{ result.evalId }}</div>
+        </div>
+        <div>
+          <span style="color: var(--mat-sys-on-surface-variant); font-size: 13px;">Set ID</span>
+          <div style="font-weight: 500;">{{ result.setId }}</div>
+        </div>
+        @if (result.overallEvalMetricResults?.length) {
+          <div>
+            <span style="color: var(--mat-sys-on-surface-variant); font-size: 13px;">Metrics</span>
+            <div style="display: flex; gap: 8px; margin-top: 4px;">
+              @for (metric of result.overallEvalMetricResults; track metric.metricName) {
+                <span [style.color]="metric.evalStatus == 1 ? 'var(--app-color-success)' : 'var(--app-color-error)'" style="font-size: 13px; font-weight: 500;">
+                  {{ metric.metricName }}: {{ metric.score }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+  @if (uiEvents.length === 0 && agentReadme && !isEvalResult) {
+  <div class="readme-content">
+    <ng-container [ngComponentOutlet]="markdownComponent"
+      [ngComponentOutletInputs]="{text: agentReadme, thought: false, isReadme: true}"></ng-container>
+  </div>
+  }
+  @if (uiEvents.length === 0 && isEvalResult) {
+  <div class="empty-eval-result">
+    <mat-icon>info_outline</mat-icon>
+    <p>This eval run produced no conversation turns.</p>
+    <p class="empty-eval-result-hint">
+      The run likely failed before any turns were recorded. Check the run status
+      and the server logs, then try running it again.
+    </p>
+  </div>
+  }
+  @for (item of displayItems; track item; let i = $index) {
+    @if (item.type === 'event') {
+      @let uiEvent = item.event;
+      @let show = shouldShowEvent ? shouldShowEvent(uiEvent) : true;
+      <app-event-row
+        [style.display]="((viewMode === 'events' && show) || (viewMode === 'traces' && uiEvent.role === 'user' && show)) ? '' : 'none'"
+        [isSelectable]="viewMode !== 'traces'" [uiEvent]="uiEvent" [index]="item.index" [uiEvents]="uiEvents"
+        [isSelected]="isMessageEventSelected(item.index)" [appName]="appName" [userId]="userId" [sessionId]="sessionId"
+        [sessionName]="sessionName()" [evalCase]="evalCase" [isEvalEditMode]="isEvalEditMode"
+        [isEvalCaseEditing]="isEvalCaseEditing" [isEditFunctionArgsEnabled]="isEditFunctionArgsEnabled"
+        [userEditEvalCaseMessage]="userEditEvalCaseMessage" [agentGraphData]="agentGraphData"
+        [allWorkflowNodes]="getAllWorkflowNodes(item.index)" [isUserFeedbackEnabled]="isUserFeedbackEnabled() ?? false"
+        [isLoadingAgentResponse]="isLoadingAgentResponse() ?? false"
+        (rowClick)="handleRowClick($event.event, $event.uiEvent, $event.index)" (handleKeydown)="handleKeydown.emit($event)"
+        (cancelEditMessage)="cancelEditMessage.emit($event)" (saveEditMessage)="saveEditMessage.emit($event)"
+        (userEditEvalCaseMessageChange)="userEditEvalCaseMessageChange.emit($event)"
+        (openViewImageDialog)="openViewImageDialog.emit($event)" (openBase64InNewTab)="openBase64InNewTab.emit($event)"
+        (editEvalCaseMessage)="editEvalCaseMessage.emit($event)"
+        (deleteEvalCaseMessage)="deleteEvalCaseMessage.emit($event)" (editFunctionArgs)="editFunctionArgs.emit($event)"
+        (clickEvent)="clickEvent.emit($event)" (longRunningResponseComplete)="longRunningResponseComplete.emit($event)"
+        (agentStateClick)="handleAgentStateClick($event.event, $event.index)"></app-event-row>
+
+      @if (uiEvent.role === 'bot' && isFirstEventForInvocation(uiEvent, item.index)) {
+      <div class="trace-tree-container"
+        [style.display]="(viewMode === 'traces') ? '' : 'none'">
+        <app-trace-tree
+          [spans]="spansByInvocationId.get(uiEvent.event.id) || spansByInvocationId.get(uiEvent.event.invocationId!) || []"
+          [invocationId]="uiEvent.event.invocationId || uiEvent.event.id || ''" [uiEvents]="uiEvents"
+          [shouldShowEvent]="shouldShowEvent"></app-trace-tree>
+      </div>
+      }
+    } @else if (item.type === 'branches') {
+      <div class="branches-container">
+        <mat-tab-group animationDuration="0ms">
+          @for (branch of item.branches; track branch.branchId) {
+            <mat-tab>
+              <ng-template mat-tab-label>
+                <span class="tab-name" [matTooltip]="'Branch ' + branch.branchId" matTooltipPosition="above">{{ branch.branchId }}</span>
+              </ng-template>
+              <div class="branch-events-content">
+                @for (bEvent of branch.events; track bEvent.event; let j = $index) {
+                  @let uiEvent = bEvent.event;
+                  @let show = shouldShowEvent ? shouldShowEvent(uiEvent) : true;
+                  <app-event-row
+                    [style.display]="((viewMode === 'events' && show) || (viewMode === 'traces' && uiEvent.role === 'user' && show)) ? '' : 'none'"
+                    [isSelectable]="viewMode !== 'traces'" [uiEvent]="uiEvent" [index]="bEvent.globalIndex" [uiEvents]="uiEvents"
+                    [isSelected]="isMessageEventSelected(bEvent.globalIndex)" [appName]="appName" [userId]="userId" [sessionId]="sessionId"
+                    [sessionName]="sessionName()" [evalCase]="evalCase" [isEvalEditMode]="isEvalEditMode"
+                    [isEvalCaseEditing]="isEvalCaseEditing" [isEditFunctionArgsEnabled]="isEditFunctionArgsEnabled"
+                    [userEditEvalCaseMessage]="userEditEvalCaseMessage" [agentGraphData]="agentGraphData"
+                    [allWorkflowNodes]="getAllWorkflowNodes(bEvent.globalIndex)" [isUserFeedbackEnabled]="isUserFeedbackEnabled() ?? false"
+                    [isLoadingAgentResponse]="isLoadingAgentResponse() ?? false"
+                    (rowClick)="handleRowClick($event.event, $event.uiEvent, $event.index)" (handleKeydown)="handleKeydown.emit($event)"
+                    (cancelEditMessage)="cancelEditMessage.emit($event)" (saveEditMessage)="saveEditMessage.emit($event)"
+                    (userEditEvalCaseMessageChange)="userEditEvalCaseMessageChange.emit($event)"
+                    (openViewImageDialog)="openViewImageDialog.emit($event)" (openBase64InNewTab)="openBase64InNewTab.emit($event)"
+                    (editEvalCaseMessage)="editEvalCaseMessage.emit($event)"
+                    (deleteEvalCaseMessage)="deleteEvalCaseMessage.emit($event)" (editFunctionArgs)="editFunctionArgs.emit($event)"
+                    (clickEvent)="clickEvent.emit($event)" (longRunningResponseComplete)="longRunningResponseComplete.emit($event)"
+                    (agentStateClick)="handleAgentStateClick($event.event, $event.index)"></app-event-row>
+                }
+              </div>
+            </mat-tab>
+          }
+        </mat-tab-group>
+      </div>
+    }
+  }
+  @if (isLoadingAgentResponse()) {
+  <div class="agent-loading-indicator">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  </div>
+  }
+</div>
+} @if (appName != "" && isChatMode && !isSessionLoading) {
+@if(canEditSession()) {
+<div class="chat-input" [class.video-streaming]="isVideoRecording">
+  <input type="file" multiple hidden (change)="fileSelect.emit($event)" #fileInput />
+  <div class="chat-input-content-row">
+    <mat-form-field class="input-field" appearance="outline" subscriptSizing="dynamic">
+      @if ((selectedFiles.length && appName != "") || updatedSessionState) {
+      <div class="file-preview">
+        @for (file of selectedFiles; track file; let i = $index) {
+        <div>
+          @if (file.file.type.startsWith("image/")) {
+          <div class="image-container">
+            <img [src]="file.url" alt="preview" class="image-preview" />
+            <button mat-icon-button (click)="removeFile.emit(i)" class="delete-button">
+              <mat-icon color="warn">close</mat-icon>
+            </button>
+          </div>
+          } @else if (!file.file.type.startsWith("image/")) {
+          <div class="file-container">
+            <button mat-icon-button (click)="removeFile.emit(i)" class="delete-button">
+              <mat-icon color="warn">close</mat-icon>
+            </button>
+            <div class="file-info">
+              <mat-icon>insert_drive_file</mat-icon>
+              <span>{{ file.file.name }}</span>
+            </div>
+          </div>
+          }
+        </div>
+        } @if (updatedSessionState) {
+        <div class="file-container">
+          <button mat-icon-button (click)="removeStateUpdate.emit()" class="delete-button">
+            <mat-icon color="warn">close</mat-icon>
+          </button>
+          <div class="file-info">
+            <span>{{ i18n.updatedSessionStateChipLabel }}</span>
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+      <button mat-icon-button matPrefix [matMenuTriggerFor]="inputActionsMenu" class="input-prefix-menu-btn"
+        [disabled]="isLoadingAgentResponse() ?? false" [matTooltip]="'Actions'">
+        <mat-icon>add</mat-icon>
+      </button>
+      <mat-menu #inputActionsMenu="matMenu" xPosition="after">
+        <button mat-menu-item (click)="fileInput.click()" [disabled]="(isLoadingAgentResponse() ?? false) || !(isMessageFileUploadEnabledObs | async)">
+          <mat-icon>attach_file</mat-icon>
+          <span>{{ i18n.uploadFileTooltip }}</span>
+        </button>
+        @if (!hideMoreOptionsButton()) {
+          <button mat-menu-item (click)="updateState.emit()" [disabled]="(isLoadingAgentResponse() ?? false) || !(isManualStateUpdateEnabledObs | async)">
+            <mat-icon>tune</mat-icon>
+            <span>{{ i18n.updateStateMenuLabel }}</span>
+          </button>
+        }
+      </mat-menu>
+
+      <textarea #messageTextarea class="chat-input-box" matInput cdkTextareaAutosize cdkAutosizeMinRows="1"
+        cdkAutosizeMaxRows="10" [ngModel]="userInput" (ngModelChange)="userInputChange.emit($event)"
+        (keydown.enter)="!isLoadingAgentResponse() && sendMessage.emit($event)" [placeholder]="i18n.typeMessagePlaceholder"
+        [disabled]="isLoadingAgentResponse() ?? false"></textarea>
+
+      <div matSuffix class="input-suffix-container">
+        <app-call-controls [isAudioRecording]="isAudioRecording" [isVideoRecording]="isVideoRecording"
+          [micVolume]="micVolume" [isVideoCall]="isVideoCall"
+          [isBidiStreamingEnabled]="(isBidiStreamingEnabledObs | async) ?? false"
+          [disabled]="isLoadingAgentResponse() ?? false"
+          (toggleAudioRecording)="toggleAudioRecording.emit()"
+          (toggleVideoRecording)="toggleVideoRecording.emit()"></app-call-controls>
+        @if (isLoadingAgentResponse()) {
+          <button mat-icon-button (click)="stopMessage.emit($event)" class="stop-message-btn"
+            [matTooltip]="i18n.stopMessageTooltip">
+            <mat-icon>stop</mat-icon>
+          </button>
+        } @else {
+          <button mat-icon-button (click)="sendMessage.emit($event)" class="send-message-btn"
+            [matTooltip]="i18n.sendMessageTooltip">
+            <mat-icon>send</mat-icon>
+          </button>
+        }
+      </div>
+    </mat-form-field>
+    <!-- The agent's avatar stream; the local camera sits beside it. -->
+    <div #avatarContainer class="avatar-container" [class.visible]="isVideoCall"></div>
+    <div #videoContainer class="video-container" [class.visible]="isVideoRecording"></div>
+  </div>
+</div>
+
+}
+}
+
+@if (isSessionLoading) {
+<div class="loading-spinner-container">
+  <mat-progress-spinner mode="indeterminate" diameter="50"></mat-progress-spinner>
+</div>
+}

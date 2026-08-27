@@ -1,0 +1,59 @@
+@if (isComputerUseClick()) {
+  @let screenshot = getPreviousComputerUseScreenshot();
+  @let nextScreenshot = getNextComputerUseScreenshot();
+  @if (screenshot || nextScreenshot) {
+    <div class="computer-use-container click-visualization-container" [class.dual-images]="!!nextScreenshot" (click)="clickEvent.emit(index)">
+      <div class="images-wrapper-flex">
+        @if (nextScreenshot) {
+          @if (screenshot) {
+            <div class="image-wrapper">
+              <img [src]="screenshot" class="computer-use-screenshot" alt="Computer Use Screenshot"
+                (load)="onImageLoad($event)" (click)="openImageViewer(screenshot); $event.stopPropagation()" />
+              <div class="click-overlay-box" [ngStyle]="getClickBoxStyle()"></div>
+            </div>
+          } @else {
+            <div class="image-wrapper fallback-image">
+              <mat-icon class="missing-icon">image_not_supported</mat-icon>
+              <span class="fallback-text">No screenshot</span>
+            </div>
+          }
+
+          <div class="arrow-container">
+            <span class="action-name-above">{{ getActionName() }}</span>
+            <mat-icon>arrow_forward</mat-icon>
+          </div>
+
+          <div class="image-wrapper">
+            <img [src]="nextScreenshot" class="computer-use-screenshot" alt="Next Screenshot"
+              (click)="openImageViewer(nextScreenshot); $event.stopPropagation()" />
+          </div>
+        } @else {
+          <div class="image-wrapper">
+            <img [src]="screenshot" class="computer-use-screenshot" alt="Computer Use Screenshot"
+              (load)="onImageLoad($event)" (click)="openImageViewer(screenshot); $event.stopPropagation()" />
+            <div class="click-overlay-box" [ngStyle]="getClickBoxStyle()"></div>
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="computer-use-container click-visualization-container fallback" (click)="clickEvent.emit(index)">
+
+      <div class="image-wrapper fallback-image">
+        <mat-icon class="missing-icon">image_not_supported</mat-icon>
+        <span class="fallback-text">No screenshot</span>
+      </div>
+    </div>
+  }
+} @else if (isComputerUseResponse()) {
+  <div class="computer-use-container" (click)="clickEvent.emit(index)">
+    <div class="computer-use-header">
+      <span class="computer-use-tool-name">{{ functionResponse!.name }}</span>
+    </div>
+    <img [src]="getComputerUseScreenshot()" class="computer-use-screenshot" alt="Computer Use Screenshot" />
+    <div class="computer-use-footprint">
+      <mat-icon class="computer-icon">computer</mat-icon>
+      <span class="url-text">{{ getComputerUseUrl() }}</span>
+    </div>
+  </div>
+}

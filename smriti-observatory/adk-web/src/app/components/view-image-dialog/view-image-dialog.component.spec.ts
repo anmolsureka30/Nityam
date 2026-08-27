@@ -1,0 +1,133 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {MAT_DIALOG_DATA, MatDialogModule, MatDialogRef} from '@angular/material/dialog';
+import {By} from '@angular/platform-browser';
+
+import {SAFE_VALUES_SERVICE} from '../../core/services/interfaces/safevalues';
+import {MockSafeValuesService} from '../../core/services/testing/mock-safevalues.service';
+import {ViewImageDialogComponent, ViewImageDialogData} from './view-image-dialog.component';
+
+describe('ViewImageDialogComponent', () => {
+  let component: ViewImageDialogComponent;
+  let fixture: ComponentFixture<ViewImageDialogComponent>;
+  let mockDialogRef: MatDialogRef<ViewImageDialogComponent>;
+  let mockDialogData: ViewImageDialogData;
+
+  let mockSafeValuesService: MockSafeValuesService;
+
+  beforeEach(async () => {
+    mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
+    mockDialogData = {imageData: null};
+
+    await TestBed.configureTestingModule({
+      imports: [
+        MatDialogModule, ViewImageDialogComponent
+      ],
+      providers: [
+        {provide: MatDialogRef, useValue: mockDialogRef},
+        {provide: MAT_DIALOG_DATA, useValue: mockDialogData},
+        {provide: SAFE_VALUES_SERVICE, useClass: MockSafeValuesService},
+      ],
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(ViewImageDialogComponent);
+    component = fixture.componentInstance;
+    mockSafeValuesService =
+        TestBed.inject(SAFE_VALUES_SERVICE) as MockSafeValuesService;
+    fixture.detectChanges();    // Initial change detection
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should display base64 image correctly', () => {
+    // A tiny transparent base64 image (1x1 pixel)
+    const base64Image =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+    mockDialogData.imageData = base64Image;
+    mockSafeValuesService.bypassSecurityTrustUrl.and.returnValue(
+        'data:image/png;base64,' + base64Image);
+
+    component.ngOnInit();    // Manually call ngOnInit as it's not triggered by
+                             // fixture.detectChanges for @Input changes
+    fixture.detectChanges();
+
+    const imgElement = fixture.debugElement.query(By.css('.image-wrapper img'));
+    expect(imgElement).not.toBeNull();
+    expect(mockSafeValuesService.bypassSecurityTrustUrl)
+        .toHaveBeenCalledWith('data:image/png;base64,' + base64Image);
+    expect(imgElement.nativeElement.src).toEqual(
+        'data:image/png;base64,' + base64Image);
+    expect(component.isSvgContent).toBeFalse();
+  });
+
+  it('should call dialogRef.close() when close button is clicked', () => {
+    const closeButton = fixture.debugElement.query(By.css('.close-button'));
+    closeButton.nativeElement.click();
+    expect(mockDialogRef.close).toHaveBeenCalled();
+  });
+
+  it('should show no image placeholder if imageData is null', () => {
+    mockDialogData.imageData = null;
+    component.ngOnInit();  // Manually call ngOnInit
+    fixture.detectChanges();
+
+    const placeholder =
+        fixture.debugElement.query(By.css('.no-image-placeholder'));
+    expect(placeholder).not.toBeNull();
+    expect(placeholder.nativeElement.textContent)
+        .toContain('No image data provided.');
+  });
+
+  it('should display image title if url is provided', () => {
+    const testData = 'data:image/png;base64,xyz';
+    const testUrl = 'http://example.com';
+    mockDialogData.imageData = testData;
+    mockDialogData.images = [testData];
+    mockDialogData.urls = [testUrl];
+    mockSafeValuesService.bypassSecurityTrustUrl.and.returnValue(testData);
+
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    const titleElement = fixture.debugElement.query(By.css('.image-title'));
+    expect(titleElement).not.toBeNull();
+    expect(titleElement.nativeElement.textContent).toContain(testUrl);
+  });
+  it('should display highlight circle if coordinate is provided', () => {
+    const testData = 'data:image/png;base64,xyz';
+    mockDialogData.imageData = testData;
+    mockDialogData.images = [testData];
+    mockDialogData.coordinates = [{x: 500, y: 500}];
+    mockSafeValuesService.bypassSecurityTrustUrl.and.returnValue(testData);
+
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    const highlightElement = fixture.debugElement.query(By.css('.highlight-circle'));
+    expect(highlightElement).not.toBeNull();
+    
+    const style = highlightElement.nativeElement.style;
+    expect(style.left).toBe('50%');
+    expect(style.top).toBe('50%');
+  });
+});

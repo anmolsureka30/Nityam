@@ -1,0 +1,112 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="artifact-container">
+  @for (artifactId of getDistinctArtifactIds(); track artifactId; let i = $index) {
+    <div class="artifact-card">
+      <div class="artifact-card-header">
+        <div class="artifact-title-group">
+          @switch (selectedArtifacts[i].mediaType) {
+            @case (MediaType.IMAGE) { <mat-icon class="artifact-icon">image</mat-icon> }
+            @case (MediaType.AUDIO) { <mat-icon class="artifact-icon">audiotrack</mat-icon> }
+            @case (MediaType.VIDEO) { <mat-icon class="artifact-icon">movie</mat-icon> }
+            @case (MediaType.TEXT) {
+              @if (selectedArtifacts[i].mimeType === 'text/html') {
+                <mat-icon class="artifact-icon">description</mat-icon>
+              } @else {
+                <mat-icon class="artifact-icon">text_snippet</mat-icon>
+              }
+            }
+            @default { <mat-icon class="artifact-icon">insert_drive_file</mat-icon> }
+          }
+          <button
+            class="artifact-title-link"
+            (click)="openArtifact(selectedArtifacts[i].data, selectedArtifacts[i].mimeType)"
+            [matTooltip]="'Open in new tab'"
+          >
+            <span class="title-text">{{ getArtifactName(artifactId) }}</span>
+            <mat-icon class="open-icon">open_in_new</mat-icon>
+          </button>
+        </div>
+        <div class="artifact-actions">
+          <div class="version-selector">
+            <span class="version-label">Version:</span>
+            <mat-select
+              [(ngModel)]="selectedArtifacts[i]"
+              (selectionChange)="onArtifactVersionChange($event, i)"
+              class="compact-select"
+              panelClass="compact-select-panel"
+            >
+              @for (artifact of getSortedArtifactsFromId(artifactId); track artifact) {
+                <mat-option [value]="artifact">{{ artifact.versionId }}</mat-option>
+              }
+            </mat-select>
+          </div>
+          <button
+            mat-icon-button
+            class="compact-action-button"
+            (click)="downloadArtifact(selectedArtifacts[i])"
+            [matTooltip]="'Download artifact'"
+          >
+            <mat-icon>file_download</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="artifact-card-content">
+        @switch (selectedArtifacts[i].mediaType) {
+          @case (MediaType.IMAGE) {
+            <div class="preview-image-container">
+              <img
+                class="preview-image"
+                [src]="selectedArtifacts[i].data ?? ''"
+                alt="artifact.id"
+                (click)="openViewImageDialog(selectedArtifacts[i].data)"
+              />
+            </div>
+          }
+          @case (MediaType.AUDIO) {
+            <div class="preview-audio-container">
+              <app-audio-player [base64data]="selectedArtifacts[i].data"></app-audio-player>
+            </div>
+          }
+          @case (MediaType.VIDEO) {
+            <div class="preview-video-container">
+              <video [src]="selectedArtifacts[i].data" controls class="preview-video"></video>
+            </div>
+          }
+          @case (MediaType.TEXT) {
+            @if (selectedArtifacts[i].mimeType === 'text/html') {
+              <div class="preview-html-container">
+                <mat-icon class="html-icon">description</mat-icon>
+                <a
+                  class="html-link"
+                  (click)="openArtifact(selectedArtifacts[i].data, selectedArtifacts[i].mimeType)"
+                >
+                  Preview in new tab
+                </a>
+              </div>
+            } @else {
+              <div class="preview-text-container">
+                <pre class="preview-text">{{ getTextContent(selectedArtifacts[i].data) }}</pre>
+              </div>
+            }
+          }
+        }
+      </div>
+    </div>
+  }
+  </div>

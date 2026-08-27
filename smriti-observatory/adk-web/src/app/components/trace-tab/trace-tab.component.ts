@@ -1,0 +1,255 @@
+/**
+ * @license
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import {ChangeDetectionStrategy, Component, inject, input, Input, output, signal, Injectable, HostListener, effect} from '@angular/core';
+import {toSignal} from '@angular/core/rxjs-interop';
+import {MatButtonModule} from '@angular/material/button';
+import {MatIconModule} from '@angular/material/icon';
+import {MatPaginator, MatPaginatorIntl, PageEvent} from '@angular/material/paginator';
+import {MatProgressSpinner} from '@angular/material/progress-spinner';
+import {MatTooltipModule} from '@angular/material/tooltip';
+import {CustomJsonViewerComponent} from '../custom-json-viewer/custom-json-viewer.component';
+import {InfoTable} from '../info-table/info-table';
+import {MemoryOperationRowComponent} from '../memory-operation-row/memory-operation-row.component';
+
+import {TRACE_SERVICE} from '../../core/services/interfaces/trace';
+import {STORAGE_SERVICE} from '../../core/services/interfaces/storage';
+import {MEMORY_SERVICE} from '../../core/services/interfaces/memory';
+import {Span} from '../../core/models/Trace';
+import {EnrichedMemoryEvent} from '../../core/models/Memory';
+
+@Injectable()
+export class SpanPaginatorIntl extends MatPaginatorIntl {
+  override nextPageLabel = 'Next Span';
+  override previousPageLabel = 'Previous Span';
+  override firstPageLabel = 'First Span';
+  override lastPageLabel = 'Last Span';
+
+  override getRangeLabel = (page: number, pageSize: number, length: number) => {
+    if (length === 0) {
+      return `Span 0 of 0`;
+    }
+    length = Math.max(length, 0);
+    const startIndex = page * pageSize;
+    return `Span ${startIndex + 1} of ${length}`;
+  };
+}
+
+@Component({
+  changeDetection: ChangeDetectionStrategy.Default,
+  selector: 'app-trace-tab',
+  templateUrl: './trace-tab.component.html',
+  styleUrl: './trace-tab.component.scss',
+  standalone: true,
+  imports: [
+    MatButtonModule, MatIconModule, MatTooltipModule, CustomJsonViewerComponent, MatPaginator,
+    InfoTable, MatProgressSpinner, MemoryOperationRowComponent
+  ],
+  providers: [
+    { provide: MatPaginatorIntl, useClass: SpanPaginatorIntl }
+  ]
+})
+export class TraceTabComponent {
+  _traceData: Span[] = [];
+  orderedTraceData: Span[] = [];
+
+  // Input kept so we don't break side-panel binding, though not used here anymore
+  @Input() set traceData(val: Span[]) {
+    this._traceData = val || [];
+    this.orderedTraceData = this.computeOrdered(this._traceData);
+  }
+
+  get traceData(): Span[] {
+    return this._traceData;
+  }
+
+  computeOrdered(spans: Span[]): Span[] {
+    const spanClones = spans.map(span => ({...span}));
+    const spanMap = new Map<string, Span>();
+    const roots: Span[] = [];
+
+    spanClones.forEach(span => spanMap.set(String(span.span_id), span));
+    spanClones.forEach(span => {
+      if (span.parent_span_id && spanMap.has(String(span.parent_span_id))) {
+        const parent = spanMap.get(String(span.parent_span_id))!;
+        parent.children = parent.children || [];
+        parent.children.push(span);
+      } else {
+        roots.push(span);
+      }
+    });
+
+    const flatten = (spansArray: Span[]): Span[] => {
+      return spansArray.flatMap(span => [
+        span,
+        ...(span.children ? flatten(span.children) : [])
+      ]);
+    };
+
+    return flatten(roots);
+  }
+
+  protected readonly traceService = inject(TRACE_SERVICE);
+  private readonly storageService = inject(STORAGE_SERVICE);
+  private readonly memoryService = inject(MEMORY_SERVICE);
+  selectedSpan = toSignal(this.traceService.selectedTraceRow$);
+
+  // SMRITI memory layer: what this span's trace did to Working/Episodic/
+  // Long-Term memory, if anything. sessionId/studentId identify which
+  // session+student to read (see side-panel.component.ts's studentId
+  // computed signal for how studentId is resolved).
+  sessionId = input('');
+  studentId = input('');
+  memoryEvents = signal<EnrichedMemoryEvent[]>([]);
+  memoryLoading = signal(false);
+  memoryLoadFailed = signal(false);
+
+  constructor() {
+    effect(() => {
+      this.storageService.setItem('adk-trace-tab-selected-tab', this.selectedDetailTab());
+    });
+    effect(() => {
+      const traceId = this.selectedSpan()?.trace_id;
+      const sessionId = this.sessionId();
+      const studentId = this.studentId();
+      if (!traceId || !sessionId || !studentId) {
+        this.memoryEvents.set([]);
+        this.memoryLoadFailed.set(false);
+        return;
+      }
+      this.memoryLoading.set(true);
+      this.memoryLoadFailed.set(false);
+      this.memoryService.getEvents(sessionId, studentId, String(traceId)).subscribe({
+        next: (events) => {
+          this.memoryEvents.set(events);
+          this.memoryLoading.set(false);
+        },
+        error: () => {
+          this.memoryEvents.set([]);
+          this.memoryLoading.set(false);
+          this.memoryLoadFailed.set(true);
+        },
+      });
+    });
+  }
+
+  private static getValidTraceTab(tab: string | null): 'info' | 'attributes' | 'raw' {
+    if (tab === 'info' || tab === 'attributes' || tab === 'raw') {
+      return tab;
+    }
+    return 'info';
+  }
+
+  selectedDetailTab = signal<'info' | 'attributes' | 'raw'>(
+    TraceTabComponent.getValidTraceTab(this.storageService.getItem('adk-trace-tab-selected-tab'))
+  );
+
+  switchToEvent = output<string>();
+
+  formatTime(nanos: number | undefined): string {
+    if (!nanos) return 'N/A';
+    return new Date(nanos / 1_000_000).toLocaleString();
+  }
+
+  get selectedSpanChildren(): Span[] {
+    const span = this.selectedSpan();
+    if (!span) return [];
+    if (span.children && span.children.length > 0) return span.children;
+    return this.traceData.filter(s => s.parent_span_id && String(s.parent_span_id) === String(span.span_id));
+  }
+
+  selectSpanById(id: string | number | null | undefined): void {
+    if (!id) return;
+    const span = this.traceData.find(s => String(s.span_id) === String(id));
+    if (span) {
+      this.traceService.selectedRow(span);
+    }
+  }
+
+  get selectedSpanIndex(): number | undefined {
+    const span = this.selectedSpan();
+    if (!span) return undefined;
+    const index = this.orderedTraceData.findIndex(s => s.span_id === span.span_id);
+    return index === -1 ? undefined : index;
+  }
+
+  onPage(event: PageEvent) {
+    if (event.pageIndex >= 0 && event.pageIndex < this.orderedTraceData.length) {
+      this.traceService.selectedRow(this.orderedTraceData[event.pageIndex]);
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardNavigation(event: KeyboardEvent) {
+    if (this.selectedSpanIndex === undefined) return;
+
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) {
+      return;
+    }
+
+    // Only handle arrow keys
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+
+    event.preventDefault();
+
+    // Navigate to next or previous
+    let newIndex: number;
+    if (event.key === 'ArrowDown') {
+      newIndex = this.selectedSpanIndex + 1 >= this.orderedTraceData.length ? 0 : this.selectedSpanIndex + 1;
+    } else {
+      newIndex = this.selectedSpanIndex - 1 < 0 ? this.orderedTraceData.length - 1 : this.selectedSpanIndex - 1;
+    }
+
+    this.traceService.selectedRow(this.orderedTraceData[newIndex]);
+  }
+
+  readonly Object = Object;
+
+  copiedId: string | null = null;
+
+  copyToClipboard(value: string | number | undefined | null, key?: string) {
+    if (value === undefined || value === null || value === '') return;
+    const strValue = String(value);
+    navigator.clipboard.writeText(strValue).then(() => {
+      this.copiedId = key || strValue;
+      setTimeout(() => this.copiedId = null, 2000);
+    });
+  }
+
+  getSelectedSpanEventId(): string | undefined {
+    return this.selectedSpan()?.attrEventId;
+  }
+
+  getSelectedSpanAttributesView(): Record<string, unknown> {
+    const span = this.selectedSpan();
+    return span?.rawAttributesUseThisFieldOnlyForDisplay ?? {};
+  }
+
+  getSelectedSpanRawView(): unknown {
+    const span = this.selectedSpan();
+    return span?.rawSpanUseThisFieldOnlyForDisplay;
+  }
+
+  copyJsonToClipboard(json: any, key: string) {
+    if (!json) return;
+    const value = JSON.stringify(json, null, 2);
+    navigator.clipboard.writeText(value).then(() => {
+      this.copiedId = key;
+      setTimeout(() => this.copiedId = null, 2000);
+    });
+  }
+}

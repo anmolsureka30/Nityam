@@ -1,0 +1,163 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+@if (!sessionId() || !studentId()) {
+  <div class="empty-state">Select a session to see its memory state.</div>
+} @else {
+  <div class="memory-tab">
+    <div class="memory-tab-header">
+      <span class="student-id">{{ studentId() }}</span>
+      <button mat-icon-button (click)="refresh()" matTooltip="Refresh">
+        <mat-icon>refresh</mat-icon>
+      </button>
+    </div>
+
+    @if (loading() && !state()) {
+      <div class="loading-container"><mat-spinner diameter="28"></mat-spinner></div>
+    } @else if (loadFailed()) {
+      <div class="empty-state">Couldn't reach the memory layer at /memory/sessions/{{ sessionId() }}/state.</div>
+    } @else if (state()) {
+
+      <!-- Working Memory -->
+      <section class="tier-section">
+        <div class="tier-header">
+          <span class="tier-dot tier-workflow"></span>
+          <span class="tier-title">{{ TIER_LABEL.workflow }}</span>
+        </div>
+        <p class="tier-desc">The live turn buffer for this session -- ephemeral, cleared once the session closes.</p>
+        @if (state()!.workflow.turn_buffer.length === 0) {
+          <div class="empty-substate">No turns in the live buffer.</div>
+        } @else {
+          <div class="turn-list">
+            @for (turn of state()!.workflow.turn_buffer; track turn.turn) {
+              <div [id]="workflowTurnDomId(turn.turn)" class="turn" [class.turn-student]="turn.role === 'student'" [class.turn-tutor]="turn.role === 'tutor'">
+                <span class="turn-meta">#{{ turn.turn }} {{ turn.role }}@if (turn.concept_id) {&nbsp;·&nbsp;{{ turn.concept_id }}}</span>
+                <span class="turn-text">{{ turn.text }}</span>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- Episodic Memory -->
+      <section class="tier-section">
+        <div class="tier-header">
+          <span class="tier-dot tier-episodic"></span>
+          <span class="tier-title">{{ TIER_LABEL.episodic }}</span>
+        </div>
+        <p class="tier-desc">The session's turn-by-turn record -- written once, when the session closes. Every long-term claim cites back to a turn here.</p>
+        @if (!state()!.episodic.session_log) {
+          <div class="empty-substate">Not written yet -- this session hasn't closed.</div>
+        } @else {
+          <div class="session-log-meta">{{ state()!.episodic.session_log!.turns.length }} turns · ended {{ state()!.episodic.session_log!.ended_at | date:'short' }}</div>
+          <div class="turn-list">
+            @for (turn of state()!.episodic.session_log!.turns; track turn.turn) {
+              <div [id]="episodicTurnDomId(turn.turn)" class="turn" [class.turn-student]="turn.role === 'student'" [class.turn-tutor]="turn.role === 'tutor'">
+                <span class="turn-meta">#{{ turn.turn }} {{ turn.role }}@if (turn.concept_id) {&nbsp;·&nbsp;{{ turn.concept_id }}}</span>
+                <span class="turn-text">{{ turn.text }}</span>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- Long-Term Memory -->
+      <section class="tier-section">
+        <div class="tier-header">
+          <span class="tier-dot tier-long_term"></span>
+          <span class="tier-title">{{ TIER_LABEL.long_term }}</span>
+        </div>
+        <p class="tier-desc">Persistent knowledge that outlives any one session -- a learner profile, a teaching state, and a knowledge-grounding index.</p>
+
+        <div class="kind-card">
+          <h4>Learner Profile</h4>
+          @if (!state()!.long_term.dpm_profile) {
+            <div class="empty-substate">No learner profile yet -- created the first time a session closes.</div>
+          } @else {
+            <div class="subsection-title">Concept mastery ({{ weaknessEntries().length }})</div>
+            @if (weaknessEntries().length === 0) {
+              <div class="empty-substate">No concepts tracked yet.</div>
+            } @else {
+              @for (entry of weaknessEntries(); track entry[0]) {
+                <div class="concept-row">
+                  <div class="concept-row-top">
+                    <span class="concept-id">{{ entry[0] }}</span>
+                    <span class="badge" [class]="'mastery-' + entry[1].mastery">{{ masteryLabel(entry[1].mastery) }}</span>
+                    <span class="badge" [class]="'strength-' + entry[1].strength">{{ entry[1].strength }}</span>
+                  </div>
+                  <app-evidence-chips [evidence]="entry[1].evidence" [currentSessionId]="sessionId()" (jumpToTurn)="jumpToTurn($event)"></app-evidence-chips>
+                </div>
+              }
+            }
+
+            <div class="subsection-title">Self-reflections ({{ selfReflections().length }})</div>
+            @if (selfReflections().length === 0) {
+              <div class="empty-substate">None yet.</div>
+            } @else {
+              @for (note of selfReflections(); track note.note) {
+                <div class="note" [class.note-superseded]="note.status === 'superseded'">
+                  {{ note.note }}
+                  @if (note.status === 'superseded') {<span class="superseded-tag">superseded</span>}
+                  <app-evidence-chips [evidence]="note.evidence" [currentSessionId]="sessionId()" (jumpToTurn)="jumpToTurn($event)"></app-evidence-chips>
+                </div>
+              }
+            }
+          }
+        </div>
+
+        <div class="kind-card">
+          <h4>Teaching State</h4>
+          @if (!state()!.long_term.teaching_memory) {
+            <div class="empty-substate">No teaching state yet -- created the first time a session closes.</div>
+          } @else {
+            <div class="subsection-title">Teaching mode</div>
+            <span class="mode-chip">{{ state()!.long_term.teaching_memory!.teaching_style.current_mode }}</span>
+
+            <div class="subsection-title">Curriculum coverage ({{ coveredEntries().length }})</div>
+            @if (coveredEntries().length === 0) {
+              <div class="empty-substate">Nothing covered yet.</div>
+            } @else {
+              @for (entry of coveredEntries(); track entry[0]) {
+                <div class="concept-row-top">
+                  <span class="concept-id">{{ entry[0] }}</span>
+                  <span class="badge" [class]="'coverage-' + entry[1].status">{{ entry[1].status }}</span>
+                  @if (entry[1].elements_used.length > 0) {<span class="elements">{{ entry[1].elements_used.join(', ') }}</span>}
+                </div>
+              }
+            }
+
+            <div class="subsection-title">Open doubts ({{ openDoubts().length }})</div>
+            @if (openDoubts().length === 0) {
+              <div class="empty-substate">None.</div>
+            } @else {
+              @for (doubt of openDoubts(); track doubt.concept_id) {
+                <div class="doubt-card">
+                  <div class="concept-row-top">
+                    <span class="concept-id">{{ doubt.concept_id }}</span>
+                    <span class="badge" [class]="'doubt-' + doubt.status">{{ doubt.status }}</span>
+                  </div>
+                  <p class="doubt-text"><strong>Doubt:</strong> {{ doubt.doubt }}</p>
+                  <p class="doubt-text"><strong>Correct:</strong> {{ doubt.correct_understanding }}</p>
+                  <app-evidence-chips [evidence]="doubt.evidence" [currentSessionId]="sessionId()" (jumpToTurn)="jumpToTurn($event)"></app-evidence-chips>
+                </div>
+              }
+            }
+          }
+        </div>
+      </section>
+    }
+  </div>
+}

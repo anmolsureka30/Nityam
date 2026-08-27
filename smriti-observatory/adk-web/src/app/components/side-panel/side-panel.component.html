@@ -1,0 +1,96 @@
+@if ((isAlwaysOnSidePanelEnabledObs | async) === false) {
+}
+
+@let isSessionLoading = uiStateService.isSessionLoading() | async;
+
+@if (isSessionLoading) {
+  <div class="loading-spinner-container">
+    <mat-progress-spinner mode="indeterminate" diameter="50"></mat-progress-spinner>
+  </div>
+}
+
+@if (appName() != "") {
+<div class="tabs-container" [hidden]="isSessionLoading || !showSidePanel()">
+  <mat-tab-group
+    animationDuration="0ms"
+    [(selectedIndex)]="selectedIndex"
+    (selectedTabChange)="onTabChange($event)">
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span class="tab-label">{{ i18n.infoTabLabel }}</span>
+      </ng-template>
+      @if (selectedSpan()) {
+        <app-trace-tab [traceData]="traceData()" [sessionId]="sessionId()" [studentId]="studentId()" (switchToEvent)="switchToEvent.emit($event)"></app-trace-tab>
+      } @else if (selectedEvent()) {
+        <app-event-tab
+          [eventDataSize]="eventData().size"
+          [eventDataMap]="eventData()"
+          [selectedEventIndex]="selectedEventIndex()"
+          [selectedEvent]="selectedEvent()"
+          [traceData]="traceData()"
+          [filteredSelectedEvent]="filteredSelectedEvent()"
+          [renderedEventGraph]="renderedEventGraph()"
+          [rawSvgString]="rawSvgString()"
+          [appName]="appName()"
+          [selectedEventGraphPath]="selectedEventGraphPath()"
+          [llmRequest]="llmRequest()"
+          [llmResponse]="llmResponse()"
+          [hasSubWorkflows]="hasSubWorkflows()"
+          [graphsAvailable]="graphsAvailable()"
+          [invocationDisplayMap]="invocationDisplayMap()"
+          [forceGraphTab]="forceGraphTab()"
+          [isViewOnlySession]="isViewOnlySession()"
+          [isViewOnlyAppNameMismatch]="isViewOnlyAppNameMismatch()"
+          (page)="page.emit($event)"
+          (closeSelectedEvent)="closeSelectedEvent.emit()"
+          (openImageDialog)="openImageDialog.emit($event)"
+          (switchToTraceView)="switchToTraceView.emit()"
+          (showAgentStructureGraph)="showAgentStructureGraph.emit($event)"
+          (drillDownNodePath)="drillDownNodePath.emit($event)"
+          (selectEventById)="selectEventById.emit($event)"
+          (jumpToInvocation)="jumpToInvocation.emit($event)"
+        ></app-event-tab>
+      } @else {
+        <div class="empty-state">Select an event or trace span to view details</div>
+      }
+    </mat-tab>
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span class="tab-label">{{ i18n.stateTabLabel }}</span>
+      </ng-template>
+      <app-state-tab [sessionState]="currentSessionState()"></app-state-tab>
+    </mat-tab>
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span class="tab-label">Memory</span>
+      </ng-template>
+      <app-memory-tab [appName]="appName()" [sessionId]="sessionId()" [studentId]="studentId()" [eventCount]="eventData().size"></app-memory-tab>
+    </mat-tab>
+    @if (isArtifactsTabEnabledObs | async) {
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="tab-label">{{ i18n.artifactsTabLabel }}</span>
+        </ng-template>
+        <app-artifact-tab [artifacts]="artifacts()"> </app-artifact-tab>
+      </mat-tab>
+    }
+    @if (isTestsEnabledObs | async) {
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="tab-label">{{ i18n.testsTabLabel }}</span>
+        </ng-template>
+        <app-tests-tab [appName]="appName()" [sessionId]="sessionId()" [userId]="userId()" [isViewOnlySession]="isViewOnlySession()" (testSelected)="testSelected.emit($event)"></app-tests-tab>
+      </mat-tab>
+    }
+    @if (isEvalEnabledObs | async) {
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="tab-label">{{ i18n.evalTabLabel }}</span>
+        </ng-template>
+        <ng-container #evalTabContainer></ng-container>
+      </mat-tab>
+    }
+  </mat-tab-group>
+</div>
+}
+<div class="resize-handler"></div>
