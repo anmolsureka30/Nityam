@@ -82,12 +82,28 @@ def script_reply(session_id: str, said: str) -> None:
     """Write whatever this utterance would plausibly have made the tutor write."""
     low = said.lower()
 
-    if "just opened" in low:
+    # The three modes open differently, so the mock does too — otherwise mock
+    # mode cannot demonstrate the one thing the modes were added for.
+    if "has opened a revision session" in low:
         _note(
             session_id,
             "Mr. Deshpande asked why [[45°|projectile.launch_angle]] is special and "
-            "then the bell went. Let's not look it up — work it out.",
+            "then the bell went. Let's pick that up — what do you think decides "
+            "how far it goes?",
         )
+        return
+
+    if "has opened exam preparation" in low:
+        _note(
+            session_id,
+            "Straight to the thing that costs you marks: you reach for "
+            "[[speed|projectile.launch_speed]] when the question is about "
+            "[[angle|projectile.launch_angle]]. Here is one the way the paper asks it.",
+        )
+        return
+
+    if "has opened a doubt session" in low:
+        _note(session_id, "Tell me what's bothering you and we'll take it apart.")
         return
 
     if "answered checkpoint" in low:

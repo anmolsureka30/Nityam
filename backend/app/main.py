@@ -43,7 +43,9 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from app import incoming, sessions  # noqa: E402
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+from app import logs  # noqa: E402
+
+logs.setup()
 log = logging.getLogger("nityam")
 
 APP_NAME = "nityam"
@@ -109,6 +111,16 @@ def build_run_config():
 @app.websocket("/ws/{user_id}/{session_id}")
 async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
     await ws.accept()
+    # First thing, before any other log line: opens backend/logs/<...>.log and
+    # sets the ContextVar every task under this connection inherits. Everything
+    # from here on is recorded in full, per session, whatever else it prints.
+    logs.open_session(
+        session_id,
+        user_id,
+        mode=MODE,
+        live_model=os.getenv("NITYAM_RESOLVED_LIVE_MODEL", ""),
+        detail=describe(),
+    )
     state = sessions.get(session_id, student_id=user_id)
     await send_control(
         ws,
@@ -127,6 +139,8 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
         log.info("disconnected user=%s", user_id)
     finally:
         log.info("closed user=%s", user_id)
+        # Prints the turn timeline to the terminal and appends it to the file.
+        logs.close_session(session_id)
 
 
 async def send_control(ws: WebSocket, **payload) -> None:
@@ -148,6 +162,7 @@ async def nudges(sink, session_id: str) -> None:
     while True:
         text = await state.nudges.get()
         log.info("nudge: %s", text[:140])
+        log.debug("nudge in full: %s", text)
         sink.text(text)
 
 
@@ -156,9 +171,12 @@ async def outbound(ws: WebSocket, session_id: str) -> None:
     state = sessions.get(session_id)
     while True:
         patch = await state.outbox.get()
-        await send_control(
-            ws, kind="canvas_patch", patch=patch.model_dump(exclude_none=True)
-        )
+        payload = patch.model_dump(exclude_none=True)
+        # INFO gets the shape, DEBUG (the file) gets the whole block. An
+        # artifact's IR is several kilobytes and belongs in exactly one of those.
+        log.info("→ patch %s", payload.get("op", "?"))
+        log.debug("patch in full: %s", json.dumps(payload, ensure_ascii=False))
+        await send_control(ws, kind="canvas_patch", patch=payload)
 
 
 # --------------------------------------------------------- shared upstream
@@ -172,6 +190,8 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
     once.
     """
     state = sessions.get(session_id)
+    frames = 0
+    audio_bytes = 0
     while True:
         msg = await ws.receive()
         if msg.get("type") == "websocket.disconnect":
@@ -180,6 +200,17 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
         if msg.get("bytes") is not None:
             # Raw PCM16 @16kHz mono, straight off the AudioWorklet. ADK does no
             # format conversion — the wrong rate is garbage, not an error.
+            frames += 1
+            audio_bytes += len(msg["bytes"])
+            # Every frame would be 50 lines a second. A running total every few
+            # seconds answers the question the frames are there to answer: is
+            # the microphone actually reaching this process at all? Silence in
+            # this counter is the signature of the mute/StrictMode class of bug.
+            if frames % 250 == 0:
+                log.debug(
+                    "mic: %s frames, %.1fs of audio (%.0f kB)",
+                    frames, audio_bytes / 32000, audio_bytes / 1000,
+                )
             sink.audio(msg["bytes"])
             continue
 
@@ -193,7 +224,13 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
         kind = payload.get("type")
 
         if kind == "text" and payload.get("text"):
+            logs.heard(payload["text"])
+            log.info('  student typed: "%s"', payload["text"][:120])
             sink.text(payload["text"])
+
+        elif kind == "start":
+            incoming.apply_plan(state, payload)
+            log.info("session plan: %s", state.plan)
 
         elif kind == "greet":
             # The agent is told to open the conversation, but nothing makes it
@@ -202,7 +239,7 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             topic = ""
             if state.board.pages and state.board.pages[0].blocks:
                 topic = getattr(state.board.pages[0].blocks[0], "text", "")
-            sink.text(incoming.describe_greeting(topic))
+            sink.text(incoming.describe_greeting(state, topic))
 
         elif kind == "gesture" and payload.get("packet"):
             packet = payload["packet"]
@@ -210,16 +247,22 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             ask = bool(payload.get("ask"))
             line = incoming.describe_gesture(packet, ask=ask)
             log.info("gesture (%s): %s", "asked" if ask else "context", line[:150])
+            log.debug("gesture packet: %s", json.dumps(packet, ensure_ascii=False))
+            log.debug("gesture as sent to the model: %s", line)
+            logs.count("highlight")
             sink.text(line, partial=not ask)
 
         elif kind == "screen":
             # Not sent to the model: it would be a message per slider frame.
             # It sits in state until the tutor calls read_screen.
             incoming.apply_screen(state, payload)
+            log.debug("screen: %s", json.dumps(payload, ensure_ascii=False)[:2000])
 
-        elif kind == "textbook_clip" and payload.get("image"):
+        elif kind == "textbook_clip" and payload.get("clips"):
             line = incoming.take_clip(state, payload)
             log.info("textbook clip: %s", line[:150])
+            log.debug("clip payload: %s", json.dumps(payload, ensure_ascii=False)[:2000])
+            logs.count("textbook clip", len(payload["clips"]))
             sink.text(line)
 
         elif kind == "artifact_evidence" and payload.get("event"):
@@ -337,22 +380,31 @@ def trace(event) -> None:
                 args = str(call.args)
                 log.info("→ TOOL CALL %s calls %s(%s)", who, call.name,
                          args[:200] + ("…" if len(args) > 200 else ""))
+                # Truncation is right for the terminal and wrong for a record
+                # you are going to read afterwards to work out what she meant.
+                log.debug("  args in full: %s", args)
 
         response = part.function_response
         if response and response.name != "transfer_to_agent":
             got = str(response.response)
             log.info("← TOOL DONE %s got %s -> %s", who, response.name,
                      got[:200] + ("…" if len(got) > 200 else ""))
+            log.debug("  result in full: %s", got)
 
     # A consolidated transcription can be empty (end-of-turn marker); logging
     # those just adds blank lines.
     if event.output_transcription and event.partial is False:
         said = event.output_transcription.text.strip()
         if said:
+            logs.spoke(said)
             log.info('  %s says: "%s"', who, said)
     if event.input_transcription and event.partial is False:
         heard = event.input_transcription.text.strip()
         if heard:
+            # The turn clock restarts here, not when the audio started: this is
+            # the moment the model decided the student had finished, and T+ is
+            # meant to read as "how long since I stopped talking".
+            logs.heard(heard)
             log.info('  student said: "%s"', heard)
     if event.interrupted:
         log.info("!! INTERRUPTED %s was cut off by the student", who)
@@ -382,7 +434,11 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
             # exactly as the real path does.
             if partial:
                 return
-            if "just opened" in text:
+            # Keyed on the wording the real greeting uses; see
+            # incoming.describe_greeting. When that wording changed this silently
+            # stopped matching and the mock greeting arrived as an ordinary reply
+            # several seconds late, which broke two unrelated tests.
+            if "has opened" in text:
                 live.greet()
             else:
                 live.send_text(text)

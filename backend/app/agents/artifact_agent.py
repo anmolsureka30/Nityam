@@ -29,7 +29,7 @@ import uuid
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
-from app import config, sessions
+from app import config, logs, sessions
 from app.canvas import doc as D
 from app.memory.tools import get_dpm, get_teaching_memory, log_artifact_evidence
 
@@ -146,6 +146,8 @@ async def _build(session_id: str, spec, interest: str, placeholder_id: str) -> N
         return
 
     log.info("artifact %s mounted as %s — %s", artifact_id, block.id, provenance)
+    log.debug("artifact IR: %s", json.dumps(ir, ensure_ascii=False))
+    logs.count("artifact landed")
     title = ir.get("title") or "the simulation"
     sessions.nudge(
         session_id,
@@ -214,22 +216,30 @@ async def create_artifact(
     tool_context.state["artifacts_generated"] = generated
 
     log.info("artifact build started for session %s", session_id)
+    log.debug("artifact spec: %s", artifact_spec)
+    logs.count("artifact started")
     return {
         "status": "building",
         "eta_seconds": 30,
         "next": (
-            "Do not wait and do not go quiet. Tell the student it is coming, "
-            "then keep teaching — a question, a worked step, or a checkpoint. "
-            "You will be told when it lands."
+            "Say one line that it is coming, then IMMEDIATELY teach something "
+            "in the same turn — ask them to predict what the simulation will "
+            "show, work a number, or set a checkpoint. Do not end your turn "
+            "with an open invitation like 'let me know when you're ready': that "
+            "hands the lesson back to a student who came here not to have to "
+            "run it. You will be told the moment it lands."
         ),
     }
 
 
 ARTIFACT_INSTRUCTION = """You turn a pedagogical need into one interactive artifact.
 
-Read get_dpm and get_teaching_memory to calibrate: a student who is "partial"
-on a concept needs a more scaffolded artifact than one who is "known". Call
-create_artifact exactly once with a clear intent.
+Call create_artifact IMMEDIATELY, in your first message, exactly once. Do not
+look anything up first. get_dpm and get_teaching_memory are here only for the
+rare case where the tutor's brief is too thin to configure an artifact at all —
+every call you make is another three seconds before the build even starts, and
+the tutor already has this student's record in its own prompt and has put what
+matters into the brief.
 
 Then report back ONLY the artifact_id, block_id and title. Do not describe the
 artifact in prose — the visual IS the explanation, and the tutor will do the

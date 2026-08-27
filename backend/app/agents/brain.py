@@ -52,6 +52,7 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.tools import ToolContext
 from google.genai import types
 
+from app import logs
 from app.agents.tutor_agent import build_tutor_agent
 
 log = logging.getLogger("nityam.brain")
@@ -120,6 +121,34 @@ async def _ensure_session(session_id: str, student_id: str) -> None:
 _MARKUP = re.compile(r"\$+|\\[a-zA-Z]+|[*_`#]|\\[(){}\[\]]")
 
 
+def _record(session_id: str, student_id: str, asked: str, replied: str,
+            tool_context: ToolContext) -> None:
+    """Append the exchange to the session buffer, here rather than as a tool.
+
+    `log_turn` used to be something TutorAgent called, and every call is a model
+    round trip: two of them per turn, five to eight seconds of the student
+    listening to silence, for bookkeeping they never see. Both halves of the
+    exchange are already in hand at this point, so write them directly and give
+    the time back to teaching.
+    """
+    buffer = list(tool_context.state.get("turn_buffer", []))
+    for role, text in (("student", asked), ("tutor", replied)):
+        clean = (text or "").strip()
+        if not clean:
+            continue
+        # Stage directions are not things the student said.
+        if role == "student" and clean.startswith("["):
+            clean = clean[:400]
+        buffer.append({
+            "turn": len(buffer) + 1,
+            "role": role,
+            "text": clean[:2000],
+            "concept_id": None,
+            "artifact_id": None,
+        })
+    tool_context.state["turn_buffer"] = buffer
+
+
 def _speakable(text: str) -> str:
     """Strip markup from a reply that is about to be read aloud.
 
@@ -132,7 +161,22 @@ def _speakable(text: str) -> str:
     return " ".join(cleaned.split()).strip()
 
 
-async def ask_tutor(request: str, tool_context: ToolContext) -> dict:
+_PROMISE = re.compile(
+    r"\b(board|page|screen|simulation|artifact|diagram|figure|likh|daal|"
+    r"dekh|bhej)\w*", re.IGNORECASE
+)
+
+
+def _promises_a_visual(reply: str) -> bool:
+    """Does this reply tell the student to look at something?
+
+    Deliberately generous — it only gates a log line, and a false positive costs
+    one WARNING while a false negative costs a silent lie.
+    """
+    return bool(_PROMISE.search(reply or ""))
+
+
+async def ask_tutor(bridge: str, request: str, tool_context: ToolContext) -> dict:
     """Consult your teaching layer. Use this for anything with teaching content.
 
     It decides what to teach, grounds it in this student's own lecture, writes on
@@ -140,6 +184,10 @@ async def ask_tutor(request: str, tool_context: ToolContext) -> dict:
     short line to say out loud.
 
     Args:
+        bridge: The one short thing you would have said before going quiet —
+            "achha, ek second", "good question, let me look at that with you".
+            The student sees it the instant you call this, so they know you
+            heard them. Required: never call this without one.
         request: What the student needs, in your own words — their question or
             doubt, plus anything you noticed. Be specific: "explain why 45
             degrees maximises range, they think it is about throwing harder"
@@ -150,6 +198,14 @@ async def ask_tutor(request: str, tool_context: ToolContext) -> dict:
     """
     session_id = tool_context.state.get("session_id") or "unknown"
     student_id = tool_context.state.get("student_id") or "demo_student"
+
+    # `bridge` needs no delivery code: the whole function_call, arguments and
+    # all, is already forwarded to the browser in main.py's downstream() frame.
+    # The frontend reads it off that event and puts it in her speech bubble
+    # while this runs. That is why it is a parameter rather than a separate
+    # message — see the note above VOICE_INSTRUCTION.
+    log.info("bridge: %r", (bridge or "").strip()[:120])
+    log.debug("request in full: %s", request)
 
     try:
         await _ensure_session(session_id, student_id)
@@ -182,7 +238,8 @@ async def ask_tutor(request: str, tool_context: ToolContext) -> dict:
                     said.append(part.text)
 
     try:
-        await asyncio.wait_for(drive(), timeout=TIMEOUT_S)
+        with logs.span("ask_tutor"):
+            await asyncio.wait_for(drive(), timeout=TIMEOUT_S)
     except asyncio.TimeoutError:
         log.warning("brain timed out after %ss on %r", TIMEOUT_S, request[:80])
         return {
@@ -194,10 +251,34 @@ async def ask_tutor(request: str, tool_context: ToolContext) -> dict:
         return {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
 
     reply = _speakable(" ".join(said))
+    _record(session_id, student_id, request, reply, tool_context)
     log.info("brain replied in %s tool call(s): %r", len(calls), reply[:120])
+    log.debug("reply in full: %s", reply)
+    log.debug("tools used: %s", calls)
+
+    # Ground truth for the voice layer, so it never has to take the reply's word
+    # for what happened. A reply that says "look at the board" while `wrote` is
+    # False is the exact failure this session was full of, and now it is one
+    # WARNING in the log rather than five minutes of a student staring at an
+    # unchanged page.
+    wrote = [c for c in calls if c.startswith("write_") or c == "show_textbook_figure"]
+    building = "ArtifactAgent" in calls or "create_artifact" in calls
+    if _promises_a_visual(reply) and not (wrote or building):
+        log.warning(
+            "PROMISE WITHOUT ACTION — the reply says something appeared but no "
+            "board or artifact tool was called this turn: %r",
+            reply[:160],
+        )
+        logs.count("empty promise")
+
     if not reply:
         return {
             "reply": "I've put that on your board — take a look.",
             "tools_used": calls,
         }
-    return {"reply": reply, "tools_used": calls}
+    return {
+        "reply": reply,
+        "tools_used": calls,
+        "wrote_on_board": bool(wrote),
+        "artifact_building": building,
+    }

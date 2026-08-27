@@ -18,6 +18,10 @@ from app.auth import configure, describe, load_env
 load_env()
 MODE = configure()
 
+from app import logs  # noqa: E402
+
+logs.setup()
+
 from google.adk.apps import App  # noqa: E402
 from google.adk.runners import Runner  # noqa: E402
 from google.adk.sessions import InMemorySessionService  # noqa: E402
@@ -51,11 +55,15 @@ async def main(turns: list[str]) -> int:
         app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID,
         state={"session_id": SESSION_ID, "student_id": USER_ID},
     )
+    # A text-mode run gets the same per-session file and the same turn timeline
+    # as a real lesson — this is the cheap way to read that table.
+    logs.open_session(SESSION_ID, USER_ID, mode=MODE, driver="scripts.drive")
 
     tool_calls: list[str] = []
 
     for turn in turns:
         print(f"\n\033[1mstudent:\033[0m {turn}\n")
+        logs.heard(turn)
         said: list[str] = []
         async for event in runner.run_async(
             user_id=USER_ID,
@@ -120,6 +128,7 @@ async def main(turns: list[str]) -> int:
         print(f"  \033[31mPROBLEM\033[0m {p}")
     if not problems:
         print("  \033[32mthe loop is intact\033[0m: grounded, wrote to the board, patches queued")
+    logs.close_session(SESSION_ID)
     return 1 if problems else 0
 
 

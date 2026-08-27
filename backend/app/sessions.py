@@ -41,6 +41,22 @@ OPENING_CONCEPT = os.getenv("NITYAM_TOPIC_CONCEPT", "projectile.horizontal_range
 
 
 @dataclass
+class Plan:
+    """What this session is for.
+
+    Three buttons on the home screen led to one identical conversation that
+    opened by asking what the student wanted to do — which is the wrong
+    question when they just pressed "Revise today's class" on a named concept.
+    """
+
+    mode: str = "doubt"          # revision | doubt | exam
+    concept: str = ""
+    concept_name: str = ""
+    intensity: str = ""
+    minutes: int = 0
+
+
+@dataclass
 class Screen:
     """What the student is looking at, as last reported by the browser.
 
@@ -63,6 +79,7 @@ class SessionState:
     board: D.CanvasDoc
     minter: D.IdMinter
     screen: Screen
+    plan: Plan
     outbox: asyncio.Queue
     """Things to say into the live conversation that nobody asked for — an
     artifact finishing in the background, mostly. Drained by main.py and sent
@@ -108,6 +125,7 @@ def get(session_id: str, student_id: str = "demo_student") -> SessionState:
             board=_new_board(session_id),
             minter=D.IdMinter(),
             screen=Screen(),
+            plan=Plan(),
             outbox=asyncio.Queue(),
             nudges=asyncio.Queue(),
             jobs=set(),

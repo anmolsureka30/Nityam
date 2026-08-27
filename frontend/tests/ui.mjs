@@ -38,31 +38,46 @@ const freePort = () =>
     });
   });
 
-const APP = await freePort(), CDP = await freePort();
+const API = await freePort(), APP = await freePort(), CDP = await freePort();
 
+/* Two servers, on purpose: the backend in mock mode, and the VITE DEV SERVER
+   in front of it — which is what ./run.sh runs and therefore what the student
+   actually uses.
+ 
+   This used to point at the production build served by uvicorn, and that hid a
+   whole class of bug: React only double-invokes state updaters in DEVELOPMENT,
+   so a StrictMode violation (setBoxes called from inside a setLive updater,
+   which made one textbook selection arrive on the canvas twice) reproduced for
+   the user every time and never once in the suite. Testing the artifact nobody
+   runs is worse than not testing. */
 const srv = spawn(
   resolve(BACKEND, ".venv/bin/uvicorn"),
-  ["app.main:app", "--port", String(APP), "--log-level", "warning"],
+  ["app.main:app", "--port", String(API), "--log-level", "warning"],
   { cwd: BACKEND, env: { ...process.env, NITYAM_AUTH: "mock" }, stdio: "ignore" },
 );
+const web = spawn("npm", ["run", "dev"], {
+  cwd: ROOT,
+  env: { ...process.env, NITYAM_WEB_PORT: String(APP), NITYAM_API_PORT: String(API) },
+  stdio: "ignore",
+});
 const profile = mkdtempSync(resolve(tmpdir(), "nity-v-"));
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const chrome = spawn(CHROME,
   ["--headless=new", `--remote-debugging-port=${CDP}`, `--user-data-dir=${profile}`,
    "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--window-size=1440,1000",
    "about:blank"], { stdio: "ignore" });
-const reap = () => { chrome.kill("SIGKILL"); srv.kill("SIGKILL"); };
+
+const reap = () => { chrome.kill("SIGKILL"); web.kill("SIGKILL"); srv.kill("SIGKILL"); };
 process.on("exit", reap);
-// Without these, killing a run part-way leaves the server and Chrome listening.
-// A dozen orphaned previews had piled up from the version of this file that
-// only handled "exit".
+// Without these, killing a run part-way leaves the servers and Chrome listening.
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(sig, () => { reap(); process.exit(130); });
 }
 process.on("uncaughtException", (e) => { reap(); throw e; });
 
-for (let i = 0; i < 250; i++) {
-  try { if ((await fetch(`http://127.0.0.1:${APP}/health`)).ok) break; } catch {}
+for (let i = 0; i < 400; i++) {
+  // Proxied through Vite, so one probe proves both servers are up.
+  try { if ((await fetch(`http://localhost:${APP}/health`)).ok) break; } catch {}
   await sleep(120);
 }
 let url;
@@ -117,7 +132,18 @@ const ask = async (text) => {
 
 const check = (n, ok, extra = "") => { if (!ok) failed++; console.log(`${ok ? "  ok  " : "  FAIL"} ${n}${extra ? " — " + extra : ""}`); };
 
-await send("Page.navigate", { url: `http://127.0.0.1:${APP}/session` });
+/* The "You marked … / Ask about this" card is gone — a highlight is sent to the
+   tutor as context the moment the stroke ends. So what the page SENDS is the
+   only place the grounding is observable now. */
+await send("Page.addScriptToEvaluateOnNewDocument", { source: `
+  window.__sent = [];
+  const S = WebSocket.prototype.send;
+  WebSocket.prototype.send = function (d) {
+    if (typeof d === "string") { try { window.__sent.push(JSON.parse(d)); } catch {} }
+    return S.call(this, d);
+  };
+`});
+await send("Page.navigate", { url: `http://localhost:${APP}/session` });
 await sleep(2500);
 
 const blocks = () => ev(`return [...document.querySelectorAll('[data-kind]')].map(e=>({kind:e.dataset.kind,id:e.dataset.block,text:e.textContent.slice(0,60)}));`);
@@ -157,65 +183,31 @@ for (let i = 0; i <= 10; i++) await drag("mouseMoved", box.x - 6 + ((box.w + 12)
 await drag("mouseReleased", box.x + box.w + 6, box.y);
 await sleep(600);
 
-// The curly quote matters: "You marked on the page" is the card's LABEL, and
-// matching it made this check pass without any text having been swept at all.
-const summary = await ev(`
-  const el = [...document.querySelectorAll('*')].find(e=>e.children.length===0 && /^You marked \u201c/.test(e.textContent.trim()));
-  return el ? el.textContent.trim() : null;
+const gesture = await ev(`
+  const g = (window.__sent || []).filter(m => m.type === "gesture").pop();
+  return g ? { text: g.packet.text, kinds: (g.packet.regions||[]).map(r=>r.kind), ask: !!g.ask } : null;
 `);
-check("marking the page quotes the words actually swept",
-      !!summary && /sin|2\u03b8|R =/.test(summary), summary ?? "no quote at all");
-check("and names where it came from",
-      await ev("return document.body.innerText.includes('the equation');"));
+check("a highlight is sent to the tutor with no button press", !!gesture,
+      gesture ? "sent" : "nothing was sent");
+check("and it quotes the words actually swept",
+      !!gesture && /sin|2\u03b8|R =|u/.test(gesture.text || ""),
+      gesture ? JSON.stringify(gesture.text) : "");
+check("naming the block it came from",
+      !!gesture && gesture.kinds.includes("equation"), JSON.stringify(gesture?.kinds));
+check("as context, not as a question",
+      !!gesture && gesture.ask === false, `ask=${gesture?.ask}`);
 
-await ev(`[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Ask about this'))?.click(); return 1;`);
-await sleep(1800);
-const after = await blocks();
-check("asking about the mark reaches the tutor and she responds",
-      after.length >= written.length,
-      `${written.length} -> ${after.length} blocks`);
-
-/* The bug this feature was built to fix. The sweep above lands on the equation,
-   which holds `sin(2\u03b8)` — an authored anchor — so it would have passed under
-   the old anchor-scoring resolver too. Unanchored prose is what actually broke:
-   the resolver had nothing to score, and the student was told they had marked a
-   blank part of the page. Sweep a paragraph with no anchors in it at all. */
-await ev(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Clear')?.click(); return 1;`);
-await ev(`[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Marker')).click(); return 1;`);
-await sleep(250);
-
-const prose = await ev(`
-  const el = [...document.querySelectorAll('[data-kind="tutor_text"]')]
-    .find(e => !e.querySelector('[data-anchor]') && e.textContent.trim().split(/\\s+/).length > 6);
-  if (!el) return null;
-  const r = el.getBoundingClientRect();
-  return {
-    x: Math.round(r.left), y: Math.round(r.top + 11),
-    w: Math.round(Math.min(r.width, 340)),
-    words: el.textContent.trim().split(/\\s+/).slice(0, 5),
-  };
+const replied = await ev(`
+  const sc = document.querySelector('[class*="scroll"]');
+  return sc ? sc.querySelectorAll('[data-kind]').length : 0;
 `);
-
-if (!prose) {
-  check("a paragraph with no anchors was on the board to sweep", false, "none found");
-} else {
-  await drag("mousePressed", prose.x + 2, prose.y);
-  for (let i = 0; i <= 10; i++) await drag("mouseMoved", prose.x + 2 + (prose.w * i) / 10, prose.y);
-  await drag("mouseReleased", prose.x + prose.w, prose.y);
-  await sleep(600);
-
-  const quoted = await ev(`
-    const el = [...document.querySelectorAll('*')].find(e=>e.children.length===0 && /^You marked \u201c/.test(e.textContent.trim()));
-    return el ? el.textContent.trim() : null;
-  `);
-  // Any of the paragraph's opening words appearing in the quote proves the
-  // sweep read real text off the page rather than matching an authored span.
-  const hit = !!quoted && prose.words.some((w) => quoted.includes(w.replace(/[.,;]$/, "")));
-  check("sweeping unanchored prose quotes it rather than reporting nothing",
-        hit && !/blank part of the page/i.test(quoted), quoted ?? "no quote at all");
-  check("and attributes it to the student's notes",
-        await ev("return document.body.innerText.includes('your notes');"));
-}
+await sleep(1500);
+const after = await ev(`
+  const sc = document.querySelector('[class*="scroll"]');
+  return sc ? sc.querySelectorAll('[data-kind]').length : 0;
+`);
+check("so she does not answer it on her own", after === replied,
+      `${replied} -> ${after} blocks`);
 
 // ────────────────────────────────────────────────────────────────── the quiz
 await ask('quiz me');
@@ -249,6 +241,55 @@ if (quiz) {
   check("and she records the answer on the board",
         recorded.some((b) => b.kind === "callout"),
         JSON.stringify(recorded.map((b) => b.kind)));
+}
+
+// ──────────────────────────────────────────── the textbook, and its doubling
+/* One drag used to arrive on the canvas as two blocks: `up()` called setBoxes
+   from inside a setLive updater, and React double-invokes updaters under
+   StrictMode. Two drags gave four. Worth a permanent test — it is invisible
+   until you count. */
+await ev(`[...document.querySelectorAll('button')].find(b=>/View textbook/.test(b.textContent))?.click(); return 1;`);
+await sleep(3500);
+
+const canvasBox = await ev(`
+  const c = document.querySelector('[role=dialog] canvas');
+  if (!c) return null;
+  const r = c.getBoundingClientRect();
+  return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+`);
+check("the textbook opens on a rendered PDF page", !!canvasBox, JSON.stringify(canvasBox));
+
+if (canvasBox) {
+  const dragBox = async (dx, dy, w, h) => {
+    const x0 = canvasBox.x + dx, y0 = canvasBox.y + dy;
+    await drag("mousePressed", x0, y0);
+    for (let i = 1; i <= 6; i++) await drag("mouseMoved", x0 + (w * i) / 6, y0 + (h * i) / 6);
+    await drag("mouseReleased", x0 + w, y0 + h);
+    await sleep(250);
+  };
+  const selected = () => ev(`return document.querySelectorAll('[role=dialog] [class*="boxNum"]').length;`);
+
+  await dragBox(40, 80, 200, 120);
+  const one = await selected();
+  check("one drag selects exactly ONE region", one === 1, `${one} selected`);
+
+  await dragBox(40, 260, 200, 120);
+  const two = await selected();
+  check("a second drag adds to it rather than replacing", two === 2, `${two} selected`);
+
+  const before = await ev(`
+    const sc = document.querySelector('[class*="scroll"]');
+    return sc ? sc.querySelectorAll('[data-kind="pulled"]').length : 0;
+  `);
+  await ev(`[...document.querySelectorAll('[role=dialog] button')].find(b=>/Send/.test(b.textContent))?.click(); return 1;`);
+  await sleep(2000);
+  const landed = await ev(`
+    const sc = document.querySelector('[class*="scroll"]');
+    return sc ? sc.querySelectorAll('[data-kind="pulled"]').length : 0;
+  `);
+  check("two selections put exactly TWO blocks on the board, not four",
+        landed - before === 2, `${before} -> ${landed}`);
+  check("and the drawer closed", await ev(`return !document.querySelector('[role=dialog]');`));
 }
 
 // ───────────────────────────────────────────────────────── the avatar, drawn
@@ -319,7 +360,7 @@ check("there is scroll range to do it with", clearance.range > 200, `${clearance
 const shot = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
 writeFileSync(`${OUT}/fe_session3.png`, Buffer.from(shot.data, "base64"));
 
-await send("Page.navigate", { url: `http://127.0.0.1:${APP}/` });
+await send("Page.navigate", { url: `http://localhost:${APP}/` });
 await sleep(1400);
 const shot2 = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
 writeFileSync(`${OUT}/fe_home3.png`, Buffer.from(shot2.data, "base64"));

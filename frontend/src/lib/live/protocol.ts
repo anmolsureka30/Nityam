@@ -12,23 +12,32 @@ import type { Anchor, Checkpoint, NotebookBlock } from "../types";
 
 export type ClientMessage =
   | { type: "text"; text: string }
+  /** What this session is FOR, sent before the greeting. Without it every
+   *  session opens the same way — "what would you like to work on?" — which is
+   *  the wrong question when the student pressed "Revise today's class". */
+  | {
+      type: "start";
+      mode: "revision" | "doubt" | "exam";
+      concept?: string;
+      conceptName?: string;
+      intensity?: string;
+      minutes?: number;
+    }
   | { type: "greet" }
   /** `ask: true` means answer it now; without it the mark is context to be
    *  held for whatever the student says next. */
   | { type: "gesture"; packet: unknown; ask?: boolean }
   | { type: "screen"; state: ScreenState }
   | { type: "artifact_evidence"; artifactId: string; event: string; detail?: string }
-  /** A region the student clipped out of the textbook PDF. The image is a data
-   *  URL rasterised in the browser; `text` is whatever words fell inside the
+  /** The regions the student clipped out of the textbook PDF. Images are data
+   *  URLs rasterised in the browser; `text` is whatever words fell inside each
    *  box, which is usually the figure's caption and is what makes the clip
-   *  legible to the tutor. */
+   *  legible to the tutor. Sent as one message so she reacts once. */
   | {
       type: "textbook_clip";
-      image: string;
-      text: string;
+      clips: { image: string; text: string; page: number }[];
       chapter: string;
       chapterTitle: string;
-      page: number;
     }
   | {
       type: "quiz_answer";

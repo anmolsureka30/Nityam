@@ -61,7 +61,7 @@ export default function ReadinessScreen() {
         <Card size="lg">
           <Label tone="accent">Recommended next</Label>
           <p className={s.recText}>{readinessRecommendation}</p>
-          <Button variant="primary" block onClick={() => nav(`/intensity/${worst.id}`)}>
+          <Button variant="primary" block onClick={() => nav(`/session?mode=exam&concept=${worst.id}`)}>
             Start that session
           </Button>
         </Card>

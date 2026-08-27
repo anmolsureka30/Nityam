@@ -43,7 +43,7 @@ export default function IntensityScreen() {
           ))}
         </div>
 
-        <Button variant="primary" block onClick={() => nav("/session")}>
+        <Button variant="primary" block onClick={() => nav(`/session?mode=revision&concept=${conceptId}&intensity=${picked}`)}>
           Begin session
         </Button>
       </div>
