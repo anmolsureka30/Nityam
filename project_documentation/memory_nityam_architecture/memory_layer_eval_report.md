@@ -34,6 +34,15 @@ so it was reverted, and the final confirmation run shows the underlying L1/L2 ga
 even on the safe, reverted baseline. That tradeoff, and the decision behind it, is documented in
 full in §5.
 
+> **§8 update (2026-08-27, same day):** the "session-close reflection... held up" claim above
+> needs a caveat. `reflect()` had a structured-output schema bug that made every one of the runs
+> behind this report's "49/49" number silently write nothing to Firestore on close — found later
+> the same day by a different route (live memory-state visualization work), not by this eval.
+> D4/D6, the two checks that should have caught it, both pass trivially in exactly the state the
+> bug produces (see §8 for why). The bug is fixed now, and real evidence the fix works exists
+> (§8), but the clean 49/49 number above has not yet been reconfirmed against the fixed code —
+> read §8 before treating this report's headline as still current.
+
 ---
 
 ## 1. What was run
@@ -316,4 +325,51 @@ fix the gap that motivated the attempt in the first place, and it didn't.
   (first post-fix run) and
   `sub_modules_examples/tutor/tests/eval/memory_eval/report/results_2026-08-27T07-20-54.452603+00-00.json`
   (final run of the investigation, post-revert)
+
+## 8. Fix #3: `reflect()`'s structured-output schema silently no-op'd every close_session (2026-08-27)
+
+Found the same day, by a different route than this eval: building live memory-state
+visualization (the SMRITI Observatory's ADK-web integration) drove real conversations through
+`close_session` and inspected the actual Firestore writes directly, rather than relying on this
+eval's own pass/fail signal.
+
+**The bug:** `session_close.py`'s `ReflectResult.operations[].args` was typed `dict[str, Any]` —
+the schema handed to Gemini's structured output (`response_schema=ReflectResult`) as a result has
+no field names for the model to fill in. Confirmed live, twice: Gemini reliably returned
+`args: {}` for every proposed operation, silently dropped by `apply_operations`'s
+malformed-op guard (the same guard §5's citation-integrity design relies on to drop genuinely bad
+ops). `close_session` raised nothing and returned normally — it looked like it worked. No
+long-term memory was ever actually written by any of the runs behind this report's own "49/49"
+number, or the "found" test-driven-development history behind `apply_operations` itself.
+
+**Why D4/D6 (§1, §2) didn't catch it:** D4 only checks that a Firestore document exists with the
+right `student_id` after close — true even for an unchanged/empty profile, since `close_session`
+always calls `put_dpm`/`put_teaching_memory` regardless of whether any op applied. D6 checks
+citation-evidence integrity but explicitly short-circuits to `passed=True, detail="no evidence
+pointers to check"` when there's none — exactly the state a fully-empty-ops `reflect()` call
+produces. Both checks technically held (they proved what they actually check), but neither
+proves what the report's headline sentence claims ("session-close reflection... held up").
+
+**The fix:** a flat, fully-typed `_ReflectOpWire` schema handed to Gemini instead of
+`dict[str, Any]`, translated back to the original `ReflectOp(op, args)` shape by `_to_reflect_op`
+after parsing — every field gets a concrete JSON-schema type, so the model has something to fill
+in. Also spelled out the exact allowed `mastery`/`strength`/`status` enum values directly in
+`REFLECT_PROMPT` — live testing showed the model was separately inventing out-of-enum values
+(e.g. `mastery: "proficient"`, not in `{unknown, misconceived, partial, known, durable}`), dropped
+by the same guard for a second, independent reason. Ported into both
+`sub_modules_examples/tutor/app/session_close.py` and its manually-synced copy at
+`backend/app/session_close.py` (the latter had no test coverage at all for this path before this
+fix; `backend/tests/test_session_close.py` is new).
+
+**Live re-verification, quota-limited:** a full 5-persona `run_eval.py` re-run was attempted
+after the fix landed to reconfirm this report's headline numbers on the corrected code, and hit
+`429 RESOURCE_EXHAUSTED` on the Vertex AI Express Mode key partway through both attempts (this
+session had already made a large number of real Gemini calls). Persona 1 (Arjun, all 3 sessions)
+completed in full on the second attempt before the process died on persona 2; its post-close
+Firestore state was inspected directly before the harness's own cleanup ran: real weaknesses with
+evidence citations, two self-reflection notes, five curriculum coverage entries, one open doubt —
+genuinely rich output, not the empty-profile state the bug produced. That's real confirmation the
+fix works end to end through the actual harness, but **not** a substitute for the full clean
+5-persona run this report's "49/49" number is built on — that reconfirmation is still owed, next
+time quota allows a full run without interruption.
 - Rerun: `cd sub_modules_examples/tutor && uv run python -m tests.eval.memory_eval.run_eval`

@@ -1,14 +1,43 @@
 # SMRITI Observatory
 
-A real-time companion to Google ADK web: watches every SMRITI memory-layer
-read/write (workflow / episodic / long-term tiers) as a tutor agent session
-runs, correlated to the live OpenTelemetry trace span that caused it.
+Real-time visualization of every SMRITI memory-layer read/write (workflow / episodic /
+long-term tiers) as a tutor agent session runs, correlated to the live OpenTelemetry trace that
+caused it.
 
-See `docs/superpowers/specs/2026-08-27-smriti-observatory-design.md` for the
-full design, and `docs/superpowers/plans/2026-08-27-smriti-observatory.md`
-for how it was built.
+Two ways to see it — pick one:
 
-## Running locally
+## Option A: `adk-web/` — memory built into ADK web itself (recommended)
+
+A maintained fork of [google/adk-web](https://github.com/google/adk-web) with the memory layer
+wired directly in: a **Memory** tab in the side panel (next to State/Artifacts/Evals) showing
+Working/Episodic/Long-Term memory for the session's student, live, plus a "Memory operations from
+this trace" section inside the trace inspector. No second server — it reads
+`/memory/sessions/{id}/state` and `/events`, two endpoints added directly to the tutor app's own
+FastAPI server (`sub_modules_examples/tutor/app/app_utils/memory_routes.py`).
+
+```bash
+# 1. The tutor app (separate terminal, from sub_modules_examples/tutor/)
+ALLOW_ORIGINS=http://localhost:4200 uv run uvicorn app.fast_api_app:app --port 8010
+
+# 2. adk-web, pointed at it
+cd adk-web
+npm install                                       # first time only
+npm run serve --backend=http://127.0.0.1:8010 -- --port 4200
+```
+
+Open `http://localhost:4200`. Design rationale:
+`docs/superpowers/specs/2026-08-27-adk-web-memory-integration-design.md`.
+
+**Known caveat:** ADK web's own span data represents large (128-bit) OpenTelemetry trace IDs as
+JS numbers, which lose precision (renders as e.g. `1.5e+38`). This defeats the trace-tab memory
+section's exact-match correlation specifically — the Memory tab is unaffected. Worth a fix
+upstream in ADK web's own trace serialization.
+
+## Option B: `backend/` + `frontend/` — standalone companion app
+
+A separate React/FastAPI app that watches the same memory events over a WebSocket, styled as an
+ADK-web-adjacent companion rather than living inside it. Predates Option A; kept for now as a
+fallback since Option A is newer and less battle-tested end to end.
 
 ```bash
 # 1. The tutor app (separate terminal, from sub_modules_examples/tutor/)
@@ -25,7 +54,7 @@ Requires local Redis (`brew services start redis`) and `gcloud auth
 application-default login` against the `nityam-506707` project — see
 `backend/.env.example`.
 
-## Gotchas hit getting this running
+### Gotchas hit getting this running
 
 - **Backend won't import `app`:** uv's editable install of the `tutor`
   package writes a `.pth` file that isn't always picked up by `uv run`.
@@ -43,3 +72,7 @@ application-default login` against the `nityam-506707` project — see
 - **Port 8000 already taken:** if another process/session already has it,
   just run the tutor app on a different port and set `TUTOR_BASE_URL`
   accordingly for both the backend and the frontend's `VITE_TUTOR_BASE_URL`.
+
+See `docs/superpowers/specs/2026-08-27-smriti-observatory-design.md` for the
+full design, and `docs/superpowers/plans/2026-08-27-smriti-observatory.md`
+for how it was built.

@@ -1,3 +1,18 @@
+> **This is a fork.** Vendored from [google/adk-web](https://github.com/google/adk-web) with the
+> SMRITI memory layer built into ADK web's own side panel — a **Memory** tab
+> (`src/app/components/memory-tab/`) and a per-trace "Memory operations" section inside the trace
+> inspector (`src/app/components/trace-tab/`), reading two new endpoints on the tutor app's own
+> FastAPI server. See `smriti-observatory/README.md` (repo root) for how to run it and
+> `docs/superpowers/specs/2026-08-27-adk-web-memory-integration-design.md` for the design
+> rationale. Everything below this note is the original upstream README.
+>
+> To pull upstream changes: this fork has no `.git` history of its own (vendored as a plain copy,
+> not a git submodule/subtree) — diff against a fresh `git clone
+> https://github.com/google/adk-web` and reapply the changes under `src/app/components/memory-tab/`,
+> `src/app/components/memory-operation-row/`, `src/app/core/models/Memory.ts`,
+> `src/app/core/services/memory.service.ts` + `interfaces/memory.ts`, and the small diffs to
+> `side-panel.component.{ts,html}` and `trace-tab.component.{ts,html,scss}` manually.
+
 # Agent Development Kit Web UI (ADK WEB)
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
