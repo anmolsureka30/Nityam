@@ -28,7 +28,24 @@ export interface Clip {
   page: number;
 }
 
+/* A selection, stored as FRACTIONS of the page (0..1) rather than in the
+   canvas's backing-store pixels.
+
+   Backing pixels needed the canvas's rendered size to turn into CSS
+   percentages, that size was React state, and when the state was null
+   `asPercent` returned undefined — so the box div got no left/top/width/height
+   at all, collapsed to nothing, and became INVISIBLE while the drag carried on
+   working perfectly. That is the failure: you drag, nothing appears, no error.
+
+   Fractions need no size, no state and nothing that can be null. The only
+   place pixels are needed is cropping, and there the canvas is already in
+   hand. */
 interface Box { x: number; y: number; w: number; h: number; page: number }
+
+/** Below this fraction of the page in either direction it was a click, not a
+ *  selection. About 1.5% of the page at any zoom — the old 24-backing-pixel
+ *  floor, in a unit that does not depend on the render scale. */
+const MIN_FRACTION = 0.015;
 
 const CHAPTERS = catalogue as Chapter[];
 /** Rendered at 2× so a clipped diagram is not a blur on a retina screen. */
@@ -71,8 +88,6 @@ export default function TextbookDrawer({
      which made "send me the diagram AND its caption" impossible. */
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [live, setLive] = useState<Box | null>(null);
-  /** The rendered page's backing-store size, for placing the boxes. */
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
   /* Reported upward rather than lifted into the parent: the drawer owns which
      page is showing while it is open, and the parent only needs to know where
@@ -139,7 +154,6 @@ export default function TextbookDrawer({
       const viewport = pdfPage.getViewport({ scale: SCALE });
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      setSize({ w: canvas.width, h: canvas.height });
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.fillStyle = "#fff";
@@ -166,14 +180,15 @@ export default function TextbookDrawer({
     return () => { cancelled = true; };
   }, [busy, page, chapter]);
 
+  /** Where the pointer is on the page, as a fraction of it. Clamped, so a drag
+   *  that leaves the canvas cannot produce a box hanging off the edge. */
   const local = (e: React.PointerEvent) => {
     const canvas = canvasRef.current!;
     const r = canvas.getBoundingClientRect();
-    // The canvas is displayed smaller than its backing store; work in backing
-    // pixels so the crop is sharp rather than upscaled.
+    const clamp = (n: number) => Math.min(1, Math.max(0, n));
     return {
-      x: ((e.clientX - r.left) / r.width) * canvas.width,
-      y: ((e.clientY - r.top) / r.height) * canvas.height,
+      x: clamp((e.clientX - r.left) / r.width),
+      y: clamp((e.clientY - r.top) / r.height),
     };
   };
 
@@ -238,22 +253,32 @@ export default function TextbookDrawer({
     liveRef.current = null;
     setLive(null);
     // A click is not a selection.
-    if (commit && box && box.w > 24 && box.h > 24) setBoxes((prev) => [...prev, box]);
+    if (commit && box && box.w > MIN_FRACTION && box.h > MIN_FRACTION) {
+      setBoxes((prev) => [...prev, box]);
+    }
   };
   const up = () => finish(true);
   const cancel = () => finish(false);
 
   const crop = useCallback((canvas: HTMLCanvasElement, box: Box): Clip => {
+    // Fractions -> backing-store pixels, here and nowhere else. The canvas is
+    // in hand, so this needs no state and cannot be stale.
+    const px = {
+      x: box.x * canvas.width,
+      y: box.y * canvas.height,
+      w: box.w * canvas.width,
+      h: box.h * canvas.height,
+    };
     const out = document.createElement("canvas");
-    out.width = Math.round(box.w);
-    out.height = Math.round(box.h);
+    out.width = Math.max(1, Math.round(px.w));
+    out.height = Math.max(1, Math.round(px.h));
     const ctx = out.getContext("2d")!;
-    ctx.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, out.width, out.height);
+    ctx.drawImage(canvas, px.x, px.y, px.w, px.h, 0, 0, out.width, out.height);
 
     const inside = wordsRef.current
       .filter((word) =>
-        word.x + word.w > box.x && word.x < box.x + box.w &&
-        word.y + word.h > box.y && word.y < box.y + box.h)
+        word.x + word.w > px.x && word.x < px.x + px.w &&
+        word.y + word.h > px.y && word.y < px.y + px.h)
       .map((word) => word.str)
       .join(" ")
       .replace(/\s+/g, " ")
@@ -280,19 +305,16 @@ export default function TextbookDrawer({
     setLive(null);
   };
 
-  /* The rendered size is state, not read off the ref during render. Boxes are
-     stored in backing-store pixels and drawn as percentages, so this value has
-     to be one React actually re-renders on — a ref read during render is both
-     what the linter objects to and how the doubling bug above got in. */
-  const asPercent = (b: Box) =>
-    size
-      ? {
-          left: `${(b.x / size.w) * 100}%`,
-          top: `${(b.y / size.h) * 100}%`,
-          width: `${(b.w / size.w) * 100}%`,
-          height: `${(b.h / size.h) * 100}%`,
-        }
-      : undefined;
+  /* No state, no ref, no null case. Boxes are already fractions of the page,
+     so this is pure arithmetic on the box itself and can never fail to produce
+     a position — which is exactly what went wrong when it depended on a
+     rendered size that could still be null. */
+  const asPercent = (b: Box) => ({
+    left: `${b.x * 100}%`,
+    top: `${b.y * 100}%`,
+    width: `${b.w * 100}%`,
+    height: `${b.h * 100}%`,
+  });
   const onThisPage = boxes.filter((b) => b.page === page);
   const elsewhere = boxes.length - onThisPage.length;
 

@@ -433,6 +433,32 @@ if (canvasBox) {
   const one = await selected();
   check("one drag selects exactly ONE region", one === 1, `${one} selected`);
 
+  /* AND IT IS ACTUALLY VISIBLE.
+  
+     Counting the numbered badge only proved the element existed. Boxes used to
+     be stored in backing-store pixels and converted to percentages using the
+     canvas's rendered size — React state that could still be null, in which
+     case the style object came back `undefined`, the div got no
+     left/top/width/height, and it collapsed to nothing. The drag worked, the
+     element was in the DOM, the badge counted, and the student saw absolutely
+     nothing. Measure the rectangle, not the node. */
+  const drawn = await ev(`
+    const b = [...document.querySelectorAll('[role=dialog] [class*="box"]')]
+      .find(e => !e.className.includes('boxNum'));
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    const cv = document.querySelector('[role=dialog] canvas').getBoundingClientRect();
+    return {
+      w: Math.round(r.width), h: Math.round(r.height),
+      insideX: r.left >= cv.left - 2 && r.right <= cv.right + 2,
+      insideY: r.top >= cv.top - 2 && r.bottom <= cv.bottom + 2,
+    };
+  `);
+  check("and the selection is actually drawn on the page, not a 0x0 element",
+        drawn && drawn.w > 40 && drawn.h > 40, JSON.stringify(drawn));
+  check("inside the page it was drawn on",
+        drawn && drawn.insideX && drawn.insideY, JSON.stringify(drawn));
+
   await dragBox(40, 260, 200, 120);
   const two = await selected();
   check("a second drag adds to it rather than replacing", two === 2, `${two} selected`);
