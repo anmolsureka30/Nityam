@@ -178,14 +178,46 @@ export default function TextbookDrawer({
   };
 
   const down = (e: React.PointerEvent) => {
+    // Left button only. A right-click or a middle-click that started a drag
+    // left dragFrom set and the next stray move drew a box from nowhere.
+    if (e.button !== 0 || !e.isPrimary) return;
+
+    /* preventDefault, and this is the whole reason dragging stopped working in
+       a real browser.
+    
+       A canvas sits inside selectable markup, so a real mousedown begins a
+       native text selection. As soon as the pointer moves, Chrome takes over
+       the gesture and fires POINTERCANCEL — which was wired to the same
+       handler as pointerup, so it committed whatever box existed at that
+       instant. A few pixels in, that box is under the 24px floor and gets
+       discarded, so the student drags and nothing appears at all.
+    
+       Synthetic CDP mouse events never start a native selection, which is
+       exactly why the automated suite and a hand-written probe both passed
+       while the product was broken for anyone using a mouse. */
+    e.preventDefault();
+
     dragFrom.current = local(e);
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    /* Capture on the canvas itself rather than e.target: they are the same
+       element today, and naming it means they cannot stop being the same.
+    
+       Guarded, because setPointerCapture throws NotFoundError for a pointerId
+       that is not currently active — and an exception here escapes the React
+       handler and takes the rest of the gesture with it. Capture only keeps
+       events flowing when the pointer leaves the canvas mid-drag; losing it
+       degrades the drag, it does not break it. */
+    try {
+      canvasRef.current?.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* no capture; the drag still tracks while the pointer is over the page */
+    }
     liveRef.current = null;
     setLive(null);
   };
   const move = (e: React.PointerEvent) => {
     const from = dragFrom.current;
     if (!from) return;
+    e.preventDefault();
     const to = local(e);
     const next: Box = {
       x: Math.min(from.x, to.x), y: Math.min(from.y, to.y),
@@ -195,15 +227,21 @@ export default function TextbookDrawer({
     liveRef.current = next;
     setLive(next);
   };
-  const up = () => {
-    if (!dragFrom.current) return;      // pointerup and pointercancel both land here
+
+  /** Finish the drag. `commit` is false for pointercancel — the gesture was
+   *  taken away from us, so there is nothing to keep. Treating cancel as a
+   *  release is what turned an interrupted drag into a silently dropped box. */
+  const finish = (commit: boolean) => {
+    if (!dragFrom.current) return;
     dragFrom.current = null;
     const box = liveRef.current;
     liveRef.current = null;
     setLive(null);
     // A click is not a selection.
-    if (box && box.w > 24 && box.h > 24) setBoxes((prev) => [...prev, box]);
+    if (commit && box && box.w > 24 && box.h > 24) setBoxes((prev) => [...prev, box]);
   };
+  const up = () => finish(true);
+  const cancel = () => finish(false);
 
   const crop = useCallback((canvas: HTMLCanvasElement, box: Box): Clip => {
     const out = document.createElement("canvas");
@@ -325,7 +363,9 @@ export default function TextbookDrawer({
                   onPointerDown={down}
                   onPointerMove={move}
                   onPointerUp={up}
-                  onPointerCancel={up}
+                  onPointerCancel={cancel}
+                  onLostPointerCapture={cancel}
+                  onDragStart={(e) => e.preventDefault()}
                 />
                 {onThisPage.map((b, i) => (
                   <div key={i} className={s.box} style={asPercent(b)} aria-hidden="true">

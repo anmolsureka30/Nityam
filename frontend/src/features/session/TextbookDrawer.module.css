@@ -112,7 +112,17 @@
 .fig:hover { border-color: var(--accent); color: var(--accent-deep); }
 
 .pageWrap { overflow: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
-.sheet { position: relative; line-height: 0; }
+
+/* Nothing here is text to select. Belt and braces alongside preventDefault in
+   the pointerdown handler: with selection still possible, a real drag begins a
+   native text selection, Chrome takes the gesture and fires pointercancel, and
+   the box the student was drawing disappears. */
+.sheet {
+  position: relative;
+  line-height: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
 .canvas {
   max-width: 100%;
   height: auto;
@@ -122,6 +132,9 @@
   /* A crosshair says "drag a box", which a text cursor does not. */
   cursor: crosshair;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 .box {

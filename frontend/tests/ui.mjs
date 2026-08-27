@@ -350,6 +350,85 @@ if (canvasBox) {
   };
   const selected = () => ev(`return document.querySelectorAll('[role=dialog] [class*="boxNum"]').length;`);
 
+  /* WHY A REAL MOUSE BROKE WHILE THIS SUITE PASSED.
+  
+     CDP's dispatchMouseEvent never starts a native text selection, so the drag
+     below always worked here. A real mousedown on a canvas inside selectable
+     markup DOES start one: Chrome takes the gesture and fires POINTERCANCEL,
+     which was wired to the same handler as pointerup, so it committed whatever
+     box existed at that instant — a few pixels in, under the 24px floor,
+     discarded. The student dragged and nothing appeared.
+  
+     None of that is reachable through synthetic mouse events, so these three
+     checks go at the mechanism instead: the default must be prevented, the
+     canvas must not be selectable, and cancel must not behave like release. */
+  const guards = await ev(`
+    const c = document.querySelector('[role=dialog] canvas');
+    if (!c) return null;
+    const r = c.getBoundingClientRect();
+    const at = (t, x, y, extra) => new PointerEvent(t, {
+      bubbles: true, cancelable: true, pointerId: 7, pointerType: 'mouse',
+      isPrimary: true, button: 0, buttons: 1,
+      clientX: r.left + x, clientY: r.top + y, ...(extra || {}),
+    });
+    const down = at('pointerdown', 40, 40);
+    c.dispatchEvent(down);
+    const cs = getComputedStyle(c);
+    return {
+      preventedDown: down.defaultPrevented,
+      userSelect: cs.userSelect || cs.webkitUserSelect,
+      cursor: cs.cursor,
+    };
+  `);
+  check("a real mousedown on the page is prevented, so no native selection starts",
+        guards && guards.preventedDown === true, JSON.stringify(guards));
+  check("and the page is not selectable text",
+        guards && guards.userSelect === "none", `user-select: ${guards?.userSelect}`);
+
+  /* pointercancel must DISCARD, pointerup must COMMIT. Same gesture, two
+     endings — conflating them is what made an interrupted drag vanish. */
+  const endings = await ev(`
+    const c = document.querySelector('[role=dialog] canvas');
+    const count = () => document.querySelectorAll('[role=dialog] [class*="boxNum"]').length;
+    const r = c.getBoundingClientRect();
+    const at = (t, x, y) => new PointerEvent(t, {
+      bubbles: true, cancelable: true, pointerId: 8, pointerType: 'mouse',
+      isPrimary: true, button: 0, buttons: 1,
+      clientX: r.left + x, clientY: r.top + y,
+    });
+    const gesture = async (ending) => {
+      c.dispatchEvent(at('pointerdown', 60, 300));
+      for (let i = 1; i <= 5; i++) c.dispatchEvent(at('pointermove', 60 + i * 34, 300 + i * 22));
+      await new Promise(r2 => setTimeout(r2, 120));
+      const live = !!document.querySelector('[role=dialog] [class*="boxLive"]');
+      c.dispatchEvent(at(ending, 230, 410));
+      await new Promise(r2 => setTimeout(r2, 200));
+      return live;
+    };
+    const start = count();
+    const liveOnCancel = await gesture('pointercancel');
+    const afterCancel = count();
+    const liveOnUp = await gesture('pointerup');
+    const afterUp = count();
+    return { start, afterCancel, afterUp, liveOnCancel, liveOnUp };
+  `);
+  check("the box is visible while the pointer is down",
+        endings && endings.liveOnCancel && endings.liveOnUp, JSON.stringify(endings));
+  check("a cancelled drag keeps nothing",
+        endings && endings.afterCancel === endings.start,
+        `${endings?.start} -> ${endings?.afterCancel}`);
+  check("a released drag keeps the box",
+        endings && endings.afterUp === endings.afterCancel + 1,
+        `${endings?.afterCancel} -> ${endings?.afterUp}`);
+
+  // Put the page back to a clean slate for the drag checks that follow.
+  await ev(`
+    const clear = [...document.querySelectorAll('[role=dialog] button')]
+      .find(b => /clear/i.test(b.textContent));
+    clear?.click(); return 1;
+  `);
+  await sleep(300);
+
   await dragBox(40, 80, 200, 120);
   const one = await selected();
   check("one drag selects exactly ONE region", one === 1, `${one} selected`);
