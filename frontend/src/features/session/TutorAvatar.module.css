@@ -4,7 +4,9 @@
 
 .dock {
   position: fixed;
-  right: 18px;
+  /* Same centre line as the book above her, so the rail is one column. */
+  left: var(--rail-mid);
+  transform: translateX(-50%);
   bottom: 0;
   z-index: 30;
   display: flex;
@@ -63,6 +65,6 @@
 
 
 @media (max-width: 900px) {
-  .dock { right: 6px; }
+  .dock { left: auto; right: 6px; transform: none; }
   .canvasHost { width: 168px; height: 190px; }
 }

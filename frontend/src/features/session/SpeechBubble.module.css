@@ -6,10 +6,11 @@
    readouts, which is the one thing the student is watching while she talks. */
 .bubble {
   position: fixed;
-  right: 26px;
+  left: var(--rail-mid);
+  transform: translateX(-50%);
   bottom: 286px;
   z-index: 28;
-  width: 320px;
+  width: 296px;
   max-width: calc(100vw - 52px);
   background: var(--ink-strong);
   color: var(--paper);
@@ -25,7 +26,8 @@
 .bubble::after {
   content: "";
   position: absolute;
-  right: 104px;
+  left: 50%;
+  margin-left: -8px;
   bottom: -9px;
   width: 0; height: 0;
   border-left: 8px solid transparent;
@@ -64,7 +66,8 @@
    point, so it still reads as coming out of her head. */
 .cloud {
   position: fixed;
-  right: 108px;
+  left: var(--rail-mid);
+  transform: translateX(-50%);
   /* Clear of the top of her frame, so she never covers it — and above her in
      the stack, so the puffs read as rising off her head, not hiding behind it. */
   bottom: calc(var(--avatar-h, 288px) - 2px);

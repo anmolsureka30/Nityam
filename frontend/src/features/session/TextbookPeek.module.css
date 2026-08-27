@@ -8,9 +8,13 @@
 .peek {
   position: fixed;
   top: calc(var(--header-h) + 56px);
-  right: 26px;
+  /* Centred on the rail rather than shoved against the window edge. It was
+     flush right at 26px, which put it visibly off-axis from the page it
+     belongs beside. */
+  left: var(--rail-mid);
+  transform: translateX(-50%);
   z-index: 22;
-  width: 208px;
+  width: 216px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -23,7 +27,7 @@
   overflow: hidden;
   transition: transform 0.18s var(--ease), box-shadow 0.2s var(--ease);
 }
-.peek:hover { transform: translateY(-2px); box-shadow: var(--e-lift); }
+.peek:hover { transform: translateX(-50%) translateY(-2px); box-shadow: var(--e-lift); }
 .peek:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .head {
@@ -175,6 +179,6 @@
   .peek { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .peek:hover { transform: none; }
+  .peek:hover { transform: translateX(-50%); }
   .skeleton { animation: none; }
 }

@@ -150,6 +150,16 @@
      rule lines up as you navigate. */
   --page-max:   1180px;
   --margin-w:   132px;
+
+  /* The session's two columns. --page-col is the notebook page's width; the
+     rail is everything to the right of it, and --rail-mid is the rail's centre
+     line. The book, her speech and she herself all centre on it, so the column
+     reads as one column instead of three things shoved against the window
+     edge. Every consumer derives from these two values, so the page width and
+     the rail cannot drift apart. */
+  --page-col:   920px;
+  --stage-pad:  32px;
+  --rail-mid:   calc((var(--stage-pad) + var(--page-col) + 100vw) / 2);
   --measure:    64ch;      /* prose line length, ~66 characters */
   --rail-w:     344px;
   --drawer-w:   min(600px, 48vw);

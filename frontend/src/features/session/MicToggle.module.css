@@ -2,7 +2,7 @@
    part of her, clear of her frame so it never covers her face. */
 .mic {
   position: fixed;
-  right: calc(var(--avatar-w, 254px) + 12px);
+  right: calc(50vw - var(--rail-mid) + (var(--avatar-w, 254px) / 2) + 12px);
   bottom: 26px;
   z-index: 31;
 

@@ -291,6 +291,7 @@ export default function TextbookDrawer({
               <button
                 key={sec.section}
                 className={cx(s.tocItem, sec.page === page && s.tocOn)}
+                aria-current={sec.page === page ? "true" : undefined}
                 onClick={() => jump(sec.page)}
               >
                 <span className={s.tocNum}>{sec.section}</span>

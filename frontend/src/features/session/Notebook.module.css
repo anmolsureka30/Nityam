@@ -39,7 +39,7 @@
   /* A column, not the whole window. At full width the page ran to 1900px with
      an empty right half and the tutor standing on top of it; capped, the
      screen has an honest two-column structure — the page, and her beside it. */
-  max-width: 920px;
+  max-width: var(--page-col);
   animation: n-rise 0.45s var(--ease-out) both;
 }
 /* The rule itself. Sits inside the sheet's left padding, full height, so a

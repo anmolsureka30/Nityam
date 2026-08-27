@@ -372,6 +372,72 @@ if (canvasBox) {
         landed - before === 2, `${before} -> ${landed}`);
   check("and the drawer closed", await ev(`return !document.querySelector('[role=dialog]');`));
 
+  /* THE BOOK MUST STAY WHERE THE STUDENT PUT IT.
+
+     The preview follows the tutor: when a textbook page lands on the board it
+     turns to that page. The first version of that re-ran on every `board.doc`
+     identity change and re-applied the newest textbook block it could find — so
+     once one page was on the board, every later patch yanked the student's book
+     back to it while they were reading something else. From their side that is
+     the drawer refusing to stay put, which reads as the PDF being broken.
+
+     ORDER IS WHAT MAKES THIS BITE. The clips above have just put a pulled block
+     on the board, so the student has to navigate AWAY from that page and THEN
+     the board has to change. Checking before the clip proved nothing: the place
+     and the block agreed, so even the buggy version re-applied the same page
+     and looked correct. Confirmed by reintroducing the bug — this ordering
+     fails, the other passes. */
+  const peekPage = () => ev(`
+    const b = [...document.querySelectorAll('button')]
+      .find(x => /Open textbook/.test(x.getAttribute('aria-label') || ''));
+    const m = (b?.textContent || '').match(/p\\.(\\d+)/);
+    return m ? Number(m[1]) : null;
+  `);
+
+  const clipPage = await peekPage();
+  await ev(`
+    const b = [...document.querySelectorAll('button')]
+      .find(x => /Open textbook/.test(x.getAttribute('aria-label') || ''));
+    b?.click(); return 1;
+  `);
+  await sleep(3400);
+  await ev(`
+    const next = [...document.querySelectorAll('[role=dialog] button')]
+      .find(b => /next|→|›/i.test(b.getAttribute('aria-label') || b.textContent));
+    for (let i = 0; i < 4; i++) { next?.click(); await new Promise(r => setTimeout(r, 700)); }
+    const c = [...document.querySelectorAll('[role=dialog] button')]
+      .find(b => /close/i.test(b.getAttribute('aria-label') || ''));
+    c?.click(); return 1;
+  `);
+  await sleep(2600);
+  const parked = await peekPage();
+  check("the student can turn away from the page that landed on the board",
+        parked !== null && clipPage !== null && parked !== clipPage,
+        `the clip left it at p.${clipPage}, the student turned to p.${parked}`);
+
+  /* The phrase matters. "what about time of flight?" matched none of mock
+     mode's triggers (formula / range / 45 / why / quiz / show me / simulat /
+     diagram / draw), so the board never changed and the check below passed
+     whether the bug was present or not. The block count is asserted for the
+     same reason: a test that cannot fail is worse than no test. */
+  const blocksBefore = await ev(`
+    return document.querySelectorAll('[class*="scroll"] [data-block]').length;
+  `);
+  await ask("why does the range change with the angle?");
+  await sleep(4800);
+  const after = await ev(`
+    const b = [...document.querySelectorAll('button')]
+      .find(x => /Open textbook/.test(x.getAttribute('aria-label') || ''));
+    const m = (b?.textContent || '').match(/p\\.(\\d+)/);
+    return { page: m ? Number(m[1]) : null,
+             blocks: document.querySelectorAll('[class*="scroll"] [data-block]').length };
+  `);
+  check("the board actually changed, so the check below can fail",
+        after.blocks > blocksBefore, `${blocksBefore} -> ${after.blocks} blocks`);
+  check("and the board changing does not yank it back",
+        parked !== null && after.page === parked,
+        `was p.${parked}, now p.${after.page} after the board grew ${blocksBefore} -> ${after.blocks}`);
+
   // ───────────────────────────────────── the figure enlarges, and zooms
   /* A textbook page at notebook size is legible enough to recognise and not to
      read, so "look at figure 3.9" was the one thing the tutor could ask for

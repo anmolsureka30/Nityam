@@ -67,15 +67,26 @@ export default function SessionScreen() {
   const [bookOpen, setBookOpen] = useState(false);
   const [place, goToPlace] = useTextbookPlace();
 
-  /* The book follows the tutor. When she puts a textbook page on the board, the
-     preview turns to it — so "look at figure 3.9" leaves the student's own copy
-     open at the same page, which is what would happen on a desk. */
+  /* The book follows the tutor — ONCE PER PAGE SHE SHOWS, not on every board
+     change.
+     
+     The first version re-ran on any `board.doc` identity change and re-applied
+     the newest textbook block it found. So the moment she had put one page on
+     the board, every subsequent patch — another block, a strike, a point_at —
+     yanked the student's book back to her page while they were reading their
+     own. From the student's side that is the drawer refusing to stay where they
+     put it, which reads as the PDF being broken. Keyed on the block id, so a
+     given page is followed exactly once. */
+  const followed = useRef<string | null>(null);
   useEffect(() => {
-    const pages = board.doc.pages.flatMap((pg) => pg.blocks);
-    for (let i = pages.length - 1; i >= 0; i--) {
-      const block = pages[i] as { kind?: string; pdf?: string; page?: number };
+    const blocks = board.doc.pages.flatMap((pg) => pg.blocks);
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const block = blocks[i] as { id?: string; kind?: string; pdf?: string; page?: number };
       if (block.kind === "pulled" && block.pdf && block.page) {
-        goToPlace({ chapter: block.pdf, page: block.page });
+        if (followed.current !== block.id) {
+          followed.current = block.id ?? null;
+          goToPlace({ chapter: block.pdf, page: block.page });
+        }
         return;
       }
     }

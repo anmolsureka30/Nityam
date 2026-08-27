@@ -36,6 +36,19 @@ export default function TextbookPeek({
   const ref = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  /* Off the critical path of the lesson opening.
+  
+     An NCERT chapter is a megabyte of PDF and PDF.js decodes it on the main
+     thread. Fetching it the instant the session mounts put it in competition
+     with the WebSocket handshake, the avatar rig and her opening line — and it
+     won often enough that the greeting arrived late enough to fail a test that
+     had passed for weeks. The book is a glance-at-it thing; it can be a second
+     behind the lesson starting. */
+  const [awake, setAwake] = useState(false);
+  useEffect(() => {
+    const idle = window.setTimeout(() => setAwake(true), 900);
+    return () => window.clearTimeout(idle);
+  }, []);
 
   const chapter = CHAPTERS.find((c) => c.file === place.chapter) ?? CHAPTERS[0];
 
@@ -60,6 +73,7 @@ export default function TextbookPeek({
     && `${section.section} ${section.title.charAt(0)}${section.title.slice(1).toLowerCase()}`;
 
   useEffect(() => {
+    if (!awake) return;
     let dead = false;
     let doc: pdfjs.PDFDocumentProxy | null = null;
     setReady(false);
@@ -90,7 +104,7 @@ export default function TextbookPeek({
       dead = true;
       void doc?.destroy();
     };
-  }, [place.chapter, place.page]);
+  }, [awake, place.chapter, place.page]);
 
   return (
     <button
