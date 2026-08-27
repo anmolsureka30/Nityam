@@ -12,7 +12,7 @@ import functools
 from google.adk.tools import ToolContext
 
 from app import config
-from app.memory import short_term, store
+from app.memory import instrumentation, short_term, store
 
 
 @functools.cache
@@ -20,7 +20,7 @@ def _conn():
     return store.connect()
 
 
-def search_grounding(concept_ids: list[str]) -> dict:
+def search_grounding(concept_ids: list[str], tool_context: ToolContext) -> dict:
     """Retrieve citable knowledge chunks (lecture/book excerpts) for the given concepts.
 
     Args:
@@ -29,6 +29,7 @@ def search_grounding(concept_ids: list[str]) -> dict:
     Returns:
         dict with a "chunks" key: a list of {chunk_id, source_ref, location, text}.
     """
+    instrumentation.set_session_context(tool_context.session.id)
     chunks = store.search_grounding(_conn(), concept_ids)
     return {
         "chunks": [
@@ -45,6 +46,7 @@ def get_dpm(tool_context: ToolContext) -> dict:
     Returns:
         dict with the DPM profile fields, or {"found": false} if none exists yet.
     """
+    instrumentation.set_session_context(tool_context.session.id)
     student_id = tool_context.state["student_id"]
     profile = store.get_dpm(_conn(), student_id)
     if profile is None:
@@ -59,6 +61,7 @@ def get_teaching_memory(tool_context: ToolContext) -> dict:
     Returns:
         dict with the teaching memory fields, or {"found": false} if none exists yet.
     """
+    instrumentation.set_session_context(tool_context.session.id)
     student_id = tool_context.state["student_id"]
     memory = store.get_teaching_memory(_conn(), student_id)
     if memory is None:

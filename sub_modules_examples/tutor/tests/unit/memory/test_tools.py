@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.memory import store, tools
+from app.memory import instrumentation, store, tools
 from app.memory.schemas import DPMProfile, GroundingChunk, TeachingMemory, Weakness
 
 
@@ -25,12 +25,13 @@ def make_tool_context(state: dict, session_id: str = "test_session_tools_1") -> 
 
 
 def test_search_grounding_returns_chunks(isolated_store):
+    ctx = make_tool_context({})
     try:
         store.put_grounding_chunk(isolated_store, GroundingChunk(
             chunk_id="test_tools_c1", source_type="lecture", source_ref="shruti:x", location="0:00",
             concept_ids=["test.projectile.range"], text="range excerpt",
         ))
-        result = tools.search_grounding(["test.projectile.range"])
+        result = tools.search_grounding(["test.projectile.range"], ctx)
         assert result["chunks"][0]["text"] == "range excerpt"
         assert result["chunks"][0]["chunk_id"] == "test_tools_c1"
     finally:
@@ -38,7 +39,17 @@ def test_search_grounding_returns_chunks(isolated_store):
 
 
 def test_search_grounding_empty_for_unknown_concept(isolated_store):
-    assert tools.search_grounding(["test.nonexistent"]) == {"chunks": []}
+    ctx = make_tool_context({})
+    assert tools.search_grounding(["test.nonexistent"], ctx) == {"chunks": []}
+
+
+def test_search_grounding_scopes_its_event_to_the_calling_session(isolated_store, redis_client):
+    redis_client.delete("smriti:events:recent")
+    ctx = make_tool_context({}, session_id="test_session_grounding_scope")
+    tools.search_grounding(["test.nonexistent"], ctx)
+    raw = redis_client.lrange("smriti:events:recent", -1, -1)
+    event = instrumentation.MemoryEvent.model_validate_json(raw[0])
+    assert event.session_id == "test_session_grounding_scope"
 
 
 def test_get_dpm_not_found(isolated_store):
@@ -60,6 +71,19 @@ def test_get_dpm_found(isolated_store):
         isolated_store.collection("dpm_profiles").document("test_tools_student_1").delete()
 
 
+def test_get_dpm_scopes_its_event_to_the_calling_session(isolated_store, redis_client):
+    """The real bug this guards against: a live agent's get_dpm/get_teaching_memory/
+    search_grounding calls were publishing events with session_id=None, so the
+    Observatory's per-session view silently dropped most of what a real run
+    actually did — only log_turn's writes ever showed up scoped to a session."""
+    redis_client.delete("smriti:events:recent")
+    ctx = make_tool_context({"student_id": "test_tools_student_nonexistent"}, session_id="test_session_dpm_scope")
+    tools.get_dpm(ctx)
+    raw = redis_client.lrange("smriti:events:recent", -1, -1)
+    event = instrumentation.MemoryEvent.model_validate_json(raw[0])
+    assert event.session_id == "test_session_dpm_scope"
+
+
 def test_get_teaching_memory_not_found(isolated_store):
     ctx = make_tool_context({"student_id": "test_tools_student_nonexistent"})
     assert tools.get_teaching_memory(ctx) == {"found": False}
@@ -74,6 +98,15 @@ def test_get_teaching_memory_found(isolated_store):
         assert result["syllabus"] == ["projectile.range"]
     finally:
         isolated_store.collection("teaching_memories").document("test_tools_student_1").delete()
+
+
+def test_get_teaching_memory_scopes_its_event_to_the_calling_session(isolated_store, redis_client):
+    redis_client.delete("smriti:events:recent")
+    ctx = make_tool_context({"student_id": "test_tools_student_nonexistent"}, session_id="test_session_tm_scope")
+    tools.get_teaching_memory(ctx)
+    raw = redis_client.lrange("smriti:events:recent", -1, -1)
+    event = instrumentation.MemoryEvent.model_validate_json(raw[0])
+    assert event.session_id == "test_session_tm_scope"
 
 
 @pytest.mark.asyncio

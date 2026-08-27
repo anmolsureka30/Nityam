@@ -32,6 +32,14 @@ def _ids_none(args, kwargs, result):
     return None, None
 
 
+def _ids_context_session_only(args, kwargs, result):
+    """search_grounding/search_grounding_semantic have no student_id
+    (grounding_chunk isn't per-student) but DO happen mid-session, called by
+    tools.py with a live session's tool_context — which sets the context
+    var before calling in (see app/memory/tools.py's search_grounding)."""
+    return instrumentation.get_session_context(), None
+
+
 def _ids_student_from_arg1(args, kwargs, result):
     student_id = kwargs.get("student_id", args[1] if len(args) > 1 else None)
     return instrumentation.get_session_context(), student_id
@@ -76,7 +84,7 @@ def put_grounding_chunk(
 
 
 @instrumentation.emit_memory_event(
-    tier="long_term", record_type="grounding_chunk", operation="read", extract_ids=_ids_none,
+    tier="long_term", record_type="grounding_chunk", operation="read", extract_ids=_ids_context_session_only,
 )
 def search_grounding(db: firestore.Client, concept_ids: list[str], limit: int = 5) -> list[GroundingChunk]:
     if not concept_ids:
@@ -94,7 +102,7 @@ def search_grounding(db: firestore.Client, concept_ids: list[str], limit: int = 
 
 
 @instrumentation.emit_memory_event(
-    tier="long_term", record_type="grounding_chunk", operation="read", extract_ids=_ids_none,
+    tier="long_term", record_type="grounding_chunk", operation="read", extract_ids=_ids_context_session_only,
 )
 def search_grounding_semantic(
     db: firestore.Client,
