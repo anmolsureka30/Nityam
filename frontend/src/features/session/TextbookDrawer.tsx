@@ -47,6 +47,20 @@ interface Box { x: number; y: number; w: number; h: number; page: number }
  *  floor, in a unit that does not depend on the render scale. */
 const MIN_FRACTION = 0.015;
 
+/* Open the session with ?debugbox to get a live readout of the selection
+   gesture pinned to the page.
+ 
+   This exists because dragging worked in every headless reproduction and failed
+   on a real machine, and four rounds of reasoning at a distance is worse than
+   one round of data. It shows what the browser actually delivered: which
+   pointer events arrived, whether the default was prevented, the fraction each
+   one resolved to, and the measured rectangle of the box element. If the box is
+   invisible, this says whether it was never created, created at zero size, or
+   created off-page. Costs nothing when the flag is absent. */
+const DEBUG_BOX =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).has("debugbox");
+
 const CHAPTERS = catalogue as Chapter[];
 /** Rendered at 2× so a clipped diagram is not a blur on a retina screen. */
 const SCALE = 2;
@@ -107,6 +121,13 @@ export default function TextbookDrawer({
      drag committed the same box twice and one bounding box arrived on the
      canvas as two. Updaters must be pure. */
   const liveRef = useRef<Box | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const trace = useRef({
+    down: 0, move: 0, up: 0, cancel: 0, lost: 0,
+    prevented: "-", last: "-", from: "-", live: "-", rect: "-", canvas: "-",
+  });
+  const [, redraw] = useState(0);
+  const mark = () => { if (DEBUG_BOX) redraw((n) => n + 1); };
   /** Words on this page with their boxes, for reading text out of a clip. */
   const wordsRef = useRef<{ str: string; x: number; y: number; w: number; h: number }[]>([]);
 
@@ -212,6 +233,12 @@ export default function TextbookDrawer({
        while the product was broken for anyone using a mouse. */
     e.preventDefault();
 
+    if (DEBUG_BOX) {
+      trace.current.down += 1;
+      trace.current.prevented = String(e.defaultPrevented);
+      trace.current.last = `${Math.round(e.clientX)},${Math.round(e.clientY)}`;
+    }
+
     dragFrom.current = local(e);
     /* Capture on the canvas itself rather than e.target: they are the same
        element today, and naming it means they cannot stop being the same.
@@ -228,6 +255,15 @@ export default function TextbookDrawer({
     }
     liveRef.current = null;
     setLive(null);
+    if (DEBUG_BOX) {
+      const f = dragFrom.current;
+      trace.current.from = f ? `${f.x.toFixed(3)},${f.y.toFixed(3)}` : "-";
+      const c = canvasRef.current;
+      trace.current.canvas = c
+        ? `store ${c.width}x${c.height} css ${Math.round(c.getBoundingClientRect().width)}x${Math.round(c.getBoundingClientRect().height)}`
+        : "no canvas";
+      mark();
+    }
   };
   const move = (e: React.PointerEvent) => {
     const from = dragFrom.current;
@@ -241,6 +277,19 @@ export default function TextbookDrawer({
     };
     liveRef.current = next;
     setLive(next);
+    if (DEBUG_BOX) {
+      trace.current.move += 1;
+      trace.current.live =
+        `${next.x.toFixed(3)},${next.y.toFixed(3)} ${next.w.toFixed(3)}x${next.h.toFixed(3)}`;
+      const el = boxRef.current;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        trace.current.rect = `${Math.round(r.width)}x${Math.round(r.height)} @ ${Math.round(r.left)},${Math.round(r.top)}`;
+      } else {
+        trace.current.rect = "element not in DOM";
+      }
+      mark();
+    }
   };
 
   /** Finish the drag. `commit` is false for pointercancel — the gesture was
@@ -257,8 +306,18 @@ export default function TextbookDrawer({
       setBoxes((prev) => [...prev, box]);
     }
   };
-  const up = () => finish(true);
-  const cancel = () => finish(false);
+  const up = () => {
+    if (DEBUG_BOX) { trace.current.up += 1; mark(); }
+    finish(true);
+  };
+  const cancel = () => {
+    if (DEBUG_BOX) { trace.current.cancel += 1; mark(); }
+    finish(false);
+  };
+  const lost = () => {
+    if (DEBUG_BOX) { trace.current.lost += 1; mark(); }
+    finish(false);
+  };
 
   const crop = useCallback((canvas: HTMLCanvasElement, box: Box): Clip => {
     // Fractions -> backing-store pixels, here and nowhere else. The canvas is
@@ -386,7 +445,7 @@ export default function TextbookDrawer({
                   onPointerMove={move}
                   onPointerUp={up}
                   onPointerCancel={cancel}
-                  onLostPointerCapture={cancel}
+                  onLostPointerCapture={lost}
                   onDragStart={(e) => e.preventDefault()}
                 />
                 {onThisPage.map((b, i) => (
@@ -394,11 +453,26 @@ export default function TextbookDrawer({
                     <span className={s.boxNum}>{i + 1}</span>
                   </div>
                 ))}
-                {live && <div className={s.boxLive} style={asPercent(live)} aria-hidden="true" />}
+                {live && (
+                  <div ref={boxRef} className={s.boxLive} style={asPercent(live)} aria-hidden="true" />
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {DEBUG_BOX && (
+          <pre className={s.debug}>
+{`pointer   down ${trace.current.down}  move ${trace.current.move}  up ${trace.current.up}  cancel ${trace.current.cancel}  lostcapture ${trace.current.lost}
+prevented ${trace.current.prevented}
+last      ${trace.current.last}
+from      ${trace.current.from}
+live box  ${trace.current.live}
+measured  ${trace.current.rect}
+canvas    ${trace.current.canvas}
+kept      ${boxes.length} box(es)`}
+          </pre>
+        )}
 
         <footer className={s.foot}>
           <div className={s.pager}>
