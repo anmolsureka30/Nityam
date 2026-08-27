@@ -9,7 +9,15 @@ from datetime import datetime, timezone
 import app.session_close as session_close
 from app.memory import instrumentation, store
 from app.memory.schemas import DPMProfile, TeachingMemory
-from app.session_close import ReflectOp, ReflectResult, apply_operations, build_session_log, close_session
+from app.session_close import (
+    ReflectOp,
+    ReflectResult,
+    _ReflectOpWire,
+    _to_reflect_op,
+    apply_operations,
+    build_session_log,
+    close_session,
+)
 
 
 def test_build_session_log_is_deterministic():
@@ -24,6 +32,36 @@ def test_build_session_log_is_deterministic():
     assert len(log.turns) == 2
     assert log.turns[1].concept_id == "projectile.range"
     assert log.ended_at is not None
+
+
+def test_to_reflect_op_extracts_only_the_fields_that_op_uses():
+    """The wire schema (what Gemini's structured output actually fills in)
+    is flat with every field on every op — _to_reflect_op must pick out
+    only the fields relevant to `op` so downstream ops.* calls don't choke
+    on unexpected keyword args."""
+    wire = _ReflectOpWire(
+        op="set_mastery", concept_id="projectile.range", mastery="known",
+        strength="strong", evidence=["s1#2"],
+        # fields belonging to other ops, populated because the wire schema
+        # has no way to omit them — must not leak into set_mastery's args.
+        doubt="unrelated", note="unrelated", status="covered",
+    )
+    result = _to_reflect_op(wire)
+    assert result.op == "set_mastery"
+    assert result.args == {
+        "concept_id": "projectile.range", "mastery": "known",
+        "strength": "strong", "evidence": ["s1#2"],
+    }
+
+
+def test_to_reflect_op_omits_unset_fields_entirely():
+    """A field the model left unset (None) must be absent from args, not
+    passed through as a literal None — set_mastery's evidence is required,
+    so a missing key (not evidence=None) is what makes apply_operations'
+    TypeError guard correctly drop this as a malformed op."""
+    wire = _ReflectOpWire(op="close_doubt", concept_id="projectile.range")
+    result = _to_reflect_op(wire)
+    assert result.args == {"concept_id": "projectile.range"}
 
 
 def test_apply_operations_runs_known_ops_and_skips_unknown():
