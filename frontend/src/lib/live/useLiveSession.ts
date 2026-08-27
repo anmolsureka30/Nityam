@@ -59,6 +59,9 @@ const SCREEN_THROTTLE_MS = 700;
 export function useLiveSession(
   userId: string,
   sessionId: string,
+  /** What this session is for. Sent before the greeting so her opening line is
+   *  about the thing they clicked, not a blank "what shall we do". */
+  plan: ClientMessage & { type: "start" },
   enabled = true,
 ): LiveTutor {
   const [board, dispatch] = useReducer(boardReducer, undefined, () => emptyBoard());
@@ -141,9 +144,26 @@ export function useLiveSession(
       }
 
       /* The reasoning layer is reached by a tool call, so its start and end are
-         visible right here in the stream — no extra protocol needed. */
+         visible right here in the stream — no extra protocol needed.
+
+         The call also carries her holding line. `bridge` is a required argument
+         of ask_tutor precisely so it arrives here: the Live model would either
+         speak a bridge OR make the call, never both, so the line it wanted to
+         say is now part of the call and lands in the bubble the instant the
+         reasoning starts. Ten seconds of thinking with "achha, ek second" on
+         screen is a tutor working; ten seconds blank is a tutor who did not
+         hear you. */
       for (const part of event.content?.parts ?? []) {
-        if (part.functionCall?.name === "ask_tutor") setThinking(true);
+        if (part.functionCall?.name === "ask_tutor") {
+          setThinking(true);
+          const bridge = (part.functionCall.args as { bridge?: string } | undefined)
+            ?.bridge;
+          if (bridge?.trim()) {
+            newTurn();
+            turn.current.settled = bridge.trim() + " ";
+            publish();
+          }
+        }
         if (part.functionResponse?.name === "ask_tutor") setThinking(false);
       }
 
@@ -221,6 +241,7 @@ export function useLiveSession(
           setVoice(live.voiceStream);
           // Nothing makes the Live model take the first turn on its own — it
           // waits for input. Ask it to open the lesson.
+          live.send(plan);
           live.greet();
           /* Live by default: this is a voice tutor, and a student who has to
              find and press a button before being heard will conclude it is
@@ -244,6 +265,9 @@ export function useLiveSession(
       sessionRef.current = null;
       setVoice(null);
     };
+    // `plan` is deliberately not a dependency: it is fixed for the life of a
+    // session, and including it would reconnect on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, userId, sessionId]);
 
   // Sweep expired point_at highlights, so "look at this" does not leave the

@@ -118,6 +118,46 @@ def main() -> int:
     check("read_screen exposes anchor ids the model can point at",
           eq_anchor in [a["id"] for b in screen["blocks"] for a in b["anchors"]])
 
+    # ------------------------------------------------- one call, many blocks
+    sessions.drop("s_batch")
+    batch = FakeToolContext("s_batch")
+    sessions.get("s_batch")
+    lesson = T.write_lesson([
+        "# Maximum range",
+        "= R = u² [[sin(2θ)|projectile.horizontal_range]] / g | on flat ground",
+        "Only the [[angle|projectile.launch_angle]] is yours to choose.",
+        "! finding | WORTH KEEPING | The angle decides it.",
+        "@ sin(2θ)",
+    ], batch)
+    check("write_lesson writes every block in one call",
+          len(lesson.get("block_ids", [])) == 4, repr(lesson)[:120])
+    made = sessions.get("s_batch").board.blocks()
+    kinds = [b.kind for b in made]
+    check("in the order given", kinds == ["heading", "heading", "equation", "tutor_text", "callout"],
+          repr(kinds))
+    eq = next(b for b in made if b.kind == "equation")
+    check("the caption separator does not split the anchor markup",
+          eq.tex == "R = u² sin(2θ) / g" and eq.caption == "on flat ground",
+          f"{eq.tex!r} / {eq.caption!r}")
+    check("and @ resolves to an anchor written in the same call",
+          lesson.get("pointed_at") == [eq.anchors[0].id], repr(lesson.get("pointed_at")))
+    callout = next(b for b in made if b.kind == "callout")
+    check("blocks that carry no anchors still lose their markup",
+          "[[" not in callout.text, callout.text[:50])
+    # All-or-nothing: blocks are staged and validated before any is published,
+    # so a bad line later in the list cannot leave half a lesson on the board.
+    sessions.drop("s_none")
+    none_ctx = FakeToolContext("s_none")
+    before = len(sessions.get("s_none").board.blocks())
+    broke = T.write_lesson(
+        ["# This heading is fine", "! only-two | parts"], none_ctx
+    )
+    after = len(sessions.get("s_none").board.blocks())
+    check("a malformed line writes NOTHING rather than half a lesson",
+          "error" in broke and after == before, f"{before} -> {after}; {broke}")
+    check("LaTeX in a batch is refused too",
+          "error" in T.write_lesson(["= R = \\frac{a}{b}"], batch))
+
     # ---------------------------------------------------------- the outbox
     drained = []
     while not state.outbox.empty():

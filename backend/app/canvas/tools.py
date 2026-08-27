@@ -21,7 +21,7 @@ import re
 
 from google.adk.tools import ToolContext
 
-from app import sessions
+from app import logs, sessions
 from app.canvas import doc as D
 
 log = logging.getLogger("nityam.canvas")
@@ -46,6 +46,30 @@ def parse_markup(text: str) -> tuple[str, list[tuple[str, str | None]]]:
         return span
 
     return _MARKUP.sub(take, text), found
+
+
+def split_outside_markup(text: str, limit: int = -1) -> list[str]:
+    """Split on `|`, but not on the `|` inside a [[span|concept]] marker.
+
+    A naive split cut `= R = u² [[sin(2θ)|projectile.range]] / g | caption` at
+    the FIRST pipe — the one inside the anchor — and produced a formula reading
+    "R = u² [[sin(2θ)" with the markup still in it. The two syntaxes share a
+    delimiter, so the split has to know about the brackets.
+    """
+    parts, buf, depth = [], [], 0
+    i = 0
+    while i < len(text):
+        if text.startswith("[[", i):
+            depth += 1
+            buf.append("[["); i += 2; continue
+        if text.startswith("]]", i):
+            depth = max(0, depth - 1)
+            buf.append("]]"); i += 2; continue
+        if text[i] == "|" and depth == 0 and (limit < 0 or len(parts) < limit):
+            parts.append("".join(buf)); buf = []; i += 1; continue
+        buf.append(text[i]); i += 1
+    parts.append("".join(buf))
+    return [p.strip() for p in parts]
 
 
 def _anchors(state: sessions.SessionState, marked: list[tuple[str, str | None]]):
@@ -290,7 +314,141 @@ def scroll_to(block_id: str, tool_context: ToolContext) -> dict:
     return _publish(tool_context, D.Goto(blockId=block_id), block_id=block_id)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def write_lesson(blocks: list[str], tool_context: ToolContext) -> dict:
+    """Write a whole answer on the board in ONE call. Use this, not the
+    single-block tools, for anything longer than one block.
+
+    Every tool call is a separate round trip to the model — emit the call, wait,
+    read the result, decide again — and each one is several seconds of silence
+    for a student who is sitting there listening to nothing. Writing a heading,
+    a formula and a paragraph as three calls took 27 seconds; as one call it is
+    one round trip.
+
+    Pass an ordered list of lines, each prefixed by what it is:
+
+        "# Maximum range"                      a heading
+        "= R = u² [[sin(2θ)|concept.id]] / g | range on flat ground"
+                                               a formula, caption after the |
+        "For a fixed [[speed|concept.id]]…"    a paragraph (no prefix)
+        "! finding | YOU WORKED THIS OUT | The angle is the only thing…"
+                                               a callout: tone | LABEL | text
+        "@ sin(2θ)"                            highlight a term written above
+
+    Formulas are blackboard notation, never LaTeX. Mark pointable terms with
+    [[span]] or [[span|concept.id]] as usual. Put "@ term" last to draw their
+    eye to something you just wrote.
+
+    Args:
+        blocks: The lines, in the order they should appear.
+
+    Returns:
+        dict with "block_ids" and "anchors", or {"error": ...} if a line was
+        malformed — in which case NOTHING is written, so fix it and resend the
+        whole list rather than patching up.
+    """
+    state = sessions.get(_sid(tool_context))
+    staged: list = []
+    pointed: list[str] = []
+    span_to_anchor: dict[str, str] = {}
+
+    for raw in blocks:
+        line = str(raw).strip()
+        if not line:
+            continue
+
+        if line.startswith("@"):
+            pointed.append(line[1:].strip())
+            continue
+
+        if line.startswith("#"):
+            # No anchors on a heading, but raw [[…]] on screen is worse than
+            # dropping the marker, so strip rather than pass through.
+            staged.append(
+                D.Heading(id=state.mint("b_head"), text=parse_markup(line[1:].strip())[0])
+            )
+            continue
+
+        if line.startswith("!"):
+            parts = split_outside_markup(line[1:], 2)
+            if len(parts) < 3:
+                return {"error": f'callout needs "! tone | LABEL | text", got {line[:70]!r}'}
+            tone, label, text = parts
+            if tone not in ("correction", "finding"):
+                return {"error": f'callout tone must be correction or finding, got {tone!r}'}
+            staged.append(
+                D.Callout(
+                    id=state.mint("b_call"), tone=tone,
+                    label=parse_markup(label)[0], text=parse_markup(text)[0],
+                )
+            )
+            continue
+
+        if line.startswith("="):
+            pieces = split_outside_markup(line[1:], 1)
+            body, caption = pieces[0], (pieces[1] if len(pieces) > 1 else "")
+            if "\\" in body:
+                return {"error": "that formula is LaTeX. Blackboard notation only, e.g. 'R = u² sin(2θ) / g'"}
+            clean, marked = parse_markup(body)
+            anchors = _anchors(state, marked)
+            try:
+                block = D.Equation(
+                    id=state.mint("b_eq"), tex=clean, caption=caption or None,
+                    anchors=anchors,
+                )
+            except ValueError as exc:
+                return {"error": str(exc)}
+            staged.append(block)
+            span_to_anchor.update({a.span: a.id for a in anchors})
+            continue
+
+        clean, marked = parse_markup(line)
+        anchors = _anchors(state, marked)
+        try:
+            block = D.TutorText(id=state.mint("b_note"), text=clean, anchors=anchors)
+        except ValueError as exc:
+            return {"error": str(exc)}
+        staged.append(block)
+        span_to_anchor.update({a.span: a.id for a in anchors})
+
+    if not staged:
+        return {"error": "nothing to write"}
+
+    session_id = _sid(tool_context)
+    written: list[str] = []
+    for block in staged:
+        try:
+            sessions.publish(session_id, D.AppendBlock(block=block))
+        except (sessions.PatchRejected, ValueError) as exc:
+            return {"error": str(exc), "written_before_failing": written}
+        written.append(block.id)
+
+    lit: list[str] = []
+    for span in pointed:
+        anchor = span_to_anchor.get(span) or next(
+            (a for sp, a in span_to_anchor.items() if span and span in sp), None
+        )
+        if anchor:
+            lit.append(anchor)
+    if lit:
+        try:
+            sessions.publish(session_id, D.PointAt(anchorIds=lit, reason="just written"))
+        except (sessions.PatchRejected, ValueError):
+            pass
+
+    log.info("board %s: wrote %s block(s) in one call", session_id, len(written))
+    logs.count("board block", len(written))
+    return {
+        "block_ids": written,
+        "anchors": sorted(span_to_anchor.values()),
+        "pointed_at": lit,
+    }
+
+
 BOARD_TOOLS = [
+    write_lesson,
     read_screen,
     write_heading,
     write_note,

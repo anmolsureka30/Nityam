@@ -114,6 +114,13 @@ async def run(port: int) -> None:
               repr([b.get("kind") for b in blocks]))
 
         # -------------------------------------------------------------- greet
+        # The plan comes first: three home-screen buttons used to open one
+        # identical conversation that asked what the student wanted to do.
+        await ws.send(json.dumps({
+            "type": "start", "mode": "revision",
+            "concept": "projectile.horizontal_range",
+            "conceptName": "Maximum range", "intensity": "standard", "minutes": 20,
+        }))
         await ws.send(json.dumps({"type": "greet"}))
         frames = await collect(ws, 3.0)
         p = patches(frames)

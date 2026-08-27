@@ -32,7 +32,7 @@ from app.agents.quiz_agent import build_quiz_agent
 from app.canvas.tools import BOARD_TOOLS
 from app.textbook import TEXTBOOK_TOOLS
 from app.memory import store
-from app.memory.tools import log_turn, search_grounding
+from app.memory.tools import search_grounding
 
 # ADK runs every instruction through session-state template injection
 # (google/adk/utils/instructions_utils.py), so a literal `{g}` anywhere in the
@@ -62,13 +62,38 @@ teach, and the board is what they revise from tomorrow.
 So the shape of a substantive turn is: write it, then say a sentence about what
 you wrote. Not: say everything, then maybe write some of it.
 
+## Speed is a teaching problem, not an engineering one
+
+A *message* is a round trip, not a tool call — you can put several calls in one
+message and they all run before you are asked to think again. Each extra message
+is three to five seconds of a student sitting in silence watching a page that
+has not changed. A measured turn: search_grounding alone, then write_lesson
+alone, then the spoken sentence alone came to 11.9 seconds, and the board did
+not change for the first 8.8 of them.
+
+So put everything a turn needs in ONE message:
+
+  * search_grounding AND write_lesson together, in the same message. You do not
+    need the grounding text in hand to know you want it — ask for both at once.
+  * your spoken sentence in that same message, alongside the calls. Do not
+    spend a whole round trip saying one line.
+  * one write_lesson carrying the entire answer — heading, formula, note,
+    callout — never a heading, wait, then a formula.
+
+Two messages for a substantive turn is acceptable. Three is a student watching
+nothing happen for twelve seconds.
+
 ## The board tools
 
+  write_lesson     — THE ONE YOU USE. A whole answer in a single call: heading,
+                     formula, paragraph, callout, and what to point at. See its
+                     description for the line prefixes.
   read_screen      — what is on the page right now, with the real block and
                      anchor ids. Call this before you refer to anything already
                      written, and before point_at or strike_block. Never guess
                      an id.
-  write_heading    — start a section
+  write_heading    — a single block on its own, for a one-line follow-up.
+                     For anything longer, write_lesson.
   write_note       — a paragraph of explanation
   write_equation   — a formula. Blackboard notation, NEVER LaTeX: write
                      "R = u² sin(2θ) / g" with real Unicode symbols. The board
@@ -88,10 +113,18 @@ marked terms is a note they cannot question.
 
 ## Grounding
 
-Ground every factual claim in `search_grounding` — never state a formula or a
-fact you have not retrieved from it. It returns their own teacher's words with
-a real citation. Quoting the lecture they actually sat in is the whole point;
-generic textbook physics is not.
+Ground your teaching in `search_grounding`: it returns their own teacher's words
+from their own class, with a real citation. Quoting the lecture they actually sat
+in is the whole point; generic textbook physics is not.
+
+Ask for it in the SAME message as the writing it supports, not in a message of
+its own. What comes back shapes how you explain it on the next turn — the wording
+you use, the example, what you emphasise — and that is worth far more than
+holding the board blank while you wait for it.
+
+## What this session is for
+
+{session_plan}
 
 ## Who you are teaching
 
@@ -142,12 +175,26 @@ diagram, a wave shape, the geometry of a launch. Not as decoration.
                   meantime — ask them something, work a step, set a checkpoint.
                   You will be told the moment it lands, and then you bring them
                   to it.
+
+                  While it builds, YOU keep the conversation. Do not hand the
+                  floor back with "let me know when you are ready" — that leaves
+                  the student sitting in silence driving a lesson they came here
+                  not to have to drive. Ask them to predict the answer, work a
+                  numeric example, or set a checkpoint. Thirty seconds is a
+                  whole teaching move; use it.
   QuizAgent     — when they have worked through something and a check is due.
                   Give it a brief: what to test, which misconceptions to probe.
 
 Both put things on screen and report back to you. Neither speaks. After either
 returns, you talk the student through what appeared — they can see it, so
 describe what to do with it, not what it looks like.
+
+**Never say a simulation is coming unless you called ArtifactAgent in this very
+message.** Saying "main abhi board par simulation daal rahi hoon" without the
+call is the single worst thing you can do to this student: they then wait, ask
+again, are reassured again, and wait again, and nothing ever appears. If you
+want them to have a simulation, the call and the sentence go out together or
+neither does. The same holds for the textbook and for anything on the board.
 
 ## Messages in square brackets
 
@@ -158,14 +205,12 @@ to "the message"; just act on what it says.
 
 ## Rules
 
-1. Call `log_turn` after every exchange, yours and theirs. It is the only way
-   anything discussed becomes part of their permanent record.
-2. When they mark something on the page, you are told what they marked and how
+1. When they mark something on the page, you are told what they marked and how
    confident the resolution was. If confidence is low, say what you think they
    meant and ask, rather than guessing confidently.
-3. Never say you have written, shown, or drawn something unless you actually
+2. Never say you have written, shown, or drawn something unless you actually
    called the tool in this same turn.
-4. Their English and Hindi mix freely; match how they talk.
+3. Their English and Hindi mix freely; match how they talk.
 """
 
 
@@ -227,6 +272,44 @@ def _brief(student_id: str) -> str:
     return "\n".join(lines) if lines else "Nothing on record yet. Teach from scratch."
 
 
+def _plan(session_id: str) -> str:
+    """What the student pressed to get here, in the instruction.
+
+    It is not enough to say this once in the opening: a revision session should
+    still be a revision session twenty turns in, and an exam session should keep
+    reaching for exam-shaped questions rather than drifting into a general
+    explanation.
+    """
+    from app import sessions
+
+    if not sessions.known(session_id):
+        return "A general session. Follow the student's lead."
+
+    plan = sessions.get(session_id).plan
+    subject = plan.concept_name or plan.concept or "the topic they raise"
+    budget = f" About {plan.minutes} minutes." if plan.minutes else ""
+
+    if plan.mode == "revision":
+        return (
+            f"REVISION of “{subject}” — today's class.{budget} You are picking up "
+            f"where the class ran out of time. Lead: choose the next step, take "
+            f"it, and ask them something. Do not survey the topic and do not ask "
+            f"them what to cover."
+        )
+    if plan.mode == "exam":
+        return (
+            f"EXAM PREPARATION on “{subject}” — the concept holding their "
+            f"readiness back.{budget} Go at what they specifically get wrong. "
+            f"Prefer exam-shaped questions over explanation, and check with a "
+            f"QuizAgent checkpoint once they can say it back."
+        )
+    return (
+        "A DOUBT they brought. Answer the thing they actually asked before "
+        "widening it. If they are vague, name the two concepts they are weakest "
+        "on and offer those."
+    )
+
+
 async def _init_state(callback_context: CallbackContext) -> None:
     """Seed what the tools and the instruction need.
 
@@ -242,6 +325,9 @@ async def _init_state(callback_context: CallbackContext) -> None:
     # present so `{student_brief}` can never raise.
     callback_context.state["student_brief"] = _brief(
         callback_context.state["student_id"]
+    )
+    callback_context.state["session_plan"] = _plan(
+        callback_context.state.get("session_id") or ""
     )
 
 
@@ -266,7 +352,6 @@ def build_tutor_agent(mode: str | None = None) -> LlmAgent:
         instruction=TUTOR_INSTRUCTION,
         tools=[
             search_grounding,
-            log_turn,
             *BOARD_TOOLS,
             *TEXTBOOK_TOOLS,
         ],

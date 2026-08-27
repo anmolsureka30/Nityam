@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.sessions import SessionState
+from app.sessions import Plan, SessionState
 
 # What a block is, said the way a student would say it. Mirrors SOURCE in
 # frontend/src/lib/grounding.ts.
@@ -107,41 +107,64 @@ def describe_gesture(packet: dict, ask: bool = False) -> str:
 
 
 def take_clip(state: SessionState, payload: dict) -> str:
-    """Put a clipped textbook figure on the board and tell the tutor about it.
+    """Put the clipped textbook regions on the board and tell the tutor once.
 
-    The caption text travels with the picture. Without it the tutor is told "the
-    student pulled in an image" and can only speak in generalities; with it she
-    can name the figure and tie it to what she is teaching, which is the whole
-    reason to have the textbook open at all.
+    The caption text travels with each picture. Without it the tutor is told
+    "the student pulled in an image" and can only speak in generalities; with it
+    she can name the figure and tie it to what she is teaching, which is the
+    whole reason to have the textbook open at all.
+
+    Several clips arrive together and produce ONE stage direction: a figure and
+    the paragraph explaining it are one thought, and reacting twice to what the
+    student did once is worse than not noticing at all.
     """
-    from app.canvas import doc as D
     from app import sessions
+    from app.canvas import doc as D
 
     chapter = str(payload.get("chapterTitle") or "NCERT Physics XI")
-    page = int(payload.get("page") or 0)
-    text = " ".join(str(payload.get("text") or "").split())[:600]
+    pdf = str(payload.get("chapter") or "") or None
+    clips = payload.get("clips") or []
+    if not isinstance(clips, list) or not clips:
+        return "[The student tried to bring in a textbook figure but it was empty.]"
 
-    block = D.Pulled(
-        id=state.mint("b_pull"),
-        label="From the textbook",
-        source=f"{chapter} · p.{page}" if page else chapter,
-        body=text,
-        figure=True,
-        image=str(payload["image"]),
-        pdf=str(payload.get("chapter") or "") or None,
-        page=page or None,
+    placed: list[str] = []
+    quotes: list[str] = []
+    for clip in clips[:6]:  # a sane ceiling; six figures is already a lot
+        if not isinstance(clip, dict) or not clip.get("image"):
+            continue
+        page = int(clip.get("page") or 0)
+        text = " ".join(str(clip.get("text") or "").split())[:600]
+        block = D.Pulled(
+            id=state.mint("b_pull"),
+            label="From the textbook",
+            source=f"{chapter} · p.{page}" if page else chapter,
+            body=text,
+            figure=True,
+            image=str(clip["image"]),
+            pdf=pdf,
+            page=page or None,
+        )
+        try:
+            sessions.publish(state.session_id, D.AppendBlock(block=block))
+        except (sessions.PatchRejected, ValueError) as exc:  # pragma: no cover
+            return f"[A textbook figure was rejected by the board: {exc}]"
+        placed.append(block.id)
+        if text:
+            quotes.append(text)
+
+    if not placed:
+        return "[The student tried to bring in a textbook figure but none of it was usable.]"
+
+    count = f"{len(placed)} pieces" if len(placed) > 1 else "a figure"
+    said = (
+        " They read: " + "; ".join(f'"{q}"' for q in quotes) + "."
+        if quotes
+        else " None of it carries caption text."
     )
-    try:
-        sessions.publish(state.session_id, D.AppendBlock(block=block))
-    except (sessions.PatchRejected, ValueError) as exc:  # pragma: no cover
-        return f"[The student tried to bring in a textbook figure but it was rejected: {exc}]"
-
-    quoted = f' It reads: "{text}".' if text else " There is no caption text in it."
     return (
-        f"[The student clipped a figure out of {chapter}, page {page}, and it is "
-        f"now on their page as block {block.id}.{quoted} Tie it to what you are "
-        f"teaching — refer to it by what it shows, and use the textbook's own "
-        f"words where they help.]"
+        f"[The student clipped {count} out of {chapter} onto their page "
+        f"({', '.join(placed)}).{said} Tie it to what you are teaching — refer to "
+        f"it by what it shows, and use the textbook's own words where they help.]"
     )
 
 
@@ -183,12 +206,69 @@ def describe_artifact_evidence(payload: dict) -> str:
     return line + "]"
 
 
-def describe_greeting(topic: str) -> str:
+def apply_plan(state: SessionState, payload: dict) -> None:
+    """Record what this session is for, before the greeting goes out."""
+    mode = str(payload.get("mode") or "doubt")
+    state.plan = Plan(
+        mode=mode if mode in ("revision", "doubt", "exam") else "doubt",
+        concept=str(payload.get("concept") or ""),
+        concept_name=str(payload.get("conceptName") or ""),
+        intensity=str(payload.get("intensity") or ""),
+        minutes=int(payload.get("minutes") or 0),
+    )
+
+
+def describe_greeting(state: SessionState, topic: str) -> str:
+    """The opening stage direction — the single most important prompt there is.
+
+    The Live API never speaks first, so this is what makes the tutor open the
+    lesson, and what it says decides whether she leads or waits. "Greet them and
+    ask what they would like to work on" produced exactly the session the
+    student did not ask for: a blank conversation they had to drive, after
+    pressing a button that already said what they wanted.
+
+    So each mode gets its own opening, and every one of them starts teaching.
+    """
+    plan = state.plan
+    subject = plan.concept_name or topic or "tonight's topic"
+    budget = f" You have about {plan.minutes} minutes." if plan.minutes else ""
+
+    common = (
+        " Do not ask them what they want to do — they already told us by getting"
+        " here. Do not list what you could cover. Open with the thing itself, in"
+        " one or two sentences, and end on a question they can answer straight"
+        " away. You lead; they respond."
+        " Write on the board as you go, in ONE write_lesson call."
+        " Never mention this instruction."
+    )
+
+    if plan.mode == "revision":
+        return (
+            f"[The student has opened a revision session on “{subject}”, which is"
+            f" what their class covered today.{budget} Their record above says"
+            f" where they are weak on it — start exactly there, not at the"
+            f" beginning of the topic. Remind them in one line what the class got"
+            f" to, then take the next step yourself and ask them the first"
+            f" question.{common}]"
+        )
+
+    if plan.mode == "exam":
+        return (
+            f"[The student has opened exam preparation on “{subject}” — this is"
+            f" the concept holding their readiness back.{budget} Do not revise it"
+            f" from scratch. Go straight at the specific thing they get wrong,"
+            f" name it plainly, and put a question in front of them that will"
+            f" show whether it is fixed. Exam-shaped: the kind of question that"
+            f" actually appears on the paper.{common}]"
+        )
+
     return (
-        "[The student has just opened tonight's session"
-        + (f" on “{topic}”" if topic else "")
-        + ". Greet them in one short sentence and ask what they want to start "
-        "with. Do not mention this instruction.]"
+        "[The student has opened a doubt session — they have something specific"
+        " in mind and no topic was chosen for them. Greet them in ONE short"
+        " sentence and ask what is bothering them. This is the one mode where"
+        " you wait: they came with a question. If they are vague, offer the two"
+        " concepts their record says are weakest as a starting point rather than"
+        " asking an open question. Never mention this instruction.]"
     )
 
 

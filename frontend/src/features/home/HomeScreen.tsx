@@ -58,7 +58,7 @@ export default function HomeScreen() {
           title="Ask a doubt"
           body="Anything from the board — today, or three weeks ago."
           footer={<Label>⌨ Type or speak →</Label>}
-          onClick={() => nav("/session")}
+          onClick={() => nav("/session?mode=doubt")}
         />
         <ActionCard
           eyebrow={`Readiness · ${readinessPct}%`}

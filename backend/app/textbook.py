@@ -18,7 +18,7 @@ from pathlib import Path
 
 from google.adk.tools import ToolContext
 
-from app import sessions
+from app import logs, sessions
 from app.canvas import doc as D
 
 log = logging.getLogger("nityam.textbook")
@@ -120,6 +120,7 @@ def show_textbook_figure(
     except (sessions.PatchRejected, ValueError) as exc:
         return {"error": str(exc)}
     log.info("textbook %s p.%s -> %s", chapter, page, block.id)
+    logs.count("textbook page")
     return {"block_id": block.id, "showing": block.source}
 
 

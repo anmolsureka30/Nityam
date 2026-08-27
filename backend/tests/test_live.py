@@ -34,6 +34,15 @@ load_env()
 FAILED = 0
 
 
+def _audio_bytes(frame: dict) -> int:
+    """PCM bytes in one server frame. Zero for every non-audio frame."""
+    return sum(
+        len(_decode(part["inlineData"]["data"]))
+        for part in (frame.get("content") or {}).get("parts") or []
+        if (part.get("inlineData") or {}).get("mimeType", "").startswith("audio/pcm")
+    )
+
+
 def check(name: str, ok: bool, extra: str = "") -> None:
     global FAILED
     if not ok:
@@ -156,29 +165,27 @@ async def run(port: int) -> None:
             "text": "Why is 45 degrees the best launch angle? Put the formula on my board.",
         }))
 
-        # Live turns take a while: VoiceAgent speaks, delegates, TutorAgent runs
-        # its own tool calls, then VoiceAgent speaks again.
-        # She bridges, delegates, and only speaks the real answer once the brain
-        # returns — which takes as long as grounding plus three board writes
-        # takes. Stopping at the last patch captured only "Good question, one
-        # second." and reported no transcription; stopping at the first
-        # turnComplete would stop after the bridge. So: wait for a turnComplete
-        # that arrives AFTER the patches.
+        # Live turns take a while: VoiceAgent delegates in silence, TutorAgent
+        # runs its own tool calls, then VoiceAgent speaks the answer.
+        #
+        # Stop on AUDIO, not on a transcription. ADK emits the settled
+        # outputTranscription for a turn BEFORE the PCM for that same turn, and
+        # there is a turnComplete immediately after the ask_tutor response — so
+        # a predicate that waited for "a settled transcription and a
+        # turnComplete after the last patch" was satisfied before a single audio
+        # frame had arrived, and then reported 0 KB of audio while the model was
+        # in fact streaming a megabyte of it. Wait for a turnComplete that
+        # follows the last audio frame.
         def done(f):
             patches = [i for i, x in enumerate(f)
                        if x.get("nityam", {}).get("kind") == "canvas_patch"]
             if len(patches) < 2:
                 return False
-            # The bridge and the tool call are one Live turn; the spoken answer
-            # is the NEXT one. So a turnComplete after the last patch is not
-            # enough — waiting on it alone caught only "Let me look at that with
-            # you." Require that she has also said something since.
             tail = f[patches[-1]:]
-            spoke = any(
-                x.get("outputTranscription", {}).get("text") and x.get("partial") is False
-                for x in tail
-            )
-            return spoke and any(x.get("turnComplete") for x in tail)
+            spoken = [i for i, x in enumerate(tail) if _audio_bytes(x)]
+            if not spoken:
+                return False
+            return any(x.get("turnComplete") for x in tail[spoken[-1]:])
 
         frames = await collect(ws, 150.0, stop=done)
 
@@ -186,12 +193,7 @@ async def run(port: int) -> None:
                   if x.get("nityam", {}).get("kind") == "error"]
         check("no stream errors", not errors, " | ".join(errors)[:200])
 
-        audio = sum(
-            len(_decode(part["inlineData"]["data"]))
-            for x in frames
-            for part in (x.get("content") or {}).get("parts") or []
-            if (part.get("inlineData") or {}).get("mimeType", "").startswith("audio/pcm")
-        )
+        audio = sum(_audio_bytes(x) for x in frames)
         check("she actually speaks", audio > 20000, f"{audio // 1024} KB of audio")
 
         said = " ".join(
@@ -200,10 +202,6 @@ async def run(port: int) -> None:
             if x.get("outputTranscription", {}).get("text") and x.get("partial") is False
         ).strip()
         check("with a transcription for the caption", len(said) > 40, said[:150])
-        check("she bridged before delegating, rather than going silent",
-              any(w in said.lower() for w in
-                  ("let me", "one sec", "achha", "good question", "hold on", "moment")),
-              said[:80])
 
         calls = [
             part["functionCall"]["name"]
@@ -213,6 +211,40 @@ async def run(port: int) -> None:
         ]
         check("VoiceAgent delegated rather than answering physics alone",
               "ask_tutor" in calls, str(sorted(set(calls))) or "it called nothing")
+
+        # ---- the regression guard for the worst bug this system has had.
+        #
+        # The instruction used to say "say one short thing first, THEN call
+        # ask_tutor". In a real session that produced a bridge line and no call,
+        # over and over: "let me check for you", "let me look at that with you",
+        # "main abhi board par simulation daal rahi hoon" — six turns, zero tool
+        # calls, a student staring at a page that never changed for 45 seconds
+        # at a stretch. Speaking and calling turned out to be mutually exclusive
+        # in practice, so the holding line is now an ARGUMENT of the call.
+        first_call = next(
+            (i for i, x in enumerate(frames)
+             for part in (x.get("content") or {}).get("parts") or []
+             if (part.get("functionCall") or {}).get("name") == "ask_tutor"),
+            None,
+        )
+        check("she delegated at all", first_call is not None)
+        if first_call is not None:
+            before = " ".join(
+                x["outputTranscription"]["text"]
+                for x in frames[:first_call]
+                if x.get("outputTranscription", {}).get("text")
+            ).strip()
+            check("she did not spend a whole turn on a bridge line instead of "
+                  "delegating", len(before) < 15, before[:120])
+
+        bridges = [
+            ((part["functionCall"].get("args") or {}).get("bridge") or "").strip()
+            for x in frames
+            for part in (x.get("content") or {}).get("parts") or []
+            if (part.get("functionCall") or {}).get("name") == "ask_tutor"
+        ]
+        check("the call carries a holding line the student sees immediately",
+              any(bridges), str(bridges))
 
         patches = [x["nityam"]["patch"] for x in frames
                    if x.get("nityam", {}).get("kind") == "canvas_patch"]

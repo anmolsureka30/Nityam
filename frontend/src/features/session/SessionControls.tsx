@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Button, Label } from "../../components/ui";
-import { describeSource } from "../../lib/grounding";
-import type { ContextPacket, MarkTool } from "../../lib/types";
+import type { MarkTool } from "../../lib/types";
 import s from "./SessionControls.module.css";
 
 const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ");
@@ -13,16 +11,13 @@ const TOOLS: { id: MarkTool; glyph: string; label: string }[] = [
 ];
 
 export default function SessionControls({
-  tool, onTool, onClear, hasMarks, packet, packetSummary, onAskAboutMark,
+  tool, onTool, onClear, hasMarks,
   onSend, onEnd, thinking,
 }: {
   tool: MarkTool | null;
   onTool: (t: MarkTool | null) => void;
   onClear: () => void;
   hasMarks: boolean;
-  packet: ContextPacket | null;
-  packetSummary: string;
-  onAskAboutMark: () => void;
   onSend: (text: string) => void;
   onEnd: () => void;
   /** She has delegated and is waiting. That wait is real — 15-20 seconds — so
@@ -46,22 +41,12 @@ export default function SessionControls({
         </div>
       )}
 
-      {hasMarks && packet && (
-        <div className={s.marked}>
-          <Label tone="accent">You marked on the page</Label>
-          <div className={s.markedRow}>
-            <span className={s.markedText}>{packetSummary}</span>
-            <Button variant="primary" size="sm" onClick={onAskAboutMark}>Ask about this</Button>
-          </div>
-          {/* A DOM-measured sweep is exact, so there is no confidence score to
-              report any more — what is worth showing is WHERE it came from, so
-              the student can see the tutor read the right part of the page. */}
-          {packet.regions.length > 0 && (
-            <div className={s.confidence}>{describeSource(packet)}</div>
-          )}
-        </div>
-      )}
-
+      {/* The "You marked … / Ask about this" card is gone. Highlighting now
+          sends the swept text and the sentences around it to the tutor
+          immediately, as context that does not complete her turn — so the
+          student marks a term, asks "what is this", and she already has the
+          referent. Asking them to press a button first meant the spoken
+          question arrived with nothing attached. */}
       <div className={s.bar}>
         <div className={s.tools} role="toolbar" aria-label="Annotation tools">
           {TOOLS.map((t) => (

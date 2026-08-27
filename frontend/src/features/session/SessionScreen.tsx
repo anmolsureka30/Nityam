@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Label, MasteryBar } from "../../components/ui";
-import { concepts, student } from "../../lib/data";
-import { describePacket } from "../../lib/grounding";
+import { concepts, intensities, student } from "../../lib/data";
 import { useLiveSession } from "../../lib/live/useLiveSession";
 import type { ContextPacket, MarkTool } from "../../lib/types";
 import type { Stroke } from "./AnnotationLayer";
@@ -37,17 +36,38 @@ export default function SessionScreen() {
      StrictMode double-invokes it, so neither guarantees identity — and identity
      is the whole requirement here. */
   const [sessionId] = useState(() => `s_${crypto.randomUUID().slice(0, 8)}`);
-  const tutor = useLiveSession(USER_ID, sessionId);
+  /* What this session is for, from the URL — so "Revise today's class",
+     "Ask a doubt" and "Exam readiness" are genuinely different sessions
+     rather than three buttons that open the same blank conversation. */
+  const [params] = useSearchParams();
+  const mode = (["revision", "doubt", "exam"] as const).find(
+    (m) => m === params.get("mode"),
+  ) ?? "doubt";
+  const plannedConcept = concepts.find((c) => c.id === params.get("concept"));
+  const intensity = params.get("intensity") ?? undefined;
+  const plan = useMemo(
+    () => ({
+      type: "start" as const,
+      mode,
+      concept: plannedConcept?.id,
+      conceptName: plannedConcept?.name,
+      intensity,
+      minutes: intensities.find((i) => i.id === intensity)?.minutes,
+    }),
+    [mode, plannedConcept?.id, plannedConcept?.name, intensity],
+  );
+
+  const tutor = useLiveSession(USER_ID, sessionId, plan);
   const { board, dispatch, send, sendScreen } = tutor;
 
   const [tool, setTool] = useState<MarkTool | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
-  const [packet, setPacket] = useState<ContextPacket | null>(null);
   const [bookOpen, setBookOpen] = useState(false);
 
   /* Mastery is still local: the tutor writes it at session close, which is
      after this screen is gone. STUB — see backend/INTEGRATION.md. */
-  const concept = concepts.find((c) => c.id === board.doc.conceptId) ?? concepts[0];
+  const concept =
+    plannedConcept ?? concepts.find((c) => c.id === board.doc.conceptId) ?? concepts[0];
   const [mastery, setMastery] = useState(concept.mastery);
   const [delta, setDelta] = useState<number | null>(null);
 
@@ -68,21 +88,14 @@ export default function SessionScreen() {
      as context for whatever they say next rather than as a turn of its own. */
   const onPacket = useCallback(
     (p: ContextPacket) => {
-      setPacket(p);
       send({ type: "gesture", packet: p });
     },
     [send],
   );
 
-  const askAboutMark = useCallback(() => {
-    if (!packet) return;
-    send({ type: "gesture", packet, ask: true });
-    setTool(null);
-  }, [packet, send]);
 
   const clearMarks = useCallback(() => {
     setStrokes([]);
-    setPacket(null);
   }, []);
 
   /* The tutor cannot see the page, so tell it: which blocks are on screen,
@@ -217,7 +230,9 @@ export default function SessionScreen() {
             <span className={s.mark} />
             <span className={s.word}>Nityam</span>
           </Link>
-          <span className={s.mode}>Revision <span aria-hidden="true">▾</span></span>
+          <span className={s.mode}>
+            {mode === "revision" ? "Revision" : mode === "exam" ? "Exam prep" : "Doubt"}
+          </span>
           {tutor.mode === "mock" && <Label tone="warn">Mock mode</Label>}
           {!tutor.connected && <Label tone="warn">Reconnecting…</Label>}
         </div>
@@ -309,9 +324,6 @@ export default function SessionScreen() {
         onTool={setTool}
         onClear={clearMarks}
         hasMarks={strokes.length > 0}
-        packet={packet}
-        packetSummary={packet ? describePacket(packet) : ""}
-        onAskAboutMark={askAboutMark}
         onSend={(text) => send({ type: "text", text })}
         thinking={tutor.thinking}
         onEnd={() => nav("/summary")}
@@ -320,17 +332,19 @@ export default function SessionScreen() {
       {bookOpen && (
         <TextbookDrawer
           onClose={() => setBookOpen(false)}
-          onClip={(clip: Clip) => {
-            /* Straight onto the board and straight to the tutor. The clip
-               carries the caption text it contained, so she can talk about
-               Fig 3.14 by name rather than about "an image". */
+          onClip={(clips: Clip[]) => {
+            /* One message for the whole selection: a figure and the paragraph
+               that explains it are one thought, and two separate interruptions
+               would have her react twice to what the student did once. */
             send({
               type: "textbook_clip",
-              image: clip.image,
-              text: clip.text,
-              chapter: clip.chapter.file,
-              chapterTitle: `Ch ${clip.chapter.number} · ${clip.chapter.title}`,
-              page: clip.page,
+              clips: clips.map((c) => ({
+                image: c.image,
+                text: c.text,
+                page: c.page,
+              })),
+              chapter: clips[0].chapter.file,
+              chapterTitle: `Ch ${clips[0].chapter.number} · ${clips[0].chapter.title}`,
             });
             setBookOpen(false);
           }}
