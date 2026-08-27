@@ -140,18 +140,30 @@ async def run(port: int) -> None:
                       a["span"] in block["tex"], f"{a['span']!r} vs {block['tex']!r}")
 
         # ------------------------------------------------------------- a gesture
-        await ws.send(json.dumps({
-            "type": "gesture",
-            "packet": {
-                "gesture": "marker", "page": 1, "blockId": "b_eq_1",
-                "resolved": [{"anchorId": "a_sin_2_1", "text": "sin(2θ)",
-                              "concept": "projectile.horizontal_range", "coverage": 0.96}],
-                "nearby": [], "confidence": 0.96,
-            },
-        }))
-        frames = await collect(ws, 3.0)
-        check("marking the page reaches the tutor and gets a reply",
-              len(patches(frames)) >= 1 or len([f for f in frames if f.get("outputTranscription")]) >= 1)
+        # A highlight on its own is CONTEXT, not a question: the student is
+        # mid-thought and about to say what they want to know about it.
+        # Answering the highlight alone talks over them.
+        mark = {
+            "gesture": "marker", "page": 1, "blockId": "b_eq_1",
+            "text": "sin(2θ)",
+            "regions": [{"blockId": "b_eq_1", "kind": "equation",
+                         "text": "sin(2θ)", "sentences": "R = u² sin(2θ) / g"}],
+            "confidence": 1,
+        }
+        await ws.send(json.dumps({"type": "gesture", "packet": mark}))
+        quiet = await collect(ws, 2.5)
+        check("a bare highlight does NOT provoke a reply",
+              len(patches(quiet)) == 0
+              and not [f for f in quiet if f.get("outputTranscription")],
+              f"{len(patches(quiet))} patches, "
+              f"{len([f for f in quiet if f.get('outputTranscription')])} spoken")
+
+        # …but pressing "Ask about this" is a question, and gets answered.
+        await ws.send(json.dumps({"type": "gesture", "packet": mark, "ask": True}))
+        answered = await collect(ws, 3.0)
+        check("asking about the same mark does",
+              len(patches(answered)) >= 1
+              or len([f for f in answered if f.get("outputTranscription")]) >= 1)
 
         # ---------------------------------------------------------------- screen
         await ws.send(json.dumps({

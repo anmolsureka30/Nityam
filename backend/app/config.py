@@ -68,3 +68,16 @@ def reasoning_model() -> str:
 # entry — but it stays a mapping because a second voice (a guest agent, a
 # different language) is a plausible next step and the call site shouldn't change.
 VOICES = {"VoiceAgent": os.getenv("NITYAM_VOICE", "Aoede")}
+
+
+# ───────────────────────────────────────────────────────── storage
+# Names match sub_modules_examples/tutor so the ported store_firestore.py works
+# unmodified. Which backend is used is NITYAM_STORE — see app/memory/store.py.
+
+GCP_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+FIRESTORE_DATABASE = os.environ.get("FIRESTORE_DATABASE", "smriti")
+"""A named, non-default database, kept apart from the testbed's own."""
+
+GCS_BUCKET = os.environ.get("GCS_BUCKET", "")
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))

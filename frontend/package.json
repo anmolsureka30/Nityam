@@ -8,9 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node tests/contract.mjs && node tests/grounding.mjs && node tests/reducer.mjs && node tests/ui.mjs"
+    "test": "node tests/contract.mjs && node tests/kernels.mjs && node tests/grounding.mjs && node tests/reducer.mjs && node tests/ui.mjs"
   },
   "dependencies": {
+    "pdfjs-dist": "^5.7.284",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"

@@ -64,6 +64,13 @@ class SessionState:
     minter: D.IdMinter
     screen: Screen
     outbox: asyncio.Queue
+    """Things to say into the live conversation that nobody asked for — an
+    artifact finishing in the background, mostly. Drained by main.py and sent
+    as a completed turn, so she actually speaks it."""
+    nudges: asyncio.Queue
+    """Background work in flight. Held only so the event loop does not garbage
+    collect a task nobody is awaiting."""
+    jobs: set
     started_at: datetime
 
     def mint(self, prefix: str) -> str:
@@ -102,6 +109,8 @@ def get(session_id: str, student_id: str = "demo_student") -> SessionState:
             minter=D.IdMinter(),
             screen=Screen(),
             outbox=asyncio.Queue(),
+            nudges=asyncio.Queue(),
+            jobs=set(),
             started_at=datetime.now(timezone.utc),
         )
         _SESSIONS[session_id] = state
@@ -115,6 +124,35 @@ def drop(session_id: str) -> None:
 
 def known(session_id: str) -> bool:
     return session_id in _SESSIONS
+
+
+def nudge(session_id: str, text: str) -> None:
+    """Interrupt the lesson with something worth saying.
+
+    Used when work that was started in the background finishes — the tutor sent
+    the student off to do something else and now needs to know it is ready.
+    """
+    state = _SESSIONS.get(session_id)
+    if state is None:
+        return
+    try:
+        state.nudges.put_nowait(text)
+    except asyncio.QueueFull:  # pragma: no cover - unbounded queue
+        log.warning("nudge dropped for %s", session_id)
+
+
+def track(session_id: str, task) -> None:
+    """Keep a reference to a fire-and-forget task.
+
+    asyncio holds only a weak reference to a task nobody awaits, so without
+    this the artifact generation can be collected mid-flight and simply never
+    finish, with no error anywhere.
+    """
+    state = _SESSIONS.get(session_id)
+    if state is None:
+        return
+    state.jobs.add(task)
+    task.add_done_callback(state.jobs.discard)
 
 
 # ------------------------------------------------------------------- publish

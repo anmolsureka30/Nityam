@@ -13,9 +13,23 @@ import type { Anchor, Checkpoint, NotebookBlock } from "../types";
 export type ClientMessage =
   | { type: "text"; text: string }
   | { type: "greet" }
-  | { type: "gesture"; packet: unknown }
+  /** `ask: true` means answer it now; without it the mark is context to be
+   *  held for whatever the student says next. */
+  | { type: "gesture"; packet: unknown; ask?: boolean }
   | { type: "screen"; state: ScreenState }
   | { type: "artifact_evidence"; artifactId: string; event: string; detail?: string }
+  /** A region the student clipped out of the textbook PDF. The image is a data
+   *  URL rasterised in the browser; `text` is whatever words fell inside the
+   *  box, which is usually the figure's caption and is what makes the clip
+   *  legible to the tutor. */
+  | {
+      type: "textbook_clip";
+      image: string;
+      text: string;
+      chapter: string;
+      chapterTitle: string;
+      page: number;
+    }
   | {
       type: "quiz_answer";
       checkpointId: string;

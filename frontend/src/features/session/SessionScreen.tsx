@@ -8,10 +8,10 @@ import type { ContextPacket, MarkTool } from "../../lib/types";
 import type { Stroke } from "./AnnotationLayer";
 import CheckpointModal from "./CheckpointModal";
 import MicToggle from "./MicToggle";
-import Notebook, { type PulledNote } from "./Notebook";
+import Notebook from "./Notebook";
 import SessionControls from "./SessionControls";
 import SpeechBubble from "./SpeechBubble";
-import TextbookDrawer from "./TextbookDrawer";
+import TextbookDrawer, { type Clip } from "./TextbookDrawer";
 import TutorAvatar from "./TutorAvatar";
 import s from "./SessionScreen.module.css";
 
@@ -43,7 +43,6 @@ export default function SessionScreen() {
   const [tool, setTool] = useState<MarkTool | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [packet, setPacket] = useState<ContextPacket | null>(null);
-  const [pulled, setPulled] = useState<PulledNote[]>([]);
   const [bookOpen, setBookOpen] = useState(false);
 
   /* Mastery is still local: the tutor writes it at session close, which is
@@ -59,17 +58,25 @@ export default function SessionScreen() {
 
   const checkpoint = board.quizQueue[0] ?? null;
 
-  /* Resolved locally so the highlight and the "you marked" card are instant,
-     then sent upstream so the tutor can answer about it. Resolving on the
-     server instead would mean a round trip before the student sees that they
-     were understood at all. */
-  const onPacket = useCallback((p: ContextPacket) => {
-    setPacket(p);
-  }, []);
+  /* Resolved locally so the highlight is instant, then sent upstream the moment
+     the stroke ends — not on a button press.
+     
+     Marking something IS the question's subject: a student highlights a term
+     and says "what does this mean", and expects the two to arrive together.
+     Requiring "Ask about this" first meant the spoken question landed with no
+     referent and she answered about the topic in general. The backend takes it
+     as context for whatever they say next rather than as a turn of its own. */
+  const onPacket = useCallback(
+    (p: ContextPacket) => {
+      setPacket(p);
+      send({ type: "gesture", packet: p });
+    },
+    [send],
+  );
 
   const askAboutMark = useCallback(() => {
     if (!packet) return;
-    send({ type: "gesture", packet });
+    send({ type: "gesture", packet, ask: true });
     setTool(null);
   }, [packet, send]);
 
@@ -122,6 +129,51 @@ export default function SessionScreen() {
       host.removeEventListener("scroll", onScroll);
     };
   }, [reportScreen, board.revision]);
+
+  /* Follow the writing.
+   *
+   * She writes several blocks over ~20 seconds and they land below the fold, so
+   * without this the student watches a still page while the answer accumulates
+   * off screen.
+   *
+   * "Unless they have scrolled up" is the important half: yanking the page down
+   * while someone is re-reading an earlier line is worse than not following at
+   * all. Once they scroll back to the bottom, following resumes — the same
+   * contract as a chat log. */
+  const following = useRef(true);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const onScroll = () => {
+      const fromBottom = host.scrollHeight - host.scrollTop - host.clientHeight;
+      // The notebook reserves avatar-height of bottom padding, so "at the
+      // bottom" is generous rather than exact.
+      following.current = fromBottom < 340;
+    };
+    host.addEventListener("scroll", onScroll, { passive: true });
+    return () => host.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (board.revision === 0 || !following.current) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const blocks = host.querySelectorAll<HTMLElement>("[data-block]");
+    const last = blocks[blocks.length - 1];
+    if (!last) return;
+    /* Scroll so the newest block sits just above her head rather than behind
+       it — the page reserves that space, so aim at it explicitly instead of
+       scrolling to the true bottom and landing under the avatar. */
+    const avatar = parseInt(
+      getComputedStyle(host).getPropertyValue("--avatar-h") || "288", 10,
+    );
+    const target =
+      last.offsetTop + last.offsetHeight - host.clientHeight + avatar + 28;
+    host.scrollTo({
+      top: Math.max(0, Math.min(target, host.scrollHeight - host.clientHeight)),
+      behavior: "smooth",
+    });
+  }, [board.revision]);
 
   // The tutor asked to bring an earlier block back into view.
   useEffect(() => {
@@ -219,7 +271,6 @@ export default function SessionScreen() {
           strokes={strokes}
           onStroke={(st) => setStrokes((prev) => [...prev, st])}
           onPacket={onPacket}
-          pulled={pulled}
           hot={board.hot}
           waiting={board.revision === 0}
           interest="cricket"
@@ -262,7 +313,6 @@ export default function SessionScreen() {
         packetSummary={packet ? describePacket(packet) : ""}
         onAskAboutMark={askAboutMark}
         onSend={(text) => send({ type: "text", text })}
-        heard={tutor.heard}
         thinking={tutor.thinking}
         onEnd={() => nav("/summary")}
       />
@@ -270,28 +320,19 @@ export default function SessionScreen() {
       {bookOpen && (
         <TextbookDrawer
           onClose={() => setBookOpen(false)}
-          onPull={(sel) => {
-            const label = sel.figure ? "Fig. 4.10" : "NCERT XI · p.79";
-            setPulled((prev) => [
-              ...prev,
-              {
-                id: `pull_${sel.id}_${Date.now()}`,
-                label,
-                source: "You pulled this in",
-                body: sel.text,
-                quote: sel.figure ? undefined : sel.text,
-                figure: sel.figure,
-              },
-            ]);
-            // The tutor is told, so it can react to what the student brought in
-            // rather than ignoring a page that appeared next to it.
+          onClip={(clip: Clip) => {
+            /* Straight onto the board and straight to the tutor. The clip
+               carries the caption text it contained, so she can talk about
+               Fig 3.14 by name rather than about "an image". */
             send({
-              type: "text",
-              text:
-                `[The student pulled ${label} in from their textbook and it is now ` +
-                `on the page: "${sel.text.slice(0, 240)}". Tie it to what you are ` +
-                `teaching, in the textbook's own words.]`,
+              type: "textbook_clip",
+              image: clip.image,
+              text: clip.text,
+              chapter: clip.chapter.file,
+              chapterTitle: `Ch ${clip.chapter.number} · ${clip.chapter.title}`,
+              page: clip.page,
             });
+            setBookOpen(false);
           }}
         />
       )}

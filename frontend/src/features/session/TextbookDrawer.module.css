@@ -1,128 +1,163 @@
+/* The textbook, as a working surface rather than a reader. Clipping a figure
+   onto the student's page is the primary action, so the page render gets the
+   room and the controls stay out of the way. */
 .veil {
   position: fixed;
   inset: 0;
-  background: rgba(22, 26, 34, 0.28);
-  z-index: 40;
-  animation: n-fade 0.2s ease both;
-  border: none;
-  padding: 0;
-  cursor: default;
+  z-index: 60;
+  background: rgba(22, 26, 34, 0.34);
+  display: flex;
+  justify-content: flex-end;
+  animation: n-fade 0.18s ease both;
 }
 
 .drawer {
-  position: fixed;
-  top: 0; right: 0; bottom: 0;
-  width: var(--drawer-w);
-  background: var(--paper);
-  border-left: 1px solid var(--line);
-  box-shadow: -18px 0 44px rgba(22, 26, 34, 0.1);
-  z-index: 41;
+  width: min(1080px, 94vw);
+  height: 100%;
   display: flex;
   flex-direction: column;
-  animation: slide 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  background: var(--ground);
+  border-left: 1px solid var(--line);
+  box-shadow: -18px 0 48px rgba(22, 26, 34, 0.16);
 }
-@keyframes slide { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 22px 14px;
+  padding: 18px 22px 12px;
   border-bottom: 1px solid var(--line);
+  background: var(--paper);
 }
-.book { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
-
-.pager { display: flex; align-items: center; gap: 8px; }
-.pageBtn {
-  width: 26px; height: 26px;
-  display: grid; place-items: center;
+.title { margin: 6px 0 0; font-size: 19px; font-weight: 600; letter-spacing: -0.012em; }
+.close {
   border: 1px solid var(--line);
   background: var(--paper);
-  border-radius: var(--r-xs);
+  border-radius: var(--r-pill);
+  width: 30px; height: 30px;
   color: var(--ink-mid);
+  cursor: pointer;
+}
+.close:hover { border-color: var(--accent); color: var(--accent-deep); }
+
+.chapters {
+  display: flex;
+  gap: 8px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  overflow-x: auto;
+}
+.chip {
+  flex: none;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
   font-size: 13px;
-}
-.pageBtn:hover { border-color: var(--accent); color: var(--accent-deep); }
-.pageNum {
-  font-family: var(--mono);
-  font-size: 11px;
   color: var(--ink-mid);
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
 }
-.close {
-  border: none; background: none; color: var(--ink-dim);
-  font-size: 15px; padding: 4px 6px; border-radius: var(--r-xs);
+.chip:hover { border-color: var(--accent-tint); }
+.chipOn { background: var(--accent-wash); border-color: var(--accent-tint); color: var(--accent-deep); }
+
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); }
+
+.toc {
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  padding: 12px 10px 24px;
+  background: var(--cream);
 }
-.close:hover { background: var(--cream); color: var(--ink); }
-
-.body { flex: 1; overflow-y: auto; padding: 22px; }
-
-/* The scanned page. Cool greys rather than the notebook's warm paper, so the
-   student can always tell the textbook from Nityam's own writing. */
-.sheet {
-  background: var(--data-ground);
-  border: 1px solid var(--line-cool);
-  border-radius: var(--r-xs);
-  padding: 26px 28px 30px;
+.tocItem {
+  display: flex;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  border-radius: var(--r-md);
+  padding: 7px 9px;
+  font-size: 13px;
+  color: var(--ink-mid);
+  cursor: pointer;
 }
+.tocItem:hover { background: var(--paper); }
+.tocOn { background: var(--paper); color: var(--ink); box-shadow: inset 2px 0 0 var(--accent); }
+.tocNum { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); flex: none; padding-top: 1px; }
+.tocTitle { text-transform: capitalize; line-height: 1.35; }
 
-.sectionLabel {
+.tocHead {
+  display: block;
+  margin: 16px 9px 7px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.11em;
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--ink-dim);
 }
-.sectionTitle {
-  font-family: var(--prose);
-  font-size: 19px;
-  letter-spacing: -0.01em;
-  margin: 8px 0 14px;
+.figs { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 9px; }
+.fig {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--r-sm);
+  padding: 3px 7px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-mid);
+  cursor: pointer;
 }
-.lead {
-  font-family: var(--prose);
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--ink);
-  margin: 0 0 12px;
+.fig:hover { border-color: var(--accent); color: var(--accent-deep); }
+
+.pageWrap { overflow: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+.sheet { position: relative; line-height: 0; }
+.canvas {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 18px rgba(22, 26, 34, 0.08);
+  background: #fff;
+  /* A crosshair says "drag a box", which a text cursor does not. */
+  cursor: crosshair;
+  touch-action: none;
 }
 
-.selectable {
-  display: block;
-  width: 100%;
-  text-align: left;
-  font-family: var(--prose);
-  font-size: 15px;
-  line-height: 1.6;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--r-xs);
-  padding: 9px 11px;
-  margin: 0 -11px 10px;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-.selectable:hover { background: #EEF4FF; border-color: #D5E3F8; }
-.selectableOn {
-  background: var(--accent-wash);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(232, 67, 122, 0.1);
+.box {
+  position: absolute;
+  border: 2px solid var(--accent);
+  background: rgba(232, 67, 122, 0.10);
+  pointer-events: none;
 }
 
-.figBox {
-  background: var(--data-cream);
-  border: 1px dashed var(--line-cool);
-  border-radius: var(--r-xs);
-  padding: 22px;
+.loading, .error {
+  margin: 40px auto;
+  max-width: 46ch;
   text-align: center;
+  color: var(--ink-mid);
+  font-size: 14.5px;
+  line-height: 1.6;
 }
+.error { color: var(--danger); }
 
-.actions {
+.foot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 22px;
+  gap: 16px;
+  padding: 12px 22px;
   border-top: 1px solid var(--line);
-  background: var(--paper-warm);
+  background: var(--paper);
 }
-.hint { flex: 1; font-size: 12.5px; color: var(--ink-mid); }
+.pager { display: flex; align-items: center; gap: 8px; }
+.pager button {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: var(--r-md);
+  width: 30px; height: 30px;
+  color: var(--ink-mid);
+  cursor: pointer;
+}
+.pager button:disabled { opacity: 0.35; cursor: default; }
+.pageNum { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); }
+.hint { flex: 1; font-size: 13px; color: var(--ink-dim); }

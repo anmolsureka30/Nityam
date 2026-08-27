@@ -19,6 +19,7 @@ Two differences from the sub-module's own `--live` path:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -114,7 +115,48 @@ def _generate_ir(spec) -> tuple[dict, str]:
     return ir, "mock fallback (live rejected by the validator)"
 
 
-def create_artifact(
+async def _build(session_id: str, spec, interest: str, placeholder_id: str) -> None:
+    """Generate the artifact off the conversation's critical path.
+
+    `_generate_ir` is a synchronous Gemini call plus a validation sweep — thirty
+    seconds or so. Awaiting it inside the tool meant the student sat in silence
+    for that whole time, and running it as a bare task would be worse: a
+    blocking call on the event loop freezes the audio stream too. So it goes to
+    a thread, and the conversation carries on without it.
+    """
+    try:
+        ir, provenance = await asyncio.to_thread(_generate_ir, spec)
+    except Exception as exc:  # noqa: BLE001 - a failed artifact must not end the lesson
+        log.exception("background artifact generation failed")
+        sessions.nudge(
+            session_id,
+            "[The simulation you asked for could not be built "
+            f"({type(exc).__name__}). Tell the student briefly and carry on "
+            "teaching without it. Do not try again.]",
+        )
+        return
+
+    artifact_id = ir.get("artifact_id") or placeholder_id
+    state = sessions.get(session_id)
+    block = D.ArtifactBlock(id=state.mint("b_art"), artifactId=artifact_id, ir=ir)
+    try:
+        sessions.publish(session_id, D.AppendBlock(block=block))
+    except (sessions.PatchRejected, ValueError) as exc:
+        log.warning("finished artifact rejected by the board: %s", exc)
+        return
+
+    log.info("artifact %s mounted as %s — %s", artifact_id, block.id, provenance)
+    title = ir.get("title") or "the simulation"
+    sessions.nudge(
+        session_id,
+        f"[The interactive artifact you asked for is now on the student's page: "
+        f"“{title}” (block {block.id}). Whatever you are in the middle of, bring "
+        f"them to it now — tell them it is ready and what to do with it. One "
+        f"sentence.]",
+    )
+
+
+async def create_artifact(
     intent: str,
     concept_ids: list[str],
     learning_outcome: str,
@@ -122,10 +164,15 @@ def create_artifact(
     interest: str,
     tool_context: ToolContext,
 ) -> dict:
-    """Generate one interactive artifact and put it on the student's board.
+    """Start building one interactive artifact. Returns IMMEDIATELY.
+
+    Generation takes around thirty seconds and happens in the background. You
+    do NOT wait for it and you must NOT stop teaching: say you are building it,
+    then carry on with something useful — ask them a question, work an example,
+    set a checkpoint. You will be told the moment it appears on their page.
 
     You configure it; you never write the physics or the rendering. Call this
-    exactly once per request.
+    once per request.
 
     Args:
         intent: What pedagogical move this artifact makes, e.g. "let the
@@ -139,11 +186,12 @@ def create_artifact(
             Pass "plain" if unknown.
 
     Returns:
-        dict with "artifact_id", "block_id" and "title" — or {"error": ...} if
-        generation could not produce a valid artifact.
+        dict with "status": "building" — and instructions on what to do while
+        it builds.
     """
     from spec import ArtifactSpec
 
+    session_id = tool_context.state.get("session_id") or "unknown"
     artifact_spec = ArtifactSpec(
         intent=intent,
         concept_ids=list(concept_ids),
@@ -151,35 +199,29 @@ def create_artifact(
         target_misconception=target_misconception,
         student={"interest": interest or "plain"},
     )
+    placeholder = f"artifact-{uuid.uuid4().hex[:8]}"
 
-    try:
-        ir, provenance = _generate_ir(artifact_spec)
-    except Exception as exc:  # noqa: BLE001 - never take the session down
-        log.exception("artifact generation blew up")
-        return {"error": f"could not build an artifact ({type(exc).__name__})"}
-
-    artifact_id = ir.get("artifact_id") or f"artifact-{uuid.uuid4().hex[:8]}"
-    session_id = tool_context.state.get("session_id") or "unknown"
-    state = sessions.get(session_id)
-
-    block = D.ArtifactBlock(
-        id=state.mint("b_art"), artifactId=artifact_id, ir=ir
+    # async def, not def: a sync tool can be dispatched into a thread by the
+    # framework, where there is no running loop to attach a background task to —
+    # and the fallback would be to generate synchronously, which is the very
+    # thing this exists to avoid. Declaring it async guarantees the loop.
+    task = asyncio.get_running_loop().create_task(
+        _build(session_id, artifact_spec, interest or "plain", placeholder)
     )
-    try:
-        sessions.publish(session_id, D.AppendBlock(block=block))
-    except (sessions.PatchRejected, ValueError) as exc:
-        return {"error": str(exc)}
-
+    sessions.track(session_id, task)
     generated = list(tool_context.state.get("artifacts_generated", []))
-    generated.append(artifact_id)
+    generated.append(placeholder)
     tool_context.state["artifacts_generated"] = generated
 
-    log.info("artifact %s mounted as %s — %s", artifact_id, block.id, provenance)
+    log.info("artifact build started for session %s", session_id)
     return {
-        "artifact_id": artifact_id,
-        "block_id": block.id,
-        "title": ir.get("title", ""),
-        "provenance": provenance,
+        "status": "building",
+        "eta_seconds": 30,
+        "next": (
+            "Do not wait and do not go quiet. Tell the student it is coming, "
+            "then keep teaching — a question, a worked step, or a checkpoint. "
+            "You will be told when it lands."
+        ),
     }
 
 
