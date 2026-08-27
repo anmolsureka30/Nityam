@@ -1,0 +1,74 @@
+.panel {
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+  background: var(--surface-container-low);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: var(--font-ui);
+}
+
+.count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--outline);
+}
+
+.dot,
+.dotPulsing {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+}
+
+.dotPulsing {
+  animation: pulse 1s ease-out;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  100% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+.body {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.workflow .dot,
+.workflow .dotPulsing {
+  background: var(--tier-workflow);
+  color: var(--tier-workflow);
+}
+
+.episodic .dot,
+.episodic .dotPulsing {
+  background: var(--tier-episodic);
+  color: var(--tier-episodic);
+}
+
+.longTerm .dot,
+.longTerm .dotPulsing {
+  background: var(--tier-long-term);
+  color: var(--tier-long-term);
+}
