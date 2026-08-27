@@ -54,9 +54,14 @@ put_teaching_memory = _impl.put_teaching_memory
 put_session_log = _impl.put_session_log
 get_session_log = _impl.get_session_log
 
-#: Only Firestore has it — a vector index over the grounding chunks. Callers
-#: must check rather than assume, so the sqlite path degrades to concept-id
-#: search instead of raising.
+#: Firestore-only extras. `getattr` rather than a plain import so the sqlite
+#: path degrades instead of raising — callers must check for None.
+#:
+#: `store_firestore.py` is a copy of sub_modules_examples/tutor's, and it has
+#: already drifted once: that module gained token-overlap fuzzy matching in
+#: search_grounding while this copy still had the version without it. Re-copy
+#: after pulling changes to the tutor sub-module.
 search_grounding_semantic = getattr(_impl, "search_grounding_semantic", None)
+list_concept_ids = getattr(_impl, "list_concept_ids", None)
 
 log.info("memory store: %s", BACKEND)
