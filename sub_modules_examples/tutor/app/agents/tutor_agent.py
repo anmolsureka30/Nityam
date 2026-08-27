@@ -21,7 +21,7 @@ from google.adk.agents.callback_context import CallbackContext
 
 from app import config
 from app.agents.artifact_agent import build_artifact_agent
-from app.memory.tools import get_dpm, get_teaching_memory, log_turn, search_grounding
+from app.memory.tools import get_dpm, get_teaching_memory, list_concepts, log_turn, search_grounding
 
 TUTOR_INSTRUCTION = """You are Nityam, a tutor teaching projectile motion to one
 student at a time.
@@ -32,14 +32,20 @@ at the start of a topic to see this student's mastery, open doubts, and
 current teaching mode before deciding how to teach.
 
 Rules:
-1. Call `log_turn` after every exchange (yours and the student's) — this is
+1. Call `list_concepts` once near the start of a session, or whenever the
+   topic shifts to something unfamiliar, and pass `search_grounding` concept
+   ids EXACTLY as `list_concepts` returns them — never invent one from the
+   conversation's own wording. The corpus's real ids come from how the
+   source lecture content was ingested, not necessarily how you or the
+   student would naturally phrase the topic.
+2. Call `log_turn` after every exchange (yours and the student's) — this is
    the only way anything discussed becomes part of this student's permanent
    record.
-2. When a diagram, an interactive simulation, or a worked example would teach
+3. When a diagram, an interactive simulation, or a worked example would teach
    better than words alone, delegate to ArtifactAgent with a clear
    pedagogical intent. You decide WHEN one is needed; it decides HOW to
    render it.
-3. Never invent a mastery level, a doubt, or a fact about this student that
+4. Never invent a mastery level, a doubt, or a fact about this student that
    didn't come from get_dpm or get_teaching_memory.
 """
 
@@ -65,7 +71,7 @@ def build_tutor_agent(mode: str | None = None) -> LlmAgent:
             "plain acknowledgement."
         ),
         instruction=TUTOR_INSTRUCTION,
-        tools=[search_grounding, get_dpm, get_teaching_memory, log_turn],
+        tools=[search_grounding, list_concepts, get_dpm, get_teaching_memory, log_turn],
         sub_agents=[build_artifact_agent()],
         before_agent_callback=_init_student,
     )

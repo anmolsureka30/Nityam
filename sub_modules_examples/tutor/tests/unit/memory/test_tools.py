@@ -41,6 +41,18 @@ def test_search_grounding_empty_for_unknown_concept(isolated_store):
     assert tools.search_grounding(["test.nonexistent"]) == {"chunks": []}
 
 
+def test_list_concepts_returns_real_vocabulary(isolated_store):
+    try:
+        store.put_grounding_chunk(isolated_store, GroundingChunk(
+            chunk_id="test_tools_c2", source_type="lecture", source_ref="shruti:x",
+            concept_ids=["test.projectile.range"], text="range excerpt",
+        ))
+        result = tools.list_concepts()
+        assert "test.projectile.range" in result["concept_ids"]
+    finally:
+        isolated_store.collection("grounding_chunks").document("test_tools_c2").delete()
+
+
 def test_get_dpm_not_found(isolated_store):
     ctx = make_tool_context({"student_id": "test_tools_student_nonexistent"})
     assert tools.get_dpm(ctx) == {"found": False}

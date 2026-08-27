@@ -42,19 +42,38 @@ class _PairwiseVerdict(BaseModel):
     rationale: str
 
 
+_client: genai.Client | None = None
+
+
+def _get_client() -> genai.Client:
+    """Root cause of every earlier judging-phase failure, found via
+    googleapis/python-genai#1489 and #1763 (and the matching aiohttp variant,
+    #1453): calling `genai.Client()` as a temporary inline object - construct,
+    call, discard, repeat - breaks starting in google-genai>=1.39.0, because
+    the SDK's own cleanup can close the underlying transport while a request
+    on a DIFFERENT temporary instance is still in flight. The fix documented
+    in those issues: hold one persistent Client and reuse it - exactly the
+    pattern session_close.py's reflect() already uses (a client passed in
+    once per persona, in harness.py's run_persona_scenario) and exactly what
+    every earlier attempt here got wrong by writing `genai.Client().models....`
+    inline on every call. A process-wide singleton, not a fresh instance per
+    call, per persona, or per judge."""
+    global _client
+    if _client is None:
+        _client = genai.Client()
+    return _client
+
+
 async def _generate(prompt: str, response_schema):
-    """Uses the SYNC client, called DIRECTLY on the running thread - not
-    via asyncio.to_thread (a worker thread), and not the async client
-    (client.aio...). Both of those failed identically across every
-    isolation strategy tried. Matches session_close.py's reflect() as
-    exactly as this code can: same client type, same plain-dict config,
-    same direct (un-threaded) call. Blocks the event loop for the call's
-    duration - acceptable here, this is eval tooling, not the live agent
-    path."""
+    """Sync client (matches session_close.py's reflect() exactly), called
+    directly on the running thread - not via asyncio.to_thread, and not the
+    async client. Neither of those was actually the bug (see _get_client's
+    docstring); they were incidental across attempts that all still
+    constructed a fresh Client() per call."""
     last_exc = None
     for attempt in range(3):
         try:
-            return genai.Client().models.generate_content(
+            return _get_client().models.generate_content(
                 model="gemini-3.7-flash", contents=prompt,
                 config={"temperature": 0, "response_mime_type": "application/json", "response_schema": response_schema},
             )

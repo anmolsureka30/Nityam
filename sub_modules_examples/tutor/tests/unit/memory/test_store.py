@@ -139,3 +139,65 @@ def test_semantic_search_ranks_similar_chunk_first(firestore_db):
     finally:
         for chunk_id in ids:
             firestore_db.collection("grounding_chunks").document(chunk_id).delete()
+
+
+def test_tokenize_drops_prefix_and_stopwords():
+    # "of"/"in" are stopwords; "projectile." is the fixed domain prefix.
+    assert store._tokenize("projectile.equation_of_trajectory") == {"equation", "trajectory"}
+    assert store._tokenize("projectile.trajectory_equation_in_two-dimensional_motion") == {
+        "trajectory", "equation", "two", "dimensional", "motion",
+    }
+
+
+def test_list_concept_ids_returns_distinct_sorted_ids(firestore_db):
+    ids = ["test_list_a", "test_list_b"]
+    try:
+        store.put_grounding_chunk(firestore_db, GroundingChunk(
+            chunk_id="test_list_a", source_type="lecture", source_ref="shruti:x",
+            concept_ids=["test.zzz_concept", "test.aaa_concept"], text="a",
+        ))
+        store.put_grounding_chunk(firestore_db, GroundingChunk(
+            chunk_id="test_list_b", source_type="lecture", source_ref="shruti:x",
+            concept_ids=["test.aaa_concept"], text="b",  # duplicate concept, different chunk
+        ))
+        concept_ids = store.list_concept_ids(firestore_db)
+        assert "test.aaa_concept" in concept_ids
+        assert "test.zzz_concept" in concept_ids
+        assert concept_ids == sorted(concept_ids)
+    finally:
+        for chunk_id in ids:
+            firestore_db.collection("grounding_chunks").document(chunk_id).delete()
+
+
+def test_search_grounding_fuzzy_fallback_matches_close_guess(firestore_db):
+    """Reproduces a real failure from the reference eval run
+    (memory_layer_eval_report.md §2.1): the model guessed
+    'projectile.equation_of_trajectory' when the real concept_id was the
+    longer, differently-ordered 'projectile.trajectory_equation_in_two-
+    dimensional_motion'. Exact match returns nothing; the fuzzy fallback
+    should still find it."""
+    real_id = "test_trajectory_equation_in_two-dimensional_motion"
+    try:
+        store.put_grounding_chunk(firestore_db, GroundingChunk(
+            chunk_id="test_fuzzy_1", source_type="lecture", source_ref="shruti:x",
+            concept_ids=[real_id], text="the real chunk",
+        ))
+        results = store.search_grounding(firestore_db, ["test_equation_of_trajectory"])
+        assert len(results) == 1
+        assert results[0].chunk_id == "test_fuzzy_1"
+    finally:
+        firestore_db.collection("grounding_chunks").document("test_fuzzy_1").delete()
+
+
+def test_search_grounding_fuzzy_fallback_rejects_unrelated_guess(firestore_db):
+    """The fallback must not match everything - an unrelated guess (no
+    token overlap at all) should still return nothing, not a false hit."""
+    try:
+        store.put_grounding_chunk(firestore_db, GroundingChunk(
+            chunk_id="test_fuzzy_2", source_type="lecture", source_ref="shruti:x",
+            concept_ids=["test.impact_angle_condition"], text="unrelated chunk",
+        ))
+        results = store.search_grounding(firestore_db, ["test.completely_different_topic"])
+        assert results == []
+    finally:
+        firestore_db.collection("grounding_chunks").document("test_fuzzy_2").delete()
