@@ -1,0 +1,95 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+}
+
+.factList {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fact {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.78rem;
+}
+
+.fact dt {
+  color: var(--outline);
+}
+
+.fact dd {
+  margin: 0;
+  color: var(--on-surface);
+  text-align: right;
+}
+
+.fact a {
+  color: var(--primary);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--outline);
+}
+
+.diffList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diffRow {
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--tier-long-term) 15%, transparent);
+  color: var(--tier-long-term);
+  font-size: 0.78rem;
+}
+
+.payload {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--surface-container-high);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin: 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.empty {
+  color: var(--outline);
+  font-size: 0.82rem;
+  font-style: italic;
+}

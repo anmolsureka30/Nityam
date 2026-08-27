@@ -1,0 +1,72 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tierSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tierHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tierDot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+}
+
+.workflow {
+  background: var(--tier-workflow);
+}
+.episodic {
+  background: var(--tier-episodic);
+}
+.longTerm {
+  background: var(--tier-long-term);
+}
+
+.tierTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--on-surface);
+}
+
+.tierDesc {
+  margin: 0 0 4px 17px;
+  font-size: 0.72rem;
+  color: var(--outline);
+  line-height: 1.4;
+}
+
+.kindCard {
+  margin-left: 17px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+}
+
+.kindTitle {
+  margin: 0 0 8px 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--secondary);
+}
+
+.kindCard + .kindCard {
+  margin-top: 10px;
+}
+
+.empty {
+  color: var(--outline);
+  font-size: 0.85rem;
+  font-style: italic;
+}

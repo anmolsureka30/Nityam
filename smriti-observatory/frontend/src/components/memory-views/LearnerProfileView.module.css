@@ -1,0 +1,101 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--outline);
+}
+
+.personaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.personaItem {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-highest);
+  color: var(--on-surface);
+}
+
+.conceptList,
+.noteList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.conceptRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  font-size: 0.8rem;
+}
+
+.conceptId {
+  font-family: var(--font-mono);
+  color: var(--on-surface);
+  flex: 1;
+}
+
+.badges {
+  display: flex;
+  gap: 4px;
+}
+
+.evidence {
+  font-size: 0.7rem;
+  color: var(--outline);
+}
+
+.note {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  font-size: 0.8rem;
+  color: var(--on-surface);
+}
+
+.noteSuperseded {
+  composes: note;
+  opacity: 0.5;
+  text-decoration: line-through;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.supersededTag {
+  font-size: 0.65rem;
+  text-decoration: none;
+  color: var(--outline);
+  text-transform: uppercase;
+}
+
+.empty {
+  color: var(--outline);
+  font-size: 0.8rem;
+  font-style: italic;
+  margin: 0;
+}

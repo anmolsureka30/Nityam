@@ -1,76 +1,15 @@
 .container {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
   height: 100%;
 }
 
-.toggleGroup {
-  display: flex;
-  gap: 4px;
-  padding: 8px;
-}
-
-.toggle,
-.toggleActive {
-  padding: 4px 12px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--outline-variant);
-  background: none;
-  color: var(--on-surface);
-  cursor: pointer;
-}
-
-.toggleActive {
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-  border-color: var(--primary);
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0 8px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.row {
-  border-bottom: 1px solid var(--outline-variant);
-}
-
-.rowHeader {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  padding: 8px 4px;
-  background: none;
-  border: none;
-  color: var(--on-surface);
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  text-align: left;
-}
-
-.recordType {
-  color: var(--primary);
-}
-
-.ts {
-  margin-left: auto;
+.empty {
   color: var(--outline);
-}
-
-.detail {
-  padding: 8px 12px 12px;
-}
-
-.payload {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  white-space: pre-wrap;
-  background: var(--surface-container-high);
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  margin: 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 12px;
 }
