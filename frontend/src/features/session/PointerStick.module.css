@@ -23,25 +23,37 @@
 
 /* A pale page and a pale stick would vanish into each other, so there is a
    soft dark stroke underneath doing the work a drop shadow would do. */
+/* A soft drop shadow rather than a fat second stroke: the shaft is a filled
+   path now, so it can cast a shadow instead of being outlined by one. The old
+   7px underlay was most of why a thin pointer looked like a heavy line drawn
+   across the page. */
 .shadow {
-  stroke: rgba(18, 21, 28, 0.16);
-  stroke-width: 7;
-  stroke-linecap: round;
+  fill: rgba(18, 21, 28, 0.13);
+  transform: translate(1.5px, 2.5px);
 }
 
-/* Wood, not brand: this is a physical object in her hand, and painting it
-   magenta would make it read as an interface affordance. The accent is spent on
-   the tip, where the meaning is. */
-.stick {
-  stroke: #8A6A46;
-  stroke-width: 3.5;
-  stroke-linecap: round;
+/* Bamboo. Warm and pale, so it sits on a white page without becoming the
+   loudest thing on it — and emphatically not the brand colour, which would
+   make a physical object in her hand read as an interface affordance. */
+.shaft {
+  fill: #C79A5B;
+  stroke: #9A6F3A;
+  stroke-width: 0.6;
 }
 
-/* The ferrule — a darker cap on the wood, not the brand colour. The accent
-   belongs on the word she is pointing at, which point_at already handles. */
+/* Binding near the grip. Two thin dark bands are most of what separates "a
+   teacher's pointer" from "a line between two boxes". */
+.band {
+  stroke: #7C5427;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+/* The ferrule, resting on the word. Dark brass, not the accent: point_at
+   already lights the term up, and two markers on one word compete. */
 .tip {
-  fill: #6B4F32;
+  fill: #5E4426;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -14,7 +14,7 @@
   left: var(--rail-mid);
   transform: translateX(-50%);
   z-index: 22;
-  width: 216px;
+  width: 232px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -77,7 +77,11 @@
 .paper {
   position: relative;
   display: block;
-  height: 168px;
+  /* Taller. At 168px the preview showed a chapter heading and a band of colour
+     and stopped — enough to know which page it was, not enough to recognise a
+     figure on it, which is what a glance at the book is for. The rail has the
+     room. */
+  height: 268px;
   overflow: hidden;
   background: #fff;
   border-top: 1px solid var(--line-soft);

@@ -144,11 +144,16 @@ await send("Input.dispatchKeyEvent", {
   type: "keyUp", key: "Enter", code: "Enter",
   windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
 });
-await sleep(1400);
-/* Mid-turn: she is speaking and an anchor is hot, which is when the stick is
-   up. Waiting for the turn to finish would miss it. */
+/* Wait for the POINTER rather than guessing at a delay. The stick is only up
+   while she is speaking AND an anchor is hot, and every fixed sleep I tried
+   landed either before she started or after she stopped. */
+for (let i = 0; i < 60; i++) {
+  const up = await ev(`return !!document.querySelector('svg[class*="layer"] path');`);
+  if (up) break;
+  await sleep(250);
+}
 await shot("03-session-written");
-await sleep(3000);
+await sleep(3200);
 await shot("03b-session-settled");
 
 await ev(`

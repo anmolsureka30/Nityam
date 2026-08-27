@@ -26,14 +26,16 @@ import s from "./PointerStick.module.css";
  * point_at fires a handful of times a session with a few seconds' TTL, so this
  * is noticeable without being constant, and needs no throttle of its own.
  *
- * IT DOES NOT REACH THE WORD, and that is deliberate. The first version drew a
- * line all the way to the anchor: from her shoulder at the bottom right to a
- * formula at the top left, that is a thirteen-hundred-pixel diagonal slicing
- * straight through the lesson — obscuring the very text it was indicating. A
- * real pointer is a pointer-length object. So the stick is capped at a
- * plausible physical length and gives DIRECTION; the `.anchorHot` highlight
- * that point_at already puts on the word gives PRECISION. Together they read
- * correctly, and neither has to cover the page to do it. */
+ * IT TOUCHES THE WORD. An earlier version stopped three hundred pixels short
+ * and left the eye to extrapolate the line — and a few degrees of error in the
+ * angle put the imagined continuation nowhere near the term, so it read as
+ * pointing at the wrong thing. Landing the tip ON the target makes the aim
+ * exact by construction, and testable.
+ *
+ * It approaches the word's UNDERSIDE from the lower right, because she stands
+ * to the right of the page: that is the shortest path to the term and the one
+ * that crosses least of the lesson, and a pointer resting under a word is what
+ * a teacher actually does. */
 
 interface Aim {
   /** Where the stick is held, and where it points. Viewport pixels. */
@@ -44,11 +46,9 @@ interface Aim {
 /** How long the raise/lower takes; matches the CSS transition. */
 const SETTLE_MS = 260;
 
-/** A pointer is about this long on screen. Capped so it never crosses the
- *  lesson — see the note above. */
-const STICK_PX = 300;
-/** And never so long that it overshoots a nearby target. */
-const CLEARANCE = 34;
+/** How far the shaft carries on behind her hand, so the near end is hidden by
+ *  her figure rather than stopping in mid-air. */
+const BUTT_PX = 46;
 
 export default function PointerStick({
   hot, speaking, revision,
@@ -79,11 +79,11 @@ export default function PointerStick({
         .map(([id]) => document.querySelector<HTMLElement>(`[data-anchor="${id}"]`))
         .find(Boolean);
 
-      const dock = document.querySelector<HTMLElement>("[data-avatar-dock]");
-      if (!word || !dock) { setAim(null); return; }
+      const figure = document.querySelector<HTMLElement>("[data-avatar-dock] canvas");
+      if (!word || !figure) { setAim(null); return; }
 
       const t = word.getBoundingClientRect();
-      const d = dock.getBoundingClientRect();
+      const d = figure.getBoundingClientRect();
 
       // Off screen, or scrolled behind the chrome: no stick rather than a stick
       // pointing into nowhere.
@@ -93,22 +93,19 @@ export default function PointerStick({
       if (!onScreen) { setAim(null); return; }
 
       /* Held low on her near shoulder — below the visible crop, so the stick
-         appears to come from a hand we never have to draw. */
-      const from = { x: d.left + d.width * 0.24, y: d.top + d.height * 0.72 };
-      // Aim at the word's centre for the ANGLE, then stop short of it.
-      const target = { x: t.left + t.width / 2, y: t.top + t.height / 2 };
+         appears to come from a hand we never have to draw. Measured off the
+         AVATAR CANVAS rather than the dock: the dock is a flex column that also
+         holds the mic control and its gap, so its box is taller than she is and
+         the hand ended up floating below her. */
+      const from = { x: d.left + d.width * 0.2, y: d.top + d.height * 0.62 };
+
+      /* Just under the word, a little right of centre — where a pointer rests
+         when a teacher underlines a term. Not the centre of the box: a tip
+         sitting on top of the glyphs hides the thing being pointed at. */
+      const to = { x: t.left + t.width * 0.66, y: t.bottom + 4 };
 
       // Pointing backwards past her own body looks wrong; skip it.
-      if (target.x > from.x - 40) { setAim(null); return; }
-
-      const dx = target.x - from.x;
-      const dy = target.y - from.y;
-      const distance = Math.hypot(dx, dy);
-      const reach = Math.min(STICK_PX, Math.max(80, distance - CLEARANCE));
-      const to = {
-        x: from.x + (dx / distance) * reach,
-        y: from.y + (dy / distance) * reach,
-      };
+      if (to.x > from.x - 40) { setAim(null); return; }
       setAim({ from, to });
     };
 
@@ -135,10 +132,11 @@ export default function PointerStick({
 
   const { from, to } = aim;
   const angle = Math.atan2(to.y - from.y, to.x - from.x);
-  // Overshoot behind her hand so the near end is hidden by her figure rather
-  // than stopping in mid-air.
-  const tailX = from.x + Math.cos(angle) * -34;
-  const tailY = from.y + Math.sin(angle) * -34;
+  const butt = {
+    x: from.x - Math.cos(angle) * BUTT_PX,
+    y: from.y - Math.sin(angle) * BUTT_PX,
+  };
+  const cane = taperedCane(butt, to);
 
   return (
     <svg
@@ -146,20 +144,82 @@ export default function PointerStick({
       aria-hidden="true"
       style={{ ["--settle" as string]: `${SETTLE_MS}ms` }}
     >
-      {/* Drawn in two strokes: a soft dark one underneath for separation
-          against a white page, then the stick itself on top. */}
-      <line
-        className={s.shadow}
-        x1={tailX} y1={tailY} x2={to.x} y2={to.y}
-      />
-      <line
-        className={s.stick}
-        x1={tailX} y1={tailY} x2={to.x} y2={to.y}
-      />
-      {/* The ferrule at the stick's own tip. There is no marker on the word:
-          point_at already lights it up, and a second dot floating in the gap
-          between the two would read as a broken connector. */}
-      <circle className={s.tip} cx={to.x} cy={to.y} r={3.5} />
+      <path className={s.shadow} d={cane.outline} />
+      <path className={s.shaft} d={cane.outline} />
+      {/* Two lacquer bands near the grip. Cheap, and they are most of what makes
+          a line read as a cane rather than as a connector. */}
+      {cane.bands.map((b, i) => (
+        <line key={i} className={s.band}
+              x1={b.x1} y1={b.y1} x2={b.x2} y2={b.y2} />
+      ))}
+      {/* The brass ferrule, resting on the word. */}
+      <circle className={s.tip} cx={to.x} cy={to.y} r={3.2} />
     </svg>
   );
+}
+
+/* A bamboo pointer: long, thin, tapering to the tip, with a little flex in it.
+ *
+ * A plain <line> read as a connector drawn between two boxes. What makes it a
+ * STICK is that it is thicker in the hand than at the tip and that it is not
+ * perfectly straight — so the shaft is a closed path built by walking a shallow
+ * curve and offsetting it perpendicular by a width that shrinks along the way.
+ */
+function taperedCane(
+  butt: { x: number; y: number },
+  tip: { x: number; y: number },
+) {
+  const dx = tip.x - butt.x;
+  const dy = tip.y - butt.y;
+  const length = Math.hypot(dx, dy) || 1;
+  // Perpendicular unit vector, for both the sag and the thickness.
+  const nx = -dy / length;
+  const ny = dx / length;
+
+  // A hand-span of sag, so it looks like cane rather than steel. Scaled with
+  // length: a short pointer held close should not bow like a fishing rod.
+  const sag = Math.min(14, length * 0.028);
+  const ctrl = {
+    x: (butt.x + tip.x) / 2 + nx * sag,
+    y: (butt.y + tip.y) / 2 + ny * sag,
+  };
+
+  const at = (t: number) => {
+    const u = 1 - t;
+    return {
+      x: u * u * butt.x + 2 * u * t * ctrl.x + t * t * tip.x,
+      y: u * u * butt.y + 2 * u * t * ctrl.y + t * t * tip.y,
+    };
+  };
+  // 3.4px in the hand down to 1.0px at the tip, eased so the taper is gentle
+  // along the shaft and quicker near the point.
+  const halfWidth = (t: number) => (3.4 - 2.4 * t * t) / 2;
+
+  const STEPS = 24;
+  const left: string[] = [];
+  const right: { x: number; y: number }[] = [];
+  for (let i = 0; i <= STEPS; i++) {
+    const t = i / STEPS;
+    const p = at(t);
+    const w = halfWidth(t);
+    left.push(`${i ? "L" : "M"}${(p.x + nx * w).toFixed(2)},${(p.y + ny * w).toFixed(2)}`);
+    right.push({ x: p.x - nx * w, y: p.y - ny * w });
+  }
+  const back = right
+    .reverse()
+    .map((p) => `L${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join("");
+
+  // Bands sit a third and two-fifths of the way along — near the grip, where a
+  // real one is bound.
+  const bands = [0.1, 0.17].map((t) => {
+    const p = at(t);
+    const w = halfWidth(t) + 0.6;
+    return {
+      x1: p.x + nx * w, y1: p.y + ny * w,
+      x2: p.x - nx * w, y2: p.y - ny * w,
+    };
+  });
+
+  return { outline: `${left.join("")}${back}Z`, bands };
 }

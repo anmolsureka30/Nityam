@@ -1,69 +1,136 @@
-/* Bottom-right, just left of the avatar's shoulder: close enough to read as
-   part of her, clear of her frame so it never covers her face. */
-.mic {
+/* Beside her shoulder: close enough to read as part of her, clear of her frame
+   so it never covers her face. */
+.dock {
   position: fixed;
-  right: calc(50vw - var(--rail-mid) + (var(--avatar-w, 254px) / 2) + 12px);
-  bottom: 26px;
+  /* Just left of her shoulder. --rail-mid is measured from the LEFT edge, so
+     converting it to a `right` offset needs the full viewport width — this was
+     50vw, which evaluates negative at any normal window size and parked the
+     whole control about 340px off the right-hand edge of the screen. It has
+     been invisible since the rail was centred. */
+  right: calc(100vw - var(--rail-mid) + (var(--avatar-w, 254px) / 2) + 10px);
+  bottom: 22px;
   z-index: 31;
-
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 9px;
-  height: 40px;
-  padding: 0 17px 0 14px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--line);
+  gap: 7px;
+}
+
+.mic {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line-hard);
   background: var(--paper);
-  box-shadow: 0 6px 22px rgba(22, 26, 34, 0.10);
-  color: var(--ink-mid);
-  font-size: 14px;
-  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(18, 21, 28, 0.14);
+  color: var(--ink);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease),
+              color 0.16s var(--ease), transform 0.12s var(--ease);
+}
+.mic:hover { transform: translateY(-1px); }
+.mic:active { transform: translateY(0); }
+.mic:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* The microphone itself. Stroked rather than filled, so the slash can cut
+   through it cleanly. */
+.glyph {
+  width: 25px;
+  height: 25px;
+  overflow: visible;
+}
+.glyph rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+}
+.glyph path,
+.glyph line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
 }
 
-.label { line-height: 1; }
-
-.dot {
-  width: 9px;
-  height: 9px;
-  flex: none;
-  border-radius: var(--r-pill);
-  background: var(--ink-dim);
-}
-
-/* Live: filled, and the dot breathes with what the mic is actually picking up. */
+/* Live: quiet. The default state of a voice tutor is that it can hear you, and
+   a loud green badge for "normal" trains the eye to ignore it. */
 .live {
-  background: var(--good);
-  border-color: var(--good);
-  color: #fff;
-}
-.live .dot {
-  background: #fff;
-  transform: scale(calc(1 + 0.9 * var(--level, 0)));
-  transition: transform 0.12s linear;
+  background: var(--paper);
+  border-color: var(--line-hard);
+  color: var(--ink);
 }
 
-/* Muted is a state worth seeing across the room, not a subtle one. */
-.muted {
-  background: var(--paper);
-  border-color: var(--line);
-  color: var(--ink-dim);
+/* The level ring. Sits behind the glyph and swells with the input, so silence
+   and a dead device do not look alike. */
+.ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 2px solid var(--good);
+  opacity: 0;
+  transform: scale(1);
+  transition: transform 0.12s linear, opacity 0.2s var(--ease);
 }
-.muted .dot {
-  background: transparent;
-  border: 1.5px solid var(--ink-dim);
+.live .ring {
+  opacity: calc(0.25 + 0.75 * var(--level, 0));
+  transform: scale(calc(1 + 0.10 * var(--level, 0)));
+}
+
+/* MUTED IS THE LOUD STATE, and deliberately so: it is the one that surprises a
+   student who is talking to a tutor that cannot hear them. */
+.muted {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  box-shadow: 0 6px 22px rgba(178, 58, 49, 0.36);
+}
+.muted:hover { background: #9E332B; border-color: #9E332B; }
+
+/* Two strokes so the slash reads as cutting through the mic: a wide one in the
+   button's own fill first, then the line itself on top. */
+.slashCut {
+  stroke: var(--danger) !important;
+  stroke-width: 5 !important;
+}
+.muted:hover .slashCut { stroke: #9E332B !important; }
+.slash {
+  stroke: #fff !important;
+  stroke-width: 2.1 !important;
 }
 
 /* Unmuted but no stream: permission was refused or there is no device. Saying
    "Listening" here would be a lie, and it is the lie that wastes an hour. */
 .blocked {
-  background: var(--paper);
-  border-color: var(--danger);
-  color: var(--danger);
+  background: var(--warn-wash);
+  border-color: #E6CFA8;
+  color: var(--warn);
 }
-.blocked .dot { background: var(--danger); }
+
+.caption {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  background: color-mix(in srgb, var(--ground) 82%, transparent);
+  padding: 2px 7px;
+  border-radius: var(--r-chip);
+  white-space: nowrap;
+}
+.captionMuted { color: var(--danger); font-weight: 600; }
+.captionBlocked { color: var(--warn); }
 
 @media (max-width: 900px) {
-  .mic { right: 12px; bottom: calc(var(--avatar-h, 190px) + 12px); }
+  .dock { right: 10px; bottom: 14px; }
+  .mic { width: 48px; height: 48px; }
+  .glyph { width: 22px; height: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic:hover { transform: none; }
+  .live .ring { transform: none; }
 }

@@ -300,6 +300,66 @@ if (quiz) {
         JSON.stringify(recorded.map((b) => b.kind)));
 }
 
+// ──────────────────────────────────────────────────────── the mute control
+/* It has to be ON THE SCREEN, which is not as silly as it sounds: the
+   rail-centring commit positioned this with `50vw` where it needed `100vw`,
+   which evaluates negative at any normal window size and parked the whole
+   control about 340px past the right-hand edge. It was invisible for three
+   commits and nothing noticed, because every check queried the DOM — where it
+   was present, styled and correct the entire time. */
+const mute = await ev(`
+  const b = [...document.querySelectorAll('button')]
+    .find(x => /(Mute|Unmute) your microphone/.test(x.getAttribute('aria-label') || ''));
+  if (!b) return null;
+  const r = b.getBoundingClientRect();
+  const cs = getComputedStyle(b);
+  const av = ${AVATAR_CANVAS}?.getBoundingClientRect();
+  return {
+    x: Math.round(r.left), y: Math.round(r.top),
+    w: Math.round(r.width), h: Math.round(r.height),
+    onScreen: r.left >= 0 && r.right <= window.innerWidth
+           && r.top >= 0 && r.bottom <= window.innerHeight,
+    round: cs.borderRadius,
+    clearOfHer: av ? Math.round(r.right) <= Math.round(av.left) : null,
+    label: b.getAttribute('aria-label'),
+  };
+`);
+check("the mute button exists", !!mute, JSON.stringify(mute));
+if (mute) {
+  check("and is actually on the screen", mute.onScreen === true,
+        `${mute.w}x${mute.h} at ${mute.x},${mute.y}`);
+  check("circular", mute.round === "50%", mute.round);
+  check("beside her, not over her", mute.clearOfHer === true,
+        `button ends at ${mute.x + mute.w}, she starts after it: ${mute.clearOfHer}`);
+
+  await ev(`
+    [...document.querySelectorAll('button')]
+      .find(x => /Mute your microphone/.test(x.getAttribute('aria-label') || ''))?.click();
+    return 1;
+  `);
+  await sleep(400);
+  const muted = await ev(`
+    const b = [...document.querySelectorAll('button')]
+      .find(x => /(Mute|Unmute) your microphone/.test(x.getAttribute('aria-label') || ''));
+    return { label: b?.getAttribute('aria-label'), pressed: b?.getAttribute('aria-pressed'),
+             caption: (b?.parentElement?.innerText || '').trim(),
+             slash: !!b?.querySelector('line[class*="slash"]') };
+  `);
+  check("clicking it mutes", muted.pressed === "true" && /Unmute/.test(muted.label || ""),
+        JSON.stringify(muted));
+  check("the mic glyph gets a slash through it", muted.slash === true);
+  check("and it says so in words too", /muted/i.test(muted.caption || ""), muted.caption);
+
+  // Put it back, so the rest of the suite runs against a live mic.
+  await ev(`
+    [...document.querySelectorAll('button')]
+      .find(x => /Unmute your microphone/.test(x.getAttribute('aria-label') || ''))?.click();
+    return 1;
+  `);
+  await sleep(300);
+}
+
+
 // ─────────────────────────────────────────── the book open on the desk
 /* The book used to be a thing you had to remember existed, behind a header
    button, while the rail beside the tutor sat empty. It is now open next to
