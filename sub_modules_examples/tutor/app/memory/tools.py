@@ -11,7 +11,7 @@ import functools
 
 from google.adk.tools import ToolContext
 
-from app.memory import store
+from app.memory import short_term, store
 
 
 @functools.cache
@@ -65,9 +65,11 @@ def get_teaching_memory(tool_context: ToolContext) -> dict:
     return {"found": True, **memory.model_dump(mode="json")}
 
 
-def log_turn(text: str, role: str, concept_id: str, artifact_id: str, tool_context: ToolContext) -> dict:
-    """Append one turn to the in-session buffer. RAM only — never written to
-    disk mid-session (memory_layer.md §3). Call this after every exchange.
+async def log_turn(text: str, role: str, concept_id: str, artifact_id: str, tool_context: ToolContext) -> dict:
+    """Append one turn to the in-session buffer. In-process first (RAM,
+    never written to disk mid-session — memory_layer.md §3), then a
+    write-through mirror to Redis (Memorystore in deployment) so the buffer
+    survives outside this one process. Call this after every exchange.
 
     Args:
         text: What was said.
@@ -79,21 +81,23 @@ def log_turn(text: str, role: str, concept_id: str, artifact_id: str, tool_conte
         dict with the new buffer length.
     """
     buffer = tool_context.state.get("turn_buffer", [])
-    buffer.append({
+    turn = {
         "turn": len(buffer) + 1,
         "role": role,
         "text": text,
         "concept_id": concept_id or None,
         "artifact_id": artifact_id or None,
-    })
+    }
+    buffer.append(turn)
     tool_context.state["turn_buffer"] = buffer
+    await short_term.append_turn(tool_context.session.id, turn)
     return {"buffer_length": len(buffer)}
 
 
-def log_artifact_evidence(event: str, artifact_id: str, tool_context: ToolContext) -> dict:
+async def log_artifact_evidence(event: str, artifact_id: str, tool_context: ToolContext) -> dict:
     """Append an artifact interaction event (e.g. "discovered_optimum",
     "misconception_behavior" — see sub_modules/artifact_generator's probes)
-    to the in-session buffer.
+    to the in-session buffer, and its Redis write-through mirror.
 
     Args:
         event: The event name the artifact reported.
@@ -103,6 +107,8 @@ def log_artifact_evidence(event: str, artifact_id: str, tool_context: ToolContex
         dict confirming the event was buffered.
     """
     events = tool_context.state.get("artifact_events", [])
-    events.append({"event": event, "artifact_id": artifact_id})
+    entry = {"event": event, "artifact_id": artifact_id}
+    events.append(entry)
     tool_context.state["artifact_events"] = events
+    await short_term.append_artifact_event(tool_context.session.id, entry)
     return {"logged": True}

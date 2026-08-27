@@ -21,3 +21,21 @@ LIVE_MODEL = "gemini-3.1-flash-live-preview"
 REASONING_MODEL = "gemini-3.7-flash"
 """TutorAgent and ArtifactAgent — text/tool reasoning, run via run_async
 through the mode='single_turn' delegation path."""
+
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "nityam-506707")
+FIRESTORE_DATABASE = os.environ.get("FIRESTORE_DATABASE", "smriti")
+"""A named, non-default database — kept separate from
+sub_modules_examples/memory_storage_testbed's own `smriti-testbed`
+(project_documentation/memory_nityam_architecture/google_cloud_storage_integration.md)."""
+GCS_BUCKET = os.environ.get("GCS_BUCKET", "nityam-506707-tutor-artifacts")
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+"""Workflow-tier write-through mirror (memory_layer.md §5). Local Redis for
+now; real Memorystore is a deployment-time decision, not a code change —
+see google_cloud_storage_integration.md §5.4."""

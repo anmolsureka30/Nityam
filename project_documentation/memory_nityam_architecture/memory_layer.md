@@ -1,14 +1,17 @@
-# SMRITI — The Memory Layer (v1.0 — simplified)
+# SMRITI — The Memory Layer (v2.0 — Google-managed storage)
 
 **स्मृति · "that which is remembered"**
 
-Supersedes v0.3. That version stored memory as a markdown wiki, argued deliberately against
-JSON schemas, and was organised around three questions. This version keeps the three
-questions but answers them with typed, schema-validated JSON records instead of prose files,
-and organises storage into three explicit tiers (workflow / episodic / long-term) shared by
-every agent. The full v0.3 reasoning for markdown-first storage is preserved in git history
-if it's ever worth revisiting — nothing here disputes that it was well-argued, only that the
-product direction changed.
+Supersedes v1.0's §5 (SQLite storage) and §6 (Memory Bank verdict). v1.0 kept the three
+questions from v0.3 but answered them with typed, schema-validated JSON records over SQLite.
+This version keeps the three questions, the four schemas, and the three-tier split
+**completely unchanged** — the only thing that moves is where each tier physically lives:
+Memorystore (Redis) for the workflow tier, Firestore for the episodic and long-term tiers,
+Cloud Storage for binary artifacts. Nothing in §0–§4 below changed; §5 and §6 are the ones
+that did. Full research, code, and the reasoning behind each service choice lives in the
+companion document `google_cloud_storage_integration.md` — this file carries the short,
+day-to-day version. The full v0.3 reasoning for markdown-first storage, and v1.0's SQLite
+schema-design reasoning, are both preserved in git history if ever worth revisiting.
 
 ---
 
@@ -31,13 +34,15 @@ private copy or its own serialization format.
 
 | Tier | What it is | Where it lives | Lifetime |
 |---|---|---|---|
-| **Workflow** | Current concept, current teaching mode, attempt count, the in-progress turn buffer | ADK `session.state` | One session, ephemeral |
-| **Episodic** | The turn-by-turn record of one session, closed out when it ends | `session_log` record | Forever, append-once |
-| **Long-term** | Persistent, cross-session knowledge | `grounding_chunk` / `dpm_profile` / `teaching_memory` records | Forever, updated via validated operations |
+| **Workflow** | Current concept, current teaching mode, attempt count, the in-progress turn buffer | ADK `session.state` (live, in-process) + **Memorystore** (write-through mirror) | One session, ephemeral — Memorystore keys carry a safety-net TTL, not indefinite retention |
+| **Episodic** | The turn-by-turn record of one session, closed out when it ends | `session_log` record, in **Firestore** | Forever, append-once |
+| **Long-term** | Persistent, cross-session knowledge | `grounding_chunk` / `dpm_profile` / `teaching_memory` records, in **Firestore** | Forever, updated via validated operations |
 
-The workflow tier is not our own store — it's ADK's native `session.state`, free and already
-durable if the session service is durable. Only the episodic and long-term tiers are things we
-design.
+The workflow tier is still ADK's native `session.state` for the live turn's own context-building
+— that part is unchanged and still free. What's new in v2.0 is a write-through mirror to
+Memorystore, so the tier is backed by a real Google-managed service rather than living only in
+one process's RAM. See `google_cloud_storage_integration.md` §5 for why this is a mirror rather
+than a session-service swap.
 
 **Why episodic is its own tier, not folded into long-term:** every claim in `dpm_profile` and
 `teaching_memory` cites a `session_id#turn`. That reference has to resolve against something.
@@ -248,8 +253,10 @@ what "one memory layer, shared across agents" means concretely.
 read freely throughout, but the only path that updates them is `close_session`. This isn't a
 Live-specific workaround — it's the same reasoning that held in v0.3: you don't know what a
 turn meant until you see what followed it, and a file write inside a turn is latency you don't
-need to pay. `log_turn` and `log_artifact_evidence` only append to the in-session buffer
-(`session.state`), which is free.
+need to pay. `log_turn` and `log_artifact_evidence` still append to the in-session buffer
+(`session.state`) first — that part stays free — and, as of v2.0, additionally write through to
+Memorystore (sub-millisecond, non-blocking; see `google_cloud_storage_integration.md` §5.3).
+Both are `async` as of v2.0, which the ADK tool-dispatch path already supports natively.
 
 ---
 
@@ -270,31 +277,61 @@ Not a background agent — nobody has to be absent for this to run. It's the las
 
 ## 5. Storage
 
-SQLite for now, same schema working toward Postgres later. Narrow relational columns for what
-gets queried a lot (`student_id`, `concept_id`, `status`), one JSON column per record holding
-the schema-validated payload. Pydantic models mirroring §2's schemas validate every write.
+**No local database, no SQLite, no Postgres — every persistent tier lives on a Google-managed
+service.** Three services, one per concern, none of them overlapping in role:
 
-Flat per-student JSON files were the alternative — simpler to stand up, but weaker at targeted
-queries ("all active doubts for student X") and concurrent-write safety, for a saving that
-matters less now that markdown's "readable via git diff" rationale isn't the deciding factor
-anymore. A light embedded DB costs almost nothing extra and buys real query-ability.
+| Record / tier | Backend | Collection / mechanism |
+|---|---|---|
+| `grounding_chunk` | Firestore | `grounding_chunks` collection, `concept_ids` array field + a native vector field (`embedding`) for semantic search |
+| `dpm_profile` | Firestore | `dpm_profiles` collection, one document per `student_id` |
+| `teaching_memory` | Firestore | `teaching_memories` collection, one document per `student_id` |
+| `session_log` | Firestore | `session_logs` collection, one document per `session_id` |
+| Workflow-tier turn buffer | Memorystore (Redis) | `session:<id>:turns` / `session:<id>:artifact_events` lists, write-through mirror of `session.state`, TTL'd |
+| `ArtifactAgent` binary outputs | Cloud Storage | via ADK's built-in `GcsArtifactService` — not agent-callable tools, transparent runtime layer |
+
+The four Pydantic models mirroring §2's schemas validate every write exactly as before — Firestore
+documents hold the same JSON shape SQLite's payload column held, just without the extra narrow
+relational columns SQLite needed for indexed lookups (Firestore's own field-level indexes and
+`array_contains_any` cover `student_id`/`concept_id`/`status` queries natively).
+
+**Why Firestore over the alternatives, and why Memorystore for the workflow tier specifically —
+full research, exact per-file code, the embedding-dimension conflict that must be resolved before
+`grounding_chunk` writes, auth/networking prerequisites, and every source consulted, are in
+[`google_cloud_storage_integration.md`](google_cloud_storage_integration.md).** That document
+also has the file-by-file migration plan: `app/memory/store.py` is the only file that needs a
+real rewrite (function-for-function, same signatures); `app/memory/tools.py` gains a Memorystore
+write-through call in two functions; `app/memory/ops.py` and `app/session_close.py` need no
+changes at all.
 
 ---
 
-## 6. Why not Memory Bank
+## 6. Why not Memory Bank, Agent Search, or Vector Search
 
-Checked directly against Google's Gemini Enterprise Agent Platform Memory Bank, in both its
-free-text and typed-Profile modes: neither carries an evidence pointer back to the session
-turn or lecture moment that justified a fact. That's the one property every schema in §2
-depends on (§0's citation ledger), so the pedagogical memory — `dpm_profile`, `teaching_memory`
-— stays in our own store. The full six-service platform evaluation (RAG Engine, Vector Search,
-Skill Registry, Feedback Service, Sandbox) that led here is preserved in git history; none of
-those conclusions changed, they're just not reproduced here since most of what they gated
+Checked directly against Google's current Vertex AI Memory Bank (`VertexAiMemoryBankService`),
+not just the earlier Gemini Enterprise Agent Platform version: it still extracts and
+*consolidates* facts via an LLM pass, and consolidation has no mechanism to carry a
+`session_id#turn` evidence pointer through it. That's the one property every schema in §2 depends
+on (§0's citation ledger), so `dpm_profile`/`teaching_memory` stay in Firestore rather than Memory
+Bank, same conclusion as v1.0, now reconfirmed against the current product.
+
+Two more services were newly evaluated for v2.0 and also declined: **Vertex AI Search / Agent
+Search** (`VertexAiSearchTool`, Discovery Engine) is built for coarse, unstructured-document
+retrieval via a managed GCS connector — the wrong grain for `grounding_chunk`, which Shruti
+already chunks and tags with `concept_ids`/`location` precisely; routing it through Discovery
+Engine would re-ingest content Shruti already processed, losing that metadata. **Vertex AI Vector
+Search 2.0** has the same grain mismatch plus a KFP-pipeline/Collection infrastructure footprint
+that Firestore's native vector field makes unnecessary at our chunk volume. Full reasoning and
+sources for both: `google_cloud_storage_integration.md` §1.
+
+The full six-service platform evaluation (RAG Engine, Vector Search, Skill Registry, Feedback
+Service, Sandbox) that led to v1.0's original Memory Bank verdict is preserved in git history;
+none of those conclusions changed, they're just not reproduced here since most of what they gated
 (the skill-file teaching-mode system, background agents, Manim rendering) is itself deferred —
 see `deferred.md`.
 
 ---
 
-*v1.0. Supersedes v0.3 (`smriti_harness_integration.md`, `smriti_session_lifecycle.md`,
+*v2.0. Supersedes v1.0 §5 (SQLite storage) and §6 (Memory Bank-only verdict) — §0–§4 unchanged.
+v1.0 superseded v0.3 (`smriti_harness_integration.md`, `smriti_session_lifecycle.md`,
 `nityam_error_registory.md`, and `google_platform_integration.md` are folded into this file and
 `architecture.md`, or moved to `deferred.md`; recoverable in full via git history.)*

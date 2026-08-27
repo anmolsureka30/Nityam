@@ -1,121 +1,105 @@
-"""One shared SQLite backing store for the memory layer — the same tool
+"""One shared Firestore backing store for the memory layer — the same tool
 functions in app/memory/tools.py call these, so TutorAgent and ArtifactAgent
 read through one physical store, not separate copies (memory_layer.md §3, §5).
+
+Replaces the earlier SQLite implementation 1:1 by function name/shape — see
+project_documentation/memory_nityam_architecture/google_cloud_storage_integration.md
+§3.5 for the migration this was ported from.
 """
 from __future__ import annotations
 
-import sqlite3
-from pathlib import Path
+from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
+from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
+from google.cloud.firestore_v1.vector import Vector
 
+from app import config
 from app.memory.schemas import DPMProfile, GroundingChunk, SessionLog, TeachingMemory
 
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "memory.db"
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS grounding_chunk (
-    chunk_id TEXT PRIMARY KEY,
-    payload TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS grounding_chunk_concept (
-    concept_id TEXT NOT NULL,
-    chunk_id TEXT NOT NULL REFERENCES grounding_chunk(chunk_id),
-    PRIMARY KEY (concept_id, chunk_id)
-);
-CREATE TABLE IF NOT EXISTS dpm_profile (
-    student_id TEXT PRIMARY KEY,
-    payload TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS teaching_memory (
-    student_id TEXT PRIMARY KEY,
-    payload TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS session_log (
-    session_id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    payload TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_session_log_student ON session_log(student_id);
-"""
-
-
-def connect(db_path: Path | str = DB_PATH) -> sqlite3.Connection:
-    if db_path != ":memory:":
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(SCHEMA)
-    return conn
-
-
-def put_grounding_chunk(conn: sqlite3.Connection, chunk: GroundingChunk) -> None:
-    conn.execute(
-        "INSERT OR REPLACE INTO grounding_chunk (chunk_id, payload) VALUES (?, ?)",
-        (chunk.chunk_id, chunk.model_dump_json()),
+def connect(project: str | None = None, database: str | None = None) -> firestore.Client:
+    return firestore.Client(
+        project=project or config.GCP_PROJECT,
+        database=database or config.FIRESTORE_DATABASE,
     )
-    conn.execute("DELETE FROM grounding_chunk_concept WHERE chunk_id = ?", (chunk.chunk_id,))
-    conn.executemany(
-        "INSERT INTO grounding_chunk_concept (concept_id, chunk_id) VALUES (?, ?)",
-        [(cid, chunk.chunk_id) for cid in chunk.concept_ids],
-    )
-    conn.commit()
 
 
-def search_grounding(conn: sqlite3.Connection, concept_ids: list[str], limit: int = 5) -> list[GroundingChunk]:
+def put_grounding_chunk(
+    db: firestore.Client, chunk: GroundingChunk, embedding: list[float] | None = None
+) -> None:
+    """`embedding` is optional: Shruti's own embedder currently emits 3072-dim
+    vectors, over Firestore's 2048-dim vector-index cap (see
+    google_cloud_storage_integration.md §3.3 — a companion, smaller-dimension
+    embedding for this field is a still-open item). Concept-id search
+    (search_grounding) works identically with or without it; semantic search
+    (search_grounding_semantic) only returns a chunk once it has one."""
+    payload = chunk.model_dump(mode="json")
+    if embedding is not None:
+        payload["embedding"] = Vector(embedding)
+    db.collection("grounding_chunks").document(chunk.chunk_id).set(payload)
+
+
+def search_grounding(db: firestore.Client, concept_ids: list[str], limit: int = 5) -> list[GroundingChunk]:
     if not concept_ids:
         return []
-    placeholders = ",".join("?" * len(concept_ids))
-    rows = conn.execute(
-        f"""
-        SELECT DISTINCT gc.payload FROM grounding_chunk gc
-        JOIN grounding_chunk_concept gcc ON gcc.chunk_id = gc.chunk_id
-        WHERE gcc.concept_id IN ({placeholders})
-        LIMIT ?
-        """,
-        (*concept_ids, limit),
-    ).fetchall()
-    return [GroundingChunk.model_validate_json(r[0]) for r in rows]
-
-
-def get_dpm(conn: sqlite3.Connection, student_id: str) -> DPMProfile | None:
-    row = conn.execute(
-        "SELECT payload FROM dpm_profile WHERE student_id = ?", (student_id,)
-    ).fetchone()
-    return DPMProfile.model_validate_json(row[0]) if row else None
-
-
-def put_dpm(conn: sqlite3.Connection, profile: DPMProfile) -> None:
-    conn.execute(
-        "INSERT OR REPLACE INTO dpm_profile (student_id, payload) VALUES (?, ?)",
-        (profile.student_id, profile.model_dump_json()),
+    docs = (
+        db.collection("grounding_chunks")
+        .where(filter=FieldFilter("concept_ids", "array_contains_any", concept_ids))
+        .limit(limit)
+        .get()
     )
-    conn.commit()
+    return [
+        GroundingChunk.model_validate({k: v for k, v in d.to_dict().items() if k != "embedding"})
+        for d in docs
+    ]
 
 
-def get_teaching_memory(conn: sqlite3.Connection, student_id: str) -> TeachingMemory | None:
-    row = conn.execute(
-        "SELECT payload FROM teaching_memory WHERE student_id = ?", (student_id,)
-    ).fetchone()
-    return TeachingMemory.model_validate_json(row[0]) if row else None
+def search_grounding_semantic(
+    db: firestore.Client,
+    query_embedding: list[float],
+    concept_ids: list[str] | None = None,
+    limit: int = 5,
+) -> list[GroundingChunk]:
+    """Vector-similarity variant — use when a query doesn't cleanly resolve to
+    known concept_ids. Only returns chunks that were written with an
+    embedding (see put_grounding_chunk)."""
+    q = db.collection("grounding_chunks")
+    if concept_ids:
+        q = q.where(filter=FieldFilter("concept_ids", "array_contains_any", concept_ids))
+    docs = q.find_nearest(
+        vector_field="embedding",
+        query_vector=Vector(query_embedding),
+        distance_measure=DistanceMeasure.COSINE,
+        limit=limit,
+    ).get()
+    return [
+        GroundingChunk.model_validate({k: v for k, v in d.to_dict().items() if k != "embedding"})
+        for d in docs
+    ]
 
 
-def put_teaching_memory(conn: sqlite3.Connection, memory: TeachingMemory) -> None:
-    conn.execute(
-        "INSERT OR REPLACE INTO teaching_memory (student_id, payload) VALUES (?, ?)",
-        (memory.student_id, memory.model_dump_json()),
-    )
-    conn.commit()
+def get_dpm(db: firestore.Client, student_id: str) -> DPMProfile | None:
+    doc = db.collection("dpm_profiles").document(student_id).get()
+    return DPMProfile.model_validate(doc.to_dict()) if doc.exists else None
 
 
-def put_session_log(conn: sqlite3.Connection, log: SessionLog) -> None:
-    conn.execute(
-        "INSERT OR REPLACE INTO session_log (session_id, student_id, payload) VALUES (?, ?, ?)",
-        (log.session_id, log.student_id, log.model_dump_json()),
-    )
-    conn.commit()
+def put_dpm(db: firestore.Client, profile: DPMProfile) -> None:
+    db.collection("dpm_profiles").document(profile.student_id).set(profile.model_dump(mode="json"))
 
 
-def get_session_log(conn: sqlite3.Connection, session_id: str) -> SessionLog | None:
-    row = conn.execute(
-        "SELECT payload FROM session_log WHERE session_id = ?", (session_id,)
-    ).fetchone()
-    return SessionLog.model_validate_json(row[0]) if row else None
+def get_teaching_memory(db: firestore.Client, student_id: str) -> TeachingMemory | None:
+    doc = db.collection("teaching_memories").document(student_id).get()
+    return TeachingMemory.model_validate(doc.to_dict()) if doc.exists else None
+
+
+def put_teaching_memory(db: firestore.Client, memory: TeachingMemory) -> None:
+    db.collection("teaching_memories").document(memory.student_id).set(memory.model_dump(mode="json"))
+
+
+def put_session_log(db: firestore.Client, log: SessionLog) -> None:
+    db.collection("session_logs").document(log.session_id).set(log.model_dump(mode="json"))
+
+
+def get_session_log(db: firestore.Client, session_id: str) -> SessionLog | None:
+    doc = db.collection("session_logs").document(session_id).get()
+    return SessionLog.model_validate(doc.to_dict()) if doc.exists else None

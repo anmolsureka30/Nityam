@@ -91,13 +91,13 @@ def test_apply_operations_drops_schema_violating_args_without_raising():
     assert memory.open_doubts == []
 
 
-def test_close_session_runs_build_persist_reflect_apply_persist_in_order(monkeypatch):
+def test_close_session_runs_build_persist_reflect_apply_persist_in_order(firestore_db, monkeypatch):
     """Covers close_session's own orchestration, which none of the other
     tests touch: build the log, persist it, load profile/memory, call
     reflect(), apply the result, persist profile/memory, and return the log.
     reflect() is monkeypatched to a canned ReflectResult so this needs no
     live API call — only the plumbing around it is under test."""
-    conn = store.connect(":memory:")
+    conn = firestore_db
 
     stub_result = ReflectResult(
         summary="student worked through the range formula",
@@ -120,29 +120,32 @@ def test_close_session_runs_build_persist_reflect_apply_persist_in_order(monkeyp
         {"turn": 2, "role": "tutor", "text": "range formula", "concept_id": "projectile.range", "artifact_id": None},
     ]
 
-    returned_log = close_session(conn, "s1", "demo_student", started, buffer, client=None)
+    try:
+        returned_log = close_session(conn, "test_s1", "test_demo_student", started, buffer, client=None)
 
-    # Returned SessionLog is the same one build_session_log would produce.
-    assert returned_log.session_id == "s1"
-    assert returned_log.student_id == "demo_student"
-    assert len(returned_log.turns) == 2
-    assert returned_log.turns[1].concept_id == "projectile.range"
+        # Returned SessionLog is the same one build_session_log would produce.
+        assert returned_log.session_id == "test_s1"
+        assert returned_log.student_id == "test_demo_student"
+        assert len(returned_log.turns) == 2
+        assert returned_log.turns[1].concept_id == "projectile.range"
 
-    # session_log row landed in the store.
-    stored_log = store.get_session_log(conn, "s1")
-    assert stored_log is not None
-    assert stored_log.model_dump() == returned_log.model_dump()
+        # session_log row landed in the store.
+        stored_log = store.get_session_log(conn, "test_s1")
+        assert stored_log is not None
+        assert stored_log.model_dump() == returned_log.model_dump()
 
-    # dpm_profile updated per the stubbed set_mastery op.
-    profile = store.get_dpm(conn, "demo_student")
-    assert profile is not None
-    assert profile.weaknesses["projectile.range"].mastery == "partial"
-    assert profile.weaknesses["projectile.range"].evidence == ["s1#2"]
+        # dpm_profile updated per the stubbed set_mastery op.
+        profile = store.get_dpm(conn, "test_demo_student")
+        assert profile is not None
+        assert profile.weaknesses["projectile.range"].mastery == "partial"
+        assert profile.weaknesses["projectile.range"].evidence == ["s1#2"]
 
-    # teaching_memory updated per the stubbed open_doubt op.
-    memory = store.get_teaching_memory(conn, "demo_student")
-    assert memory is not None
-    assert memory.open_doubts[0].concept_id == "projectile.range"
-    assert memory.open_doubts[0].status == "active"
-
-    conn.close()
+        # teaching_memory updated per the stubbed open_doubt op.
+        memory = store.get_teaching_memory(conn, "test_demo_student")
+        assert memory is not None
+        assert memory.open_doubts[0].concept_id == "projectile.range"
+        assert memory.open_doubts[0].status == "active"
+    finally:
+        conn.collection("session_logs").document("test_s1").delete()
+        conn.collection("dpm_profiles").document("test_demo_student").delete()
+        conn.collection("teaching_memories").document("test_demo_student").delete()

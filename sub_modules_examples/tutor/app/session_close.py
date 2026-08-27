@@ -5,11 +5,11 @@ proposing validated ops against dpm_profile/teaching_memory (memory_layer.md
 """
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
 from google import genai
+from google.cloud import firestore
 from pydantic import BaseModel, ValidationError
 
 from app import config
@@ -99,7 +99,7 @@ def apply_operations(profile: DPMProfile, memory: TeachingMemory, result: Reflec
 
 
 def close_session(
-    conn: sqlite3.Connection,
+    conn: firestore.Client,
     session_id: str,
     student_id: str,
     started_at: datetime,

@@ -1,3 +1,4 @@
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from app.memory import store
 from scripts.seed_demo_data import parse_wiki_file, seed
@@ -32,18 +33,26 @@ def test_parse_wiki_file_splits_on_taught_in_sections(tmp_path):
     assert chunks[0].chunk_id != chunks[1].chunk_id
 
 
-def test_seed_populates_grounding_and_demo_student():
-    conn = store.connect(":memory:")
-    seed(conn)
+def test_seed_populates_grounding_and_demo_student(firestore_db):
+    conn = firestore_db
+    try:
+        seed(conn)
 
-    results = store.search_grounding(conn, ["projectile.horizontal_range"])
-    assert len(results) > 0
+        results = store.search_grounding(conn, ["projectile.horizontal_range"])
+        assert len(results) > 0
 
-    profile = store.get_dpm(conn, "demo_student")
-    assert profile is not None
-    assert profile.student_id == "demo_student"
+        profile = store.get_dpm(conn, "demo_student")
+        assert profile is not None
+        assert profile.student_id == "demo_student"
 
-    memory = store.get_teaching_memory(conn, "demo_student")
-    assert memory is not None
-    assert "projectile.horizontal_range" in memory.syllabus
-    conn.close()
+        memory = store.get_teaching_memory(conn, "demo_student")
+        assert memory is not None
+        assert "projectile.horizontal_range" in memory.syllabus
+    finally:
+        chunks_to_clean = conn.collection("grounding_chunks").where(
+            filter=FieldFilter("concept_ids", "array_contains", "projectile.horizontal_range")
+        ).get()
+        for doc in chunks_to_clean:
+            doc.reference.delete()
+        conn.collection("dpm_profiles").document("demo_student").delete()
+        conn.collection("teaching_memories").document("demo_student").delete()
