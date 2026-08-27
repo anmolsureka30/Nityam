@@ -1749,7 +1749,11 @@ def test_diff_dpm_reports_new_weakness():
     changes = diff_dpm(old, new)
     assert len(changes) == 1
     assert changes[0].kind == "added"
-    assert "projectile.range" in changes[0].label
+    # No ".mastery" suffix here — that's the "changed" shape (see
+    # test_diff_dpm_reports_mastery_transition below). Conflating the two
+    # shapes was a real bug source elsewhere in this plan (Tasks 11/23).
+    assert changes[0].path == "weaknesses.projectile.range"
+    assert changes[0].label == "new weakness tracked: projectile.range (partial)"
 
 
 def test_diff_dpm_reports_mastery_transition():
@@ -1777,7 +1781,8 @@ def test_diff_dpm_treats_missing_old_as_empty():
     changes = diff_dpm(None, new)
     assert len(changes) == 1
     assert changes[0].kind == "added"
-    assert "responds well to worked examples" in changes[0].label
+    assert changes[0].path == "self_reflection"
+    assert changes[0].label == 'new self-reflection: "responds well to worked examples"'
 
 
 def test_diff_teaching_memory_reports_coverage_transition():
