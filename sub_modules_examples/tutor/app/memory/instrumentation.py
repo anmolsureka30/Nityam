@@ -92,9 +92,26 @@ def _to_jsonable(value: Any) -> Any:
     return value
 
 
+def _payload_source(operation: Operation, args: tuple, result: Any) -> Any:
+    """store.py's write functions (put_dpm, put_teaching_memory,
+    put_session_log, put_grounding_chunk) all return None — they just
+    perform a Firestore .set() with no return value. The data actually
+    written is the object passed in, not the function's return value. By
+    convention every one of these functions takes the connection/db as
+    args[0] and the written object as args[1] (short_term.py's
+    append_turn/append_artifact_event similarly take session_id as args[0]
+    and the payload dict as args[1]); every real call site in this codebase
+    calls them positionally. For "read" operations the return value IS the
+    interesting data (including a legitimate None for "not found"), so it's
+    always used as-is."""
+    if operation == "read":
+        return result
+    return args[1] if len(args) > 1 else result
+
+
 def _build_event(
     tier: Tier, record_type: RecordType, operation: Operation, fn_name: str,
-    session_id: str | None, student_id: str | None, result: Any,
+    session_id: str | None, student_id: str | None, payload_source: Any,
 ) -> MemoryEvent:
     trace_id, span_id = _current_trace_ids()
     return MemoryEvent(
@@ -108,7 +125,7 @@ def _build_event(
         source_fn=fn_name,
         trace_id=trace_id,
         span_id=span_id,
-        payload=_to_jsonable(result),
+        payload=_to_jsonable(payload_source),
     )
 
 
@@ -159,7 +176,8 @@ def emit_memory_event(
                 try:
                     session_id, student_id = extract_ids(args, kwargs, result)
                     event = _build_event(
-                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                        tier, record_type, operation, fn.__name__, session_id, student_id,
+                        _payload_source(operation, args, result),
                     )
                     await _publish_async(event)
                 except Exception:
@@ -173,7 +191,8 @@ def emit_memory_event(
                 try:
                     session_id, student_id = extract_ids(args, kwargs, result)
                     event = _build_event(
-                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                        tier, record_type, operation, fn.__name__, session_id, student_id,
+                        _payload_source(operation, args, result),
                     )
                     _publish_sync(event)
                 except Exception:
