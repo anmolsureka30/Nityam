@@ -1596,11 +1596,15 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "redis>=5.0",
     "pydantic>=2.0",
-    "app",
+    "tutor",
 ]
 
 [tool.uv.sources]
-app = { path = "../../sub_modules_examples/tutor", editable = true }
+# The path dependency name must match the `[project] name` declared in
+# sub_modules_examples/tutor/pyproject.toml ("tutor"), not the importable
+# top-level module it ships (`app`) — uv matches sources by distribution
+# name. The import in observatory/events.py is still `from app...`.
+tutor = { path = "../../sub_modules_examples/tutor", editable = true }
 
 [dependency-groups]
 dev = [
