@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AgentToolGraph } from "../../components/AgentToolGraph";
 import { EventTimeline } from "../../components/EventTimeline";
 import { Inspector } from "../../components/Inspector";
 import { SessionDrawer, type SessionSummary } from "../../components/SessionDrawer";
-import { SessionListInline } from "../../components/SessionListInline";
 import { SidePanel } from "../../components/SidePanel";
 import { StateOverview } from "../../components/StateOverview";
 import { StatusChips } from "../../components/StatusChips";
@@ -23,6 +23,7 @@ export function SessionView() {
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<EnrichedEvent | null>(null);
   const [activeTier, setActiveTier] = useState<Tier | null>(null);
+  const sessionsRef = useRef<SessionSummary[]>([]);
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/sessions`)
@@ -31,12 +32,21 @@ export function SessionView() {
       .catch(() => setSessions([]));
   }, []);
 
+  // Kept out of the effect below on purpose: `sessions` is refetched (and
+  // gets a new array reference) independently of session selection — e.g.
+  // React StrictMode's dev double-invoke, or a future periodic refresh —
+  // and including it in that effect's deps would restart the events/state
+  // fetch and websocket every time, discarding whatever had just loaded.
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
   useEffect(() => {
     if (!selectedId) return;
     setEvents([]);
     setSelectedEvent(null);
     setActiveTier(null);
-    const studentId = sessions.find((s) => s.session_id === selectedId)?.student_id ?? "demo_student";
+    const studentId = sessionsRef.current.find((s) => s.session_id === selectedId)?.student_id ?? "demo_student";
     fetch(`${BACKEND_URL}/api/sessions/${selectedId}/state?student_id=${studentId}`)
       .then((r) => r.json())
       .then(setState)
@@ -49,7 +59,7 @@ export function SessionView() {
     return connectSessionSocket(BACKEND_URL.replace("http", "ws"), selectedId, (enriched) => {
       setEvents((prev) => [...prev, enriched]);
     });
-  }, [selectedId, sessions]);
+  }, [selectedId]);
 
   const counts = useMemo(() => {
     const c: Record<Tier, number> = { ...EMPTY_COUNTS };
@@ -69,6 +79,25 @@ export function SessionView() {
   const filteredEvents = activeTier ? events.filter((e) => e.event.tier === activeTier) : events;
   const selectedSession = sessions.find((s) => s.session_id === selectedId);
 
+  // The agent/tool graph highlights whichever trace the selected event
+  // belongs to — every operation that trace performed, not just the one
+  // clicked, since one turn can touch several memory tiers in one call.
+  // An event with no trace_id (nothing was in an active OpenTelemetry span
+  // when it fired — shown as "untraced operation" in the timeline) can't be
+  // grouped with siblings, so it falls back to highlighting just itself.
+  const activeSourceFns = useMemo(() => {
+    const map = new Map<string, Set<Tier>>();
+    if (!selectedEvent) return map;
+    const traceId = selectedEvent.event.trace_id;
+    const matching = traceId ? events.filter((e) => e.event.trace_id === traceId) : [selectedEvent];
+    for (const e of matching) {
+      const tiers = map.get(e.event.source_fn) ?? new Set<Tier>();
+      tiers.add(e.event.tier);
+      map.set(e.event.source_fn, tiers);
+    }
+    return map;
+  }, [events, selectedEvent]);
+
   return (
     <div style={{ display: "flex", height: "100vh" }}>
       <SessionDrawer sessions={sessions} selectedId={selectedId} onSelect={setSelectedId} />
@@ -87,6 +116,7 @@ export function SessionView() {
               </a>
             </header>
             <StatusChips counts={counts} pulsing={pulsing} activeTier={activeTier} onSelectTier={setActiveTier} />
+            <AgentToolGraph backendUrl={BACKEND_URL} activeSourceFns={activeSourceFns} />
             <EventTimeline
               events={filteredEvents}
               gcpProject={GCP_PROJECT}
@@ -111,11 +141,6 @@ export function SessionView() {
             id: "inspector",
             label: "Inspector",
             content: <Inspector selected={selectedEvent} gcpProject={GCP_PROJECT} />,
-          },
-          {
-            id: "sessions",
-            label: "Sessions",
-            content: <SessionListInline sessions={sessions} selectedId={selectedId} onSelect={setSelectedId} />,
           },
         ]}
       />

@@ -17,6 +17,44 @@ def client_app(firestore_db, redis_client):
     return TestClient(app)
 
 
+def test_agent_graph_returns_empty_dot_src_when_tutor_unreachable(client_app):
+    response = client_app.get("/api/agent-graph")
+    assert response.status_code == 200
+    assert response.json() == {"dot_src": ""}
+
+
+def test_agent_graph_proxies_and_caches_the_tutor_apps_dot_source(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        def json(self):
+            return {"dotSrc": "strict digraph { TutorAgent }"}
+
+    class FakeAsyncClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def get(self, url, **kwargs):
+            calls.append(url)
+            return FakeResponse()
+
+    monkeypatch.setattr("observatory.routes_rest.httpx.AsyncClient", FakeAsyncClient)
+
+    app = FastAPI()
+    app.include_router(build_router(tutor_base_url="http://fake-tutor"))
+    client = TestClient(app)
+
+    first = client.get("/api/agent-graph")
+    second = client.get("/api/agent-graph")
+
+    assert first.json() == {"dot_src": "strict digraph { TutorAgent }"}
+    assert second.json() == {"dot_src": "strict digraph { TutorAgent }"}
+    assert calls == ["http://fake-tutor/dev/apps/app/graph"]  # second call served from cache, not re-fetched
+
+
 def test_session_state_returns_current_long_term_snapshot(client_app, firestore_db, redis_client):
     try:
         store.put_dpm(firestore_db, DPMProfile(student_id="test_rest_student"))

@@ -24,7 +24,7 @@ export function StateOverview({ state }: { state: SessionState | null }) {
         <p className={styles.tierDesc}>{TIER_DESCRIPTION.workflow}</p>
         <div className={styles.kindCard}>
           <h4 className={styles.kindTitle}>{RECORD_TYPE_LABEL.turn_buffer}</h4>
-          <WorkingMemoryView turnBuffer={state.workflow.turn_buffer} />
+          <WorkingMemoryView turnBuffer={state.workflow.turn_buffer} sessionId={state.session_id} />
         </div>
       </section>
 

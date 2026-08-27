@@ -1,5 +1,7 @@
 import type { DPMProfile } from "../../lib/types";
 import { MasteryBadge, StrengthBadge } from "../Badge";
+import { EvidenceChips } from "../EvidenceChips";
+import { jumpToTurn } from "../../lib/jumpToTurn";
 import styles from "./LearnerProfileView.module.css";
 
 export function LearnerProfileView({ profile }: { profile: DPMProfile | null }) {
@@ -30,12 +32,14 @@ export function LearnerProfileView({ profile }: { profile: DPMProfile | null }) 
           <ul className={styles.conceptList}>
             {weaknesses.map(([conceptId, w]) => (
               <li key={conceptId} className={styles.conceptRow}>
-                <span className={styles.conceptId}>{conceptId}</span>
-                <span className={styles.badges}>
-                  <MasteryBadge value={w.mastery} />
-                  <StrengthBadge value={w.strength} />
-                </span>
-                <span className={styles.evidence}>{w.evidence.length} evidence ref{w.evidence.length === 1 ? "" : "s"}</span>
+                <div className={styles.conceptRowTop}>
+                  <span className={styles.conceptId}>{conceptId}</span>
+                  <span className={styles.badges}>
+                    <MasteryBadge value={w.mastery} />
+                    <StrengthBadge value={w.strength} />
+                  </span>
+                </div>
+                <EvidenceChips evidence={w.evidence} onJumpToTurn={jumpToTurn} />
               </li>
             ))}
           </ul>
@@ -52,6 +56,7 @@ export function LearnerProfileView({ profile }: { profile: DPMProfile | null }) 
               <li key={i} className={note.status === "superseded" ? styles.noteSuperseded : styles.note}>
                 {note.note}
                 {note.status === "superseded" && <span className={styles.supersededTag}>superseded</span>}
+                <EvidenceChips evidence={note.evidence} onJumpToTurn={jumpToTurn} />
               </li>
             ))}
           </ul>

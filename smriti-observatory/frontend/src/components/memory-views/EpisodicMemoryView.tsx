@@ -21,7 +21,7 @@ export function EpisodicMemoryView({ log }: { log: SessionLog | null }) {
         <span className={styles.metaItem}>ended {new Date(log.ended_at).toLocaleTimeString()}</span>
       </div>
       {log.summary && <p className={styles.summary}>{log.summary}</p>}
-      <TurnTranscript turns={log.turns} />
+      <TurnTranscript turns={log.turns} sessionId={log.session_id} />
     </div>
   );
 }

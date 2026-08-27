@@ -14,6 +14,24 @@ from observatory.events import MemoryEvent
 
 def build_router(tutor_base_url: str) -> APIRouter:
     router = APIRouter(prefix="/api")
+    _agent_graph_cache: dict[str, str] = {}
+
+    @router.get("/agent-graph")
+    async def agent_graph():
+        """Proxies the tutor app's own ADK dev-ui graph (agents + tools, as
+        Graphviz DOT source) so the browser can render it without a direct
+        cross-origin request — the ADK dev server doesn't send CORS headers.
+        Cached in-process: the agent/tool topology only changes on redeploy."""
+        if "dot_src" in _agent_graph_cache:
+            return {"dot_src": _agent_graph_cache["dot_src"]}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{tutor_base_url}/dev/apps/app/graph", params={"dark_mode": "true"}, timeout=5.0)
+            dot_src = response.json().get("dotSrc", "")
+        except Exception:
+            return {"dot_src": ""}
+        _agent_graph_cache["dot_src"] = dot_src
+        return {"dot_src": dot_src}
 
     @router.get("/sessions")
     def list_sessions():

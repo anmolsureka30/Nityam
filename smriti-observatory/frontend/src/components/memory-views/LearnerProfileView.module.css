@@ -45,12 +45,18 @@
 
 .conceptRow {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
   background: var(--surface-container);
   font-size: 0.8rem;
+}
+
+.conceptRowTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .conceptId {
@@ -62,11 +68,6 @@
 .badges {
   display: flex;
   gap: 4px;
-}
-
-.evidence {
-  font-size: 0.7rem;
-  color: var(--outline);
 }
 
 .note {

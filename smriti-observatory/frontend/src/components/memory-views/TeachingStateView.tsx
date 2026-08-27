@@ -1,5 +1,7 @@
 import type { TeachingMemoryState } from "../../lib/types";
 import { CoverageBadge, DoubtStatusBadge } from "../Badge";
+import { EvidenceChips } from "../EvidenceChips";
+import { jumpToTurn } from "../../lib/jumpToTurn";
 import styles from "./TeachingStateView.module.css";
 
 export function TeachingStateView({ state }: { state: TeachingMemoryState | null }) {
@@ -47,6 +49,7 @@ export function TeachingStateView({ state }: { state: TeachingMemoryState | null
                 </div>
                 <p className={styles.doubtText}><strong>Doubt:</strong> {doubt.doubt}</p>
                 <p className={styles.doubtText}><strong>Correct:</strong> {doubt.correct_understanding}</p>
+                <EvidenceChips evidence={doubt.evidence} onJumpToTurn={jumpToTurn} />
               </li>
             ))}
           </ul>
