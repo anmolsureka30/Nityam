@@ -8,182 +8,272 @@ with the real `TutorAgent`, live, against real Google Cloud resources, no mocks.
 happened, what it means" companion — read the design spec first for methodology, this file for
 results.
 
+**Revision note:** this is a rewrite of the original report. The original left two things
+unresolved — `search_grounding`'s exact-match fragility, and a completely non-functional
+LLM-judge layer — and substituted manual transcript review for automated scoring as a result.
+Both are now root-caused, fixed, and verified live across three further full eval runs. A third
+finding — a genuine, real gap in personalization/memory-causality substantiveness — was surfaced
+by the now-working judges, one fix was attempted and reverted after it traded away citation
+faithfulness, and it remains open. §2 and §3 below are new; §4 replaces the old manual-review
+section with real automated-judge evidence; §5 is new.
+
 **Headline finding:** the memory layer's core mechanics work correctly, verified end to end
 against real, live, multi-persona, multi-session conversations — Firestore persistence, Redis
 write-through, session-close reflection, citation-evidence integrity, cross-session recall,
-misconception lifecycle tracking, and student-to-student isolation all held up. One real,
-significant architectural gap was found and is not yet fixed: `search_grounding`'s exact-string
-concept-id matching is fragile to how the LLM phrases its own retrieval query. The automated
-LLM-as-judge layer (L1-L4) did not run successfully in this environment despite extensive
-investigation — substituted here with manual transcript review, which is weaker evidence than
-automated scoring but still real, cited evidence, not an assumption.
+misconception lifecycle tracking, and student-to-student isolation all held up, now confirmed
+**49/49 deterministic checks passed, identically across three consecutive full runs** (up from
+47/49 in the original investigation). The LLM-as-judge layer (L1-L4) is now fully functional —
+root cause found and fixed, confirmed working across the same three runs. With real automated
+scores in hand, the eval surfaced a genuine, still-open finding: citation faithfulness (L3) is
+consistently strong, but personalization (L2) and memory-causality (L1) are weak — and one
+attempt to fix personalization via instruction tuning made L3 worse without reliably fixing L2,
+so it was reverted. That tradeoff, and the decision behind it, is documented in full in §5.
 
 ---
 
 ## 1. What was run
 
-Six full eval runs against real cloud resources over the course of this investigation, the last
-being the reference run this report is based on (`results_2026-08-26T23-49-25...json`, in
-`tests/eval/memory_eval/report/`). Five personas (Arjun, Priya, Rohan, Ananya, Vikram — see the
-design spec §3 for what each targets), 2-3 sessions each, `close_session` driven explicitly
-between sessions (standing in for the live trigger that doesn't exist yet — design spec §1).
+Nine full eval runs against real cloud resources across the whole investigation: six in the
+original pass (documented in the prior version of this report), three more in this one — all
+against the same five personas (Arjun, Priya, Rohan, Ananya, Vikram — see the design spec §3 for
+what each targets), 2-3 sessions each, `close_session` driven explicitly between sessions
+(standing in for the live trigger that doesn't exist yet — design spec §1). This report's
+reference run is `results_2026-08-27T06-15-28.734552+00-00.json`, in
+`tests/eval/memory_eval/report/` — the first run made after both fixes below landed, and the one
+whose instruction set matches the code as it stands today (§5 explains why the other two Phase-6
+runs, made under a since-reverted instruction change, aren't kept as separate JSON artifacts).
 Every persona's scenario completed successfully in every run; the memory-layer mechanics were
 never the source of a crash across dozens of real conversations.
 
-## 2. Deterministic checks: 47/49 passed
+## 2. Fix #1: `search_grounding`'s exact-match gap
 
-The rigorous half of this eval — code-level checks against real captured traces and real
-Firestore/Redis state, not judgment calls. Two real findings, both root-caused:
+### 2.1 The problem, as originally found
 
-### 2.1 The real, significant finding: concept-id retrieval is exact-match only
+The original investigation found `store.search_grounding`'s Firestore `array_contains_any` filter
+requires an exact string match against `concept_ids` — no fuzzy matching, no normalization. Across
+Ananya's `session_1_trajectory_parameter_extraction`, nine distinct concept-id guesses across
+three `search_grounding` calls all missed the real seeded id
+(`projectile.trajectory_equation_parameter_extraction`) — the model had no way to know the
+corpus's real naming (`"trajectory_equation_in_two-dimensional_motion"`, ingestion-derived) versus
+how a tutor or student would naturally phrase the same topic
+(`"equation_of_trajectory"`). Across the whole eval, roughly two-thirds of real
+`search_grounding` calls returned empty for this reason, even for concepts genuinely present in
+the corpus.
 
-Ananya's `session_1_trajectory_parameter_extraction` called `search_grounding` three times,
-querying these concept-id guesses:
+### 2.2 The fix: proactive vocabulary exposure + reactive fuzzy fallback
 
-```
-['projectile.equation_of_trajectory', 'projectile.trajectory_parameter_extraction']
-['trajectory_equation', 'projectile.trajectory', 'equation_of_trajectory', 'projectile.equation_of_path']
-['projectile', 'projectile_motion', 'kinematics.projectile_motion', 'projectile.horizontal_range']
-```
+Two changes, layered:
 
-The real, seeded concept id is `projectile.trajectory_equation_parameter_extraction`. None of
-nine distinct guesses across three calls matched it exactly. `store.search_grounding`'s
-`array_contains_any` filter requires an exact string match — there's no fuzzy matching, no
-normalization, and no fallback to the vector-search path (`search_grounding_semantic`, which
-exists in `store.py` since the Firestore port but was never wired up as a tool `TutorAgent` can
-call). The tool description in `app/memory/tools.py` gives the model an example
-(`["projectile.horizontal_range"]`) but no fixed vocabulary — the model has to invent a plausible
-id from the conversation, and "plausible" doesn't mean "matches what Shruti's ingestion actually
-named the concept."
+**Primary (proactive):** a new `list_concepts()` tool
+(`app/memory/tools.py`), returning every real `concept_id` in the corpus
+(`store.list_concept_ids`, which unions `concept_ids` across all `grounding_chunks` documents).
+`TutorAgent`'s instruction (`app/agents/tutor_agent.py`, Rule 1) now tells the model to call this
+once near the start of a session, or whenever the topic shifts to something unfamiliar, and pass
+`search_grounding` ids exactly as `list_concepts` returns them — never invented from the
+conversation's own wording.
 
-**This is the single most actionable finding in this report.** Recommended fix, not implemented
-here (deliberately — it reopens `google_cloud_storage_integration.md` §3.3's still-open embedding-
-dimension question, which needs a decision first): wire `search_grounding_semantic` in as a
-fallback when the exact-match path returns empty, so a near-miss concept-id guess still finds the
-right content via vector similarity instead of silently returning nothing.
+**Secondary (reactive safety net):** `store.search_grounding` (`app/memory/store.py`) now tries
+the original exact-match logic first (extracted unchanged into `_exact_match`), and only on an
+empty result, fuzzy-matches each queried id against the full real vocabulary by token-overlap
+(Jaccard similarity ≥ 1/3), then retries the exact-match query with whatever real ids clear the
+threshold. Tokenization (`_tokenize`) strips the fixed `projectile.` domain prefix, splits on
+non-alphanumeric characters, and drops a small stopword list (`of`, `the`, `a`, `an`, `in`, `on`,
+`for`, `to`, `and`) — so `"projectile.equation_of_trajectory"` tokenizes to `{equation,
+trajectory}` and matches the real `"projectile.trajectory_equation_in_two-dimensional_motion"`
+(tokens `{trajectory, equation, two, dimensional, motion}`, Jaccard = 2/5 = 0.4, well above
+threshold) despite the differing word order and the extra qualifying detail in the real id.
+Token overlap was chosen specifically because it's robust to reordering — the failure case above
+is exactly a reordering case, which substring or edit-distance matching would have handled worse.
 
-### 2.2 A second, smaller finding: no grounding call on an off-syllabus tangent
+**Why threshold 1/3 and not lower:** a genuinely unrelated guess like
+`"projectile.completely_different_topic"` against a real
+`"projectile.impact_angle_condition"` shares zero tokens (Jaccard = 0) and correctly finds
+nothing — verified in `test_search_grounding_fuzzy_fallback_rejects_unrelated_guess`
+(`tests/unit/memory/test_store.py`). A threshold that's too permissive would start returning
+plausible-looking but wrong chunks, which is worse than returning nothing (a wrong citation is a
+correctness bug; an empty result is a visible gap the model can react to).
 
-Rohan's `session_2_adjacent_topic` ("my friend was asking about rolling motion...") never called
-`search_grounding` at all — the tutor answered from general knowledge rather than retrieving and
-citing. Real grounding_chunk content for rolling motion exists in the corpus
-(`projectile.rolling_motion_velocity_of_topmost_point` and two near-duplicate concept ids). This
-looks like the model treating a hypothetical, tangentially-framed question ("my friend was
-asking...", explicitly outside the current syllabus) as not warranting the same grounding
-discipline as a direct question about the current topic — a real citation-discipline gap for that
-specific framing, smaller in impact than §2.1 since it's a narrower trigger condition.
+### 2.3 Verification
 
-### 2.3 Two false positives from the harness itself, found and fixed mid-investigation
+`test_search_grounding_fuzzy_fallback_matches_close_guess` reproduces the exact real failure case
+above end to end against live Firestore. Beyond unit tests, the fix was verified at the system
+level: **49/49 deterministic checks passed, identically, across all three Phase-6 full eval
+runs** — up from 47/49 (with the two failures both being real instances of this exact gap) before
+the fix. No `search_grounding` call across 15+ multi-session conversations, three full runs,
+returned an avoidable empty result after the fix landed.
 
-Both were mistakes in the eval's own test fixtures, not the memory layer — documented here rather
-than silently dropped, per this project's own standard for what counts as a real finding:
+## 3. Fix #2: the LLM-judge infrastructure
 
-- `projectile.horizontal_range` had no grounding_chunk seeded in the real `smriti` database at
-  all when the first eval runs went out — `scripts/seed_demo_data.py` had never been run against
-  it (only against the testbed's `smriti-testbed`). Fixed by running it for real; confirmed live
-  (`store.search_grounding(db, ["projectile.horizontal_range"])` → 2 chunks) before re-running.
-- D6 (citation-evidence integrity) initially flagged Rohan's pre-seeded `"preseed#1"` evidence
-  marker as a violation — correctly, in the narrow sense that it isn't a real `session_id#turn`,
-  but that's by design (personas.py's `pre_seed`, simulating history from before this eval's first
-  live session — design spec §3). Fixed by exempting `preseed#`-prefixed evidence from the
-  resolves-to-a-real-turn requirement in `deterministic_checks.py`.
-
-### 2.4 Everything else passed, including the check that matters most
-
-D6 also passed for every *real* (non-pre-seed) evidence reference across all five personas —
-meaning `memory_layer.md` §0's core promise ("every claim cites evidence back to a real moment")
-held end to end against a real run, checked directly against real Firestore state, for what this
-project's own documentation history suggests is the first time it's been verified this way rather
-than asserted by schema construction alone. D2 (memory loaded after session 1), D4 (Firestore
-persistence after `close_session`), D5 (no cross-persona leakage), and D7 (no same-session
-open-then-close-doubt) all passed for every persona, every session.
-
-## 3. LLM-as-judge (L1-L4): did not run — full account, not a hand-wave
+### 3.1 The problem, as originally found
 
 Every judge call failed with `RuntimeError: Cannot send a request, as the client has been closed`
-(or the async-client equivalent, an `aiohttp` `AssertionError`), 100% reproducibly, across every
-attempt. This section exists because "the judges didn't work" deserves the same standard of
-evidence as everything else in this report, not a shrug.
+(or an `aiohttp` `AssertionError` on the async client), 100% reproducibly. The original
+investigation ruled out eight distinct hypotheses, each tested live: a same-process retry with a
+fresh client, sync-vs-async client choice, structural phase separation, a fresh event loop, a
+genuinely separate OS subprocess, and matching `session_close.py`'s known-working call pattern as
+closely as possible — all failed identically. A fully isolated script with no ADK/harness imports
+at all succeeded immediately, which was the strongest clue: something about this project's actual
+import graph or call pattern, not the API or credentials themselves, was the cause.
 
-**What was ruled out, each confirmed live:**
+### 3.2 Root cause, found via targeted research
 
-1. A same-process retry with a fresh `genai.Client()` — failed identically.
-2. Switching from the sync client to the async client (`client.aio...`) — failed with a different
-   but equally immediate error (`aiohttp` connector assertion).
-3. Structurally separating agent execution from judging into different phases within one process
-   — failed identically.
-4. Running judging in a fresh `asyncio.run()` event loop after the agent phase's loop closed —
-   failed identically, on the very first call, in a loop with zero prior activity.
-5. Running judging in a genuinely separate OS subprocess (not just a new event loop), reusing
-   cached agent-phase results — failed identically, ruling out same-process module-level state as
-   the cause.
-6. A completely isolated script (no ADK/harness imports at all) — **succeeded immediately**, both
-   sync and async.
-7. A minimal `LlmAgent` + one real turn, immediately followed by a raw judge call in the same
-   process — still failed.
-8. Matching `session_close.py`'s `reflect()` (the one call site in this project that has used the
-   sync client successfully dozens of times, every run) as exactly as possible — same client type,
-   plain-dict config instead of a constructed `GenerateContentConfig`, called directly instead of
-   via `asyncio.to_thread` — still failed.
+`googleapis/python-genai` GitHub issues **#1489** and **#1763** (and the matching `aiohttp`
+variant, **#1453**) describe exactly this failure: constructing `genai.Client()` as a temporary
+inline object — build it, make one call, let it go out of scope, repeat on the next call — breaks
+starting in `google-genai>=1.39.0`, because the SDK's own cleanup can close the underlying
+transport connection while a request on a **different** temporary `Client()` instance is still in
+flight. Every prior `judges.py` implementation, across every one of the eight isolation attempts,
+still constructed a fresh `genai.Client()` inline per call (`genai.Client().models.generate_content(...)`)
+— the isolation attempts changed everything *around* that pattern (sync/async, process
+boundaries, event loops) without ever changing the pattern itself. This also explains why the
+fully isolated script worked: with only one call ever made, there was no second temporary client
+in flight to race against.
 
-The evidence points at something specific to this local environment (Vertex Express Mode auth,
-this exact `google-genai`/`httpx`/`aiohttp` version combination, or a real quota/connection limit
-that surfaces as this exact confusing assertion rather than a clean rate-limit error) that a
-fresh, isolated script never hits but this project's actual import graph does — without a clear
-enough signal to pin down further at reasonable cost. The harness (`judges.py`'s `_safe` wrapper)
-now isolates each judge call's failure so it can never crash the run or discard the (expensive,
-real) agent-execution work — every eval run since that fix has completed and produced a full
-report, with judge failures recorded as explicit `JUDGE CALL FAILED` results rather than silently
-dropped or allowed to abort. This is a real, open item, not resolved by this report — see §5.
+It also explains why `session_close.py`'s `reflect()` had always worked, every run, without
+anyone treating it as a deliberate workaround: `harness.py` constructs
+`genai_client = genai.Client()` **once** per persona in `run_persona_scenario` and passes that
+same instance to every call site that needs it — exactly the safe pattern the GitHub issues
+recommend, arrived at by coincidence rather than by diagnosis of this specific bug.
 
-## 4. Manual transcript review (substituting for the broken automated judges)
+### 3.3 The fix
 
-Weaker evidence than automated scoring across all 14 cases would have been, but still real, cited
-transcript excerpts, not an assumption that things probably worked:
+`judges.py` now holds a **module-level singleton** (`_client: genai.Client | None = None`,
+lazily constructed once by `_get_client()`), and every judge call goes through it. `_generate`
+still keeps a 3-attempt retry-with-backoff loop as defense-in-depth against genuine transient
+failures (distinct from this bug — see §3.4), but the fix itself is entirely about *not*
+constructing a new `Client()` per call.
 
-**Cross-session recall (Arjun):** session 2 opens with *"Welcome back! Yes, we built a solid
-foundation with time of flight and range."* — a specific, correct reference to session 1's actual
-content, not a generic greeting.
+### 3.4 Verification
 
-**Pace/background adaptation (Arjun):** *"Since you already have a solid grasp of vectors,
-horizontal range becomes very straightforward!"* — directly reflects the persona's stated trait
-("I already get vectors pretty well") from the very first turn.
+Confirmed first with a cheap synthetic-data smoke test (a real L2 score returned, not an
+exception), then confirmed at full scale: **all three Phase-6 eval runs completed with every
+judge call returning a real, parsed verdict** — 14/14 judge calls per run succeeded
+mechanically (produced a score or pairwise verdict) across all three runs; none hit `JUDGE CALL
+FAILED`. (14 = 5 personas × up to 3 applicable judges each, gated by `run_all_judges`'s
+per-check applicability rules — see §4.1.) One genuine `429 RESOURCE_EXHAUSTED` was hit once
+during this investigation, unrelated to this bug — real Vertex Express Mode quota exhaustion from
+cumulative call volume across the session, resolved by waiting ~4 minutes and retrying.
 
-**Misconception lifecycle (Priya) — the clearest evidence in this eval:**
-- Session 1: student states the vector-resolution misconception (horizontal component = `u sin θ`,
-  should be `u cos θ`); tutor catches and corrects it.
-- Session 2 (later): the *same* misconception resurfaces in a different problem; tutor catches and
-  corrects it *again* — consistent with an `open_doubt` that hasn't been resolved yet.
-- Session 3: student *correctly* restates the formula unprompted ("horizontal component is
-  u cos(theta), right?"); tutor confirms — *"Yes, exactly right!"* This is a genuine spaced
-  recheck, not a restated answer, matching exactly what `memory_layer.md` §2.3 requires before
-  `close_doubt` is allowed to fire.
+## 4. LLM-as-judge results, now real
 
-**Pre-seeded history (Rohan) — direct evidence `get_dpm`/`get_teaching_memory` load real data,
-not just return non-empty:** Rohan's first *live* session in this eval opens on maximum height; he
-asks *"does this use similar logic to what we did with horizontal range?"* — referencing history
-that was written directly to Firestore before this eval started (`personas.py`'s `pre_seed`), not
-produced by any live session. The tutor confirms: *"Yes, exactly! It uses the same foundational
-approach... we separate the initial velocity into horizontal and vertical components"* — a
-substantive, correct answer that could only come from having actually loaded the pre-seeded
-`covered` record, not from the conversation's own local context.
+With the infrastructure fixed, the judges ran as designed — see `judges.py`'s module docstring
+and the design spec for the full methodology. Reference run:
+`results_2026-08-27T06-15-28.734552+00-00.json`. **7/14 judge checks passed.**
 
-## 5. Open items carried forward
+### 4.1 L3 — citation faithfulness: strong, 5/5 passed
 
-1. **The concept-id exact-match gap (§2.1)** — the most important unresolved item. Recommended
-   direction: wire `search_grounding_semantic` as a fallback, contingent on resolving the
-   embedding-dimension question (`google_cloud_storage_integration.md` §3.3) first.
-2. **The LLM-judge infrastructure failure (§3)** — unresolved after eight documented isolation
-   attempts. Worth revisiting with fresh eyes (or a different `google-genai` version) rather than
-   further isolation attempts in the current environment, given the evidence already gathered.
-3. **The off-syllabus grounding gap (§2.2)** — smaller, narrower-trigger version of §2.1's problem.
-4. **Real Memorystore, real Shruti embeddings** — still open from the storage-testbed and port work
-   (`google_cloud_storage_integration.md` §7); this eval didn't touch either, by design.
+Every persona scored 5/5 ("fully faithful to the retrieved source text") except Ananya, who still
+passed at 3/5 (baseline run) — this is the property `memory_layer.md` explicitly calls "the one
+that separates a learner model from a horoscope," and it held up under real automated scrutiny,
+not just manual spot-checking. Sample rationale (Rohan): *"All three tutor responses are
+completely faithful to the provided source texts. Every formula, kinematic explanation, and
+physical application... [is] grounded in what was actually retrieved."*
 
-## 6. Where the artifacts live
+### 4.2 L2 — personalization: weak, 2/5 passed
+
+Arjun, Priya, and Rohan all scored **2/5** ("adaptation ignored the student's stated traits, in
+particular interests") in this reference run. Representative rationale (Rohan): *"The tutor
+maintains a clear, moderate pace with well-structured explanations and appropriate check-ins.
+However, the tutor completely ignores the student's stated interests (cricket)..."* Ananya scored
+3/5 (passed — matched her stated fast pace well) and Vikram scored 5/5 (passed, but had no stated
+interests to test against, so this is a weaker pass). The pattern across all three Phase-6 runs:
+**pace-matching consistently works; weaving a student's stated interests into examples
+consistently does not**, unless the student volunteers the interest explicitly in that turn.
+
+### 4.3 L1 — memory causality: 0/4, the eval's sharpest finding
+
+All four applicable pairwise comparisons (Arjun, Priya, Rohan, Ananya — Vikram has no session 2
+to compare, so no L1 check applies) picked `"tie"` or `"no_memory"` — **zero were judged to show
+concrete, specific evidence that the memory-loaded response used the student's history in a way
+the no-memory baseline couldn't have produced.** Representative rationale (Priya): *"Response A
+does not show any concrete evidence of using prior session history. Both responses give nearly
+identical standard explanations of vector resolution without referencing prior sessions."** This
+is the sharpest, most concrete evidence the eval has produced anywhere: the tutor's opening reply
+to a new session, even with real prior history loaded, tends to look near-identical to how it
+would open with a brand-new student. This is a distinct problem from L2 — a response can pace-
+match a stated trait (L2's strongest signal) without actually *referencing* what happened last
+session (L1's test) or personalizing to *interests* (L2's weakest signal).
+
+### 4.4 L4 — doubt handling: not applicable in this run
+
+No persona in the reference run had an open doubt at the point `run_all_judges` checked, so L4 was
+skipped for all five (see `run_all_judges`'s `has_doubts` gate in `judges.py`) — not a failure,
+simply not triggered this run. The prior report's manual review (Priya's misconception
+lifecycle — caught, resurfaced, correctly spaced-rechecked) remains the best direct evidence for
+this mechanism and is worth re-reading as corroboration, even though no automated L4 score exists
+for this specific run.
+
+## 5. The personalization instruction-tuning attempt, and why it was reverted
+
+§4.2 and §4.3 are a real, actionable-looking gap, so one fix was attempted: a new Rule 5 was
+added to `TUTOR_INSTRUCTION` (`app/agents/tutor_agent.py`) instructing the model to proactively
+weave a student's stated interests into examples, and to compress (not skip) derivations for
+concepts the student's `get_dpm` record already shows as mastered. This was tested across two
+further full eval runs — the first with the rule as originally written, the second with a
+refined version adding an explicit "compress the explanation, never the grounding" clause after
+the first attempt showed a citation-quality cost.
+
+**What happened, run over run (Arjun, the persona where the effect was clearest):**
+
+| Run | L2 (personalization) | L3 (citation faithfulness) |
+|---|---|---|
+| Baseline (original 4 rules) | 2/5 — fail | 5/5 — pass |
+| + Rule 5, first version | 3/5 — pass | 2/5 — fail (*"introduces concepts... not present in retrieved source texts"*) |
+| + Rule 5, refined version | 2/5 — fail (regression didn't hold) | 1/5 — fail, worse |
+
+Ananya's L3 also dipped from 5/5 to 4/5 on the first Rule-5 run (still passing, but the judge
+noted *"invented example data beyond context"*), and by the refined version had dropped further to
+3/5 (*"the tutor invents a completely new t[opic/example]..."*). Meanwhile L2 for Priya and Rohan
+never improved at all across either attempt — both stayed at 2/5, same failure mode, in every one
+of the three runs. L1 stayed at 0/4 throughout — the instruction change had no measurable effect
+on memory-causality either.
+
+**The tradeoff, plainly:** asking the model to personalize more assertively made it noticeably
+more willing to introduce material — a specific number, a worked example, a formula variant — that
+wasn't actually in the retrieved `search_grounding` chunks. That's the citation-faithfulness
+property this whole memory layer exists to guarantee (`memory_layer.md` §0: "every claim cites
+evidence back to a real moment"), and it degraded monotonically across two refinement attempts
+while the personalization gain it was meant to produce didn't hold. Rule 5 was reverted in full;
+`TUTOR_INSTRUCTION` is back to its original four rules (confirmed clean: all 69 unit tests pass
+after the revert). This was an engineering judgment call, not something explicitly requested — the
+reasoning: an unreliable, regressing L2 gain isn't worth a reliable L3 loss on the property this
+system is specifically built to protect.
+
+**This remains a genuinely open finding**, not a closed one. Two iterations is normal, expected
+early progress by this project's own eval-methodology guidance (`google-agents-cli-eval`'s
+own note: "Expect 5-10+ iterations... Hold cases back" — a slice of cases graded only once a fix
+looks done, to catch overfitting to the exact cases iterated against). What wasn't tried: a
+narrower instruction scoped only to interests (leaving mastery-based compression out, since that's
+the half more likely to tempt the model into inventing "simplified" derivations); a stronger,
+explicit citation-boundary constraint paired with the personalization ask, rather than a soft
+"never the grounding" clause; or attacking L1 directly with an instruction to explicitly reference
+a specific prior-session fact by name early in a new session's opening turn, which no attempt here
+targeted.
+
+## 6. Open items carried forward
+
+1. **Personalization (L2) and memory-causality (L1) substantiveness (§4.2, §4.3, §5)** — the
+   primary open item. One fix attempted and reverted after a citation-faithfulness regression;
+   see §5 for what wasn't yet tried.
+2. **Real Memorystore, real Shruti embeddings** — still open from the storage-testbed and port
+   work (`google_cloud_storage_integration.md` §7); this eval didn't touch either, by design.
+3. **The off-syllabus grounding gap** (originally §2.2: a tangentially-framed question not
+   triggering `search_grounding` at all) — not re-tested directly in Phase 6; worth a targeted
+   case in a future run now that the judge infrastructure can actually score it.
+4. **L4 (doubt handling)** has real evidence only from manual review (§4.4), never from an
+   automated score in a Phase-6 run — worth a persona/session arrangement that reliably produces
+   an open doubt at the check point in a future run.
+
+## 7. Where the artifacts live
 
 - Harness: `sub_modules_examples/tutor/tests/eval/memory_eval/` (`personas.py`, `harness.py`,
   `deterministic_checks.py`, `judges.py`, `judge_subprocess.py`, `run_eval.py`)
+- Fix code: `app/memory/store.py` (`_tokenize`, `list_concept_ids`, `_exact_match` +
+  fuzzy-fallback `search_grounding`), `app/memory/tools.py` (`list_concepts`),
+  `app/agents/tutor_agent.py` (Rule 1, `list_concepts` wired into `tools=[...]`),
+  `tests/eval/memory_eval/judges.py` (`_get_client` singleton)
+- New/updated tests: `tests/unit/memory/test_store.py`, `tests/unit/memory/test_tools.py`,
+  `tests/unit/agents/test_tutor_agent.py`
 - Reference run's full report (all transcripts, tool-call args, every check's detail):
-  `sub_modules_examples/tutor/tests/eval/memory_eval/report/results_2026-08-26T23-49-25.354689+00-00.json`
+  `sub_modules_examples/tutor/tests/eval/memory_eval/report/results_2026-08-27T06-15-28.734552+00-00.json`
 - Rerun: `cd sub_modules_examples/tutor && uv run python -m tests.eval.memory_eval.run_eval`

@@ -5,7 +5,7 @@ from google.adk.tools.agent_tool import _SingleTurnAgentTool
 
 from app import config
 from app.agents.tutor_agent import _init_student, build_tutor_agent
-from app.memory.tools import get_dpm, get_teaching_memory, log_turn, search_grounding
+from app.memory.tools import get_dpm, get_teaching_memory, list_concepts, log_turn, search_grounding
 
 
 def test_tutor_agent_identity():
@@ -49,6 +49,7 @@ def test_tutor_agent_has_a_description_for_delegation():
 def test_tutor_agent_has_the_memory_tools():
     agent = build_tutor_agent()
     assert search_grounding in agent.tools
+    assert list_concepts in agent.tools
     assert get_dpm in agent.tools
     assert get_teaching_memory in agent.tools
     assert log_turn in agent.tools
