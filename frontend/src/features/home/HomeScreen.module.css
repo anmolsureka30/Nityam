@@ -1,104 +1,161 @@
-.hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 30px;
-  flex-wrap: wrap;
+/* Bands down one rule, rather than cards in a grid. Each band gets the same
+   vertical rhythm so the page reads as a single column of thought instead of
+   six independent tiles. */
+.band {
+  padding-bottom: var(--s-8);
 }
+.band:last-child { padding-bottom: 0; }
 
-.greeting {
-  font-family: var(--prose);
-  font-size: 36px;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-}
+/* Real air between the display line and the sentence under it. At 50px and
+   19px they were sharing a 16px gap, which read as one crowded block. */
+.subline { margin-top: var(--s-5); }
 
-.subline {
-  color: var(--ink-mid);
-  font-size: 15px;
-  margin-top: 9px;
-  max-width: 600px;
-  text-wrap: pretty;
-}
-
-.countdown {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+.rowMeta {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
   white-space: nowrap;
 }
-.countdownValue {
+
+/* The countdown lives in the margin as a datum, not in a bordered card. It
+   is about tonight rather than part of it, which is exactly what the margin
+   is for. */
+.countdown {
   font-family: var(--prose);
-  font-size: 19px;
-  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 40;
+  font-size: 2.4rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-deep);
+  margin: 2px 0 1px;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 16px;
-  margin-top: 26px;
+.marginMeta {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  margin-top: 3px;
 }
 
+/* A four-bar sparkline, which is the smallest honest way to show four
+   concepts at four masteries. The old version was four flat coloured blocks
+   of equal height — decoration wearing the clothes of data. */
+.sparkline {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 26px;
+  width: 34px;
+}
+.spark {
+  flex: 1;
+  border-radius: 1px;
+  min-height: 3px;
+}
+.sparkLow  { background: var(--danger); }
+.sparkMid  { background: var(--warn); }
+.sparkHigh { background: var(--good); }
+
+/* Deliberately unequal, and deliberately two different surfaces: an
+   editorial sheet beside a data panel. Two equal bordered cards said the
+   quote and the mastery table were the same kind of thing, and they are not. */
 .lower {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
-  gap: 16px;
-  margin-top: 16px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: var(--s-7);
+  align-items: start;
 }
-.classCard { display: flex; flex-direction: column; }
 
-.quote {
-  font-family: var(--prose);
-  font-size: 22px;
-  line-height: 1.35;
-  letter-spacing: -0.015em;
-  text-wrap: pretty;
+.recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
 }
+
+/* Set at title scale rather than body scale. This sentence is why the
+   student opened the app. */
+.quote {
+  margin: 0;
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 32;
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.28;
+  letter-spacing: -0.014em;
+  color: var(--ink-strong);
+  text-wrap: pretty;
+  /* Hanging punctuation, so the opening quote sits in the margin and the
+     first letter stays on the same left edge as everything else on the
+     page. Without it the whole block looks two pixels misaligned and you
+     cannot tell why. */
+  text-indent: -0.42em;
+}
+.quote::before { content: "\201C"; }
+.quote::after  { content: "\201D"; }
 
 .quoteWhy {
-  font-size: 14px;
-  line-height: 1.55;
+  margin: 0;
+  font-size: var(--t-body);
+  line-height: 1.58;
   color: var(--ink-mid);
-  margin-top: 12px;
+  max-width: 54ch;
   text-wrap: pretty;
 }
 
-.sources { display: flex; gap: 8px; margin-top: auto; padding-top: 18px; flex-wrap: wrap; }
-
-.cardHead {
+.sources {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-  padding-bottom: 14px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
 }
 
-.weakList { display: flex; flex-direction: column; gap: 14px; }
+.weakHead {
+  padding: var(--s-4) var(--s-5) var(--s-3);
+  border-bottom: 1px solid var(--line-cool-2);
+}
+
+.weakList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.weakRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--line-cool-3);
+}
+.weakName {
+  font-size: var(--t-small);
+  color: var(--ink);
+  line-height: 1.35;
+}
 
 .weakNote {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
-  line-height: 1.5;
+  margin: 0;
+  padding: var(--s-4) var(--s-5);
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 14;
+  font-size: var(--t-body);
+  line-height: 1.55;
   color: var(--ink-mid);
   text-wrap: pretty;
 }
 
-.sparkline { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
-.spark { flex: 1; border-radius: 2px 2px 0 0; }
-.sparkLow  { background: var(--danger); opacity: 0.75; }
-.sparkMid  { background: var(--warn); opacity: 0.75; }
-.sparkHigh { background: var(--good); opacity: 0.75; }
-
+@media (max-width: 980px) {
+  .lower { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); }
+  .quote { font-size: 1.45rem; }
+}
 @media (max-width: 900px) {
-  .actions, .lower { grid-template-columns: 1fr; }
+  .countdown { font-size: 1.9rem; }
+  .band { padding-bottom: var(--s-7); }
 }

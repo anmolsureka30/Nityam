@@ -33,7 +33,11 @@ export function Shell({
             <span className={s.avatarChip} title={student.firstName}>{student.initial}</span>
           </div>
         </header>
-        {back && <BackLink to={back.to} label={back.label} />}
+        {back && (
+          <div className={s.backRow}>
+            <BackLink to={back.to} label={back.label} />
+          </div>
+        )}
         {children}
       </div>
     </div>
@@ -53,20 +57,12 @@ export function TeacherShell({ children }: { children: ReactNode }) {
     <div className={s.shell}>
       <div className={s.page}>
         <header className={s.header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div className={s.headLeft}>
             <Link to="/teacher" className={s.brand}>
-              <span className={s.mark} style={{ background: "var(--ink)" }} />
+              <span className={s.mark} style={{ background: "var(--ink-strong)" }} />
               <span className={s.wordmark}>Nityam</span>
             </Link>
-            <span
-              className="mono"
-              style={{
-                border: "1px solid var(--line)", borderRadius: "var(--r-xs)",
-                padding: "3px 8px", color: "var(--ink-mid)",
-              }}
-            >
-              Teacher
-            </span>
+            <span className={s.teacherMark}>Teacher</span>
             <nav className={s.tabs}>
               {tabs.map((t) => (
                 <Link

@@ -1,7 +1,20 @@
 import { TeacherShell } from "../../components/Shell";
-import { Button, Card, Label, MasteryBar, Stat } from "../../components/ui";
+import { Button, Card, Label, MasteryInline, Stat } from "../../components/ui";
 import { teacherClass } from "../../lib/data";
 import s from "./teacher.module.css";
+
+/** The same red / amber / green scale every other bar in the product uses.
+ *
+ *  The chart used to colour the first two columns red and leave the other
+ *  three grey, which reads as a meaning and is not one — 41-60 is a failing
+ *  band too, and 81-100 is not the same thing as 61-80. Colour here should
+ *  answer "how is this group doing", exactly as it does in the tables. */
+function bandClass(band: string) {
+  const top = Number(band.split("-")[1] ?? 0);
+  if (top <= 40) return s.distBarLow;
+  if (top <= 75) return s.distBarMid;
+  return s.distBarHigh;
+}
 
 export default function TeacherClassScreen() {
   const c = teacherClass;
@@ -57,8 +70,7 @@ export default function TeacherClassScreen() {
               <tr key={con.id}>
                 <td className={s.name}>{con.name}</td>
                 <td className={s.barCell}>
-                  <MasteryBar pct={con.classMastery} hideName />
-                  <div className={s.num} style={{ marginTop: 6 }}>{con.classMastery}%</div>
+                  <MasteryInline pct={con.classMastery} />
                 </td>
                 <td>
                   <span className={`${s.trend} ${con.trend >= 0 ? s.up : s.down}`}>
@@ -76,11 +88,11 @@ export default function TeacherClassScreen() {
         <Card size="lg">
           <Label>Mastery distribution</Label>
           <div className={s.dist}>
-            {c.distribution.map((d, i) => (
+            {c.distribution.map((d) => (
               <div className={s.distCol} key={d.band}>
                 <span className={s.distCount}>{d.count}</span>
                 <span
-                  className={`${s.distBar} ${i < 2 ? s.distBarLow : ""}`}
+                  className={`${s.distBar} ${bandClass(d.band)}`}
                   style={{ height: `${(d.count / maxCount) * 100}%` }}
                 />
                 <span className={s.distLabel}>{d.band}</span>

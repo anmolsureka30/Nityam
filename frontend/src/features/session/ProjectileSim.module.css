@@ -1,6 +1,6 @@
 .wrap {
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  border-radius: var(--r-panel);
   background: var(--paper-warm);
   overflow: hidden;
   margin: 22px 0;

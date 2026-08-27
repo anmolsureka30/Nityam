@@ -121,7 +121,9 @@ export default function Notebook({
             <span className={s.equationTex} data-block={block.id} data-kind="equation">
               <Anchored text={block.tex} anchors={block.anchors} blockId={block.id} hot={hot} />
             </span>
-            {block.caption && <Label>{block.caption}</Label>}
+            {block.caption && (
+              <Label style={{ marginTop: "var(--s-3)" }}>{block.caption}</Label>
+            )}
           </div>
         );
 

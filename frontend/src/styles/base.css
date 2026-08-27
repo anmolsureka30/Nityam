@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "./tokens.css";
 
 *,
@@ -12,10 +12,11 @@ body {
   background: var(--ground);
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -27,27 +28,154 @@ a:hover { color: var(--accent); }
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
-/* Utility classes used across features. Anything appearing in two features
-   lives here; anything local stays in that feature's module. */
+/* ─────────────────────────────────────────────────────── the three surfaces
+   These are the whole design system. A surface's job is legible from its
+   shape before anything on it is read, which is what the old universal card
+   could never do. */
+
+/* SHEET — paper. The board, and anything the student reads as writing.
+   Nearly square corners because a sheet has corners, and a shadow rather
+   than a border because paper rests on the ground rather than being drawn
+   onto it. */
+.sheet {
+  background: var(--paper);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--e-sheet);
+}
+
+/* PANEL — data. Cool ground and a cool hairline, so a figure never reads as
+   part of the notebook even when it sits beside it. */
+.panel {
+  background: var(--data-ground);
+  border: 1px solid var(--line-cool-2);
+  border-radius: var(--r-panel);
+}
+
+/* SLAB — the one thing to act on. Filled, unbordered, and the only element
+   on a screen allowed to be dark. It works because it is alone. */
+.slab {
+  background: var(--ink-strong);
+  color: var(--paper);
+  border-radius: var(--r-slab);
+  box-shadow: var(--e-lift);
+}
+.slab-accent {
+  background: var(--accent);
+  color: var(--paper);
+  border-radius: var(--r-slab);
+  box-shadow: var(--e-accent);
+}
+
+/* ────────────────────────────────────────────────────────────── the margin
+   The exercise-book rule. `.ruled` lays out a margin column and a content
+   column and draws the hairline between them; `.ruled > .margin` is where
+   metadata goes, and it is right-aligned so labels sit against the rule.
+
+   On narrow screens --margin-w collapses to 0 and the rule disappears
+   rather than being squeezed into something unreadable. */
+.ruled {
+  display: grid;
+  grid-template-columns: var(--margin-w) minmax(0, 1fr);
+  column-gap: var(--s-6);
+  position: relative;
+}
+.ruled::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--margin-w) + (var(--s-6) / 2));
+  width: 1px;
+  background: var(--accent-rule);
+  opacity: 0.55;
+}
+.ruled > .margin {
+  grid-column: 1;
+  text-align: right;
+  padding-top: 2px;
+}
+.ruled > .body {
+  grid-column: 2;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .ruled { grid-template-columns: minmax(0, 1fr); column-gap: 0; }
+  .ruled::before { display: none; }
+  .ruled > .margin {
+    grid-column: 1;
+    text-align: left;
+    padding-bottom: var(--s-2);
+  }
+  .ruled > .body { grid-column: 1; }
+}
+
+/* ───────────────────────────────────────────────────────────────── the type
+   Display type finally gets Source Serif 4's display optical size. The
+   variable font was already being loaded with the opsz axis and then never
+   set, so a 50px heading was drawn with letterforms designed for 15px
+   body — heavier hairlines and looser spacing than it should have. */
+
+.display {
+  font-family: var(--prose);
+  font-size: var(--t-display);
+  font-variation-settings: "opsz" 60;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
+  text-wrap: balance;
+  margin: 0;
+  color: var(--ink-strong);
+}
+.title {
+  font-family: var(--prose);
+  font-size: var(--t-title);
+  font-variation-settings: "opsz" 32;
+  font-weight: 600;
+  line-height: var(--lh-head);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0;
+}
+.head {
+  font-family: var(--ui);
+  font-size: var(--t-head);
+  font-weight: 600;
+  line-height: var(--lh-head);
+  letter-spacing: -0.008em;
+  margin: 0;
+}
+.lede {
+  font-family: var(--ui);
+  font-size: var(--t-lede);
+  line-height: 1.5;
+  color: var(--ink-mid);
+  max-width: 52ch;
+  margin: 0;
+}
 
 .mono {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-micro);
   text-transform: uppercase;
   color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
 }
 
-.serif { font-family: var(--prose); }
+.serif { font-family: var(--prose); font-variation-settings: "opsz" 16; }
 
 .prose {
   font-family: var(--prose);
-  font-size: 16px;
-  line-height: 1.62;
+  font-variation-settings: "opsz" 14;
+  font-size: 1.0625rem;
+  line-height: var(--lh-prose);
   color: var(--ink);
+  max-width: var(--measure);
 }
 .prose em { font-style: italic; }
 
@@ -65,13 +193,21 @@ a:hover { color: var(--accent); }
   border: 0;
 }
 
+/* A hairline that means "these two things are separate", used instead of
+   wrapping each of them in a box. */
+.rule {
+  height: 1px;
+  background: var(--line);
+  border: 0;
+  margin: 0;
+}
+
 @keyframes n-rise {
-  from { opacity: 0; transform: translateY(18px) scale(0.985); }
-  72%  { opacity: 1; transform: translateY(-3px) scale(1.004); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes n-fade {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes n-ring {
@@ -91,6 +227,13 @@ a:hover { color: var(--accent); }
 @keyframes n-breathe {
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.03); }
+}
+/* The margin rule drawing itself in as a screen arrives. One gesture per
+   page load, and it is the structure introducing itself rather than
+   decoration. */
+@keyframes n-rule {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {

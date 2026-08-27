@@ -11,12 +11,12 @@
   z-index: 28;
   width: 320px;
   max-width: calc(100vw - 52px);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  box-shadow: 0 8px 30px rgba(22, 26, 34, 0.11);
-  padding: 13px 18px 15px;
-  animation: n-fade 0.3s ease both;
+  background: var(--ink-strong);
+  color: var(--paper);
+  border-radius: var(--r-panel);
+  box-shadow: var(--e-lift);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  animation: n-fade 0.26s var(--ease) both;
 }
 
 /* The tail points down at her. Two triangles, the back one a pixel lower, so
@@ -30,12 +30,9 @@
   width: 0; height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-top: 9px solid var(--line);
+  border-top: 9px solid var(--ink-strong);
 }
-.bubble::after {
-  bottom: -8px;
-  border-top-color: var(--paper);
-}
+.bubble::after { display: none; }
 
 /* Minimise sits top-left, where the eye lands first and where it cannot be
    mistaken for part of what she said. */
@@ -52,16 +49,16 @@
   height: 20px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--r-pill);
-  background: var(--paper);
-  color: var(--ink-dim);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
   font-size: 14px;
   line-height: 1;
   padding: 0;
   cursor: pointer;
 }
-.min:hover { border-color: var(--accent-tint); background: var(--accent-wash); color: var(--accent-deep); }
+.min:hover { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.16); color: #fff; }
 
 /* Collapsed: a little thought-cloud left hovering where the tail used to
    point, so it still reads as coming out of her head. */
@@ -114,10 +111,12 @@
 
 .text {
   font-family: var(--prose);
-  font-size: 16px;
-  line-height: 1.55;
+  font-variation-settings: "opsz" 16;
+  font-size: 1.02rem;
+  line-height: 1.5;
   text-wrap: pretty;
   margin: 0;
+  color: var(--paper);
 }
 
 .note {
@@ -141,11 +140,10 @@
   font-size: 9px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--accent-deep);
-  background: var(--accent-wash);
-  border: 1px solid var(--accent-tint);
-  border-radius: var(--r-pill);
-  padding: 2px 8px;
+  color: var(--accent-lift);
+  background: rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-chip);
+  padding: 2px 7px;
   display: inline-block;
 }
 
@@ -159,8 +157,8 @@
 }
 
 /* A dead socket must not look like a thoughtful pause. */
-.bubbleError {
-  border-color: var(--accent-tint);
-  background: var(--accent-wash);
-}
-.bubbleError .text { color: var(--accent-deep); }
+/* A failure is the one thing she says that is not teaching, so it does not
+   get her voice — it gets the danger colour, on the same dark ground. */
+.bubbleError { background: #3B1512; }
+.bubbleError::before { border-top-color: #3B1512; }
+.bubbleError .text { color: #FFC9C2; }

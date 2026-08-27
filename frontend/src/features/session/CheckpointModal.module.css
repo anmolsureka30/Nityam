@@ -13,7 +13,7 @@
   width: min(560px, 100%);
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-panel);
   box-shadow: 0 24px 64px rgba(22, 26, 34, 0.18);
   overflow: hidden;
   animation: pop 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -54,7 +54,7 @@
   text-align: left;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-chip);
   padding: 13px 15px;
   transition: border-color 0.14s ease, background 0.14s ease;
 }
@@ -93,7 +93,7 @@
   margin-top: 16px;
   background: var(--warn-wash);
   border: 1px solid #F2E3CB;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-chip);
   padding: 14px 16px;
   animation: n-fade 0.28s ease both;
 }

@@ -1,31 +1,52 @@
-.wrap { max-width: 640px; margin: 40px auto 0; }
+.wrap { max-width: 660px; margin: var(--s-6) auto 0; }
 
 .question {
   font-family: var(--prose);
-  font-size: 32px;
-  line-height: 1.18;
-  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 48;
+  font-size: var(--t-display);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
   text-wrap: balance;
+  color: var(--ink-strong);
+  margin: 0;
 }
 
-.sub { color: var(--ink-mid); font-size: 14.5px; margin-top: 8px; }
+.sub { color: var(--ink-mid); font-size: var(--t-lede); margin-top: var(--s-3); }
 
-.options { display: flex; flex-direction: column; gap: 10px; margin: 30px 0 26px; }
+/* No gaps between the options: they are rows of one sheet, so the choice
+   reads as one decision rather than three separate offers. */
+.options {
+  display: flex;
+  flex-direction: column;
+  margin: var(--s-7) 0 var(--s-6);
+  background: var(--paper);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--e-sheet);
+  overflow: hidden;
+}
 
 .option {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--s-2);
   text-align: left;
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 17px 19px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  border-radius: 0;
+  padding: var(--s-5) var(--s-6);
+  transition: background 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
-.option:hover { border-color: var(--accent); }
-.optionOn { border-color: var(--accent); background: var(--accent-wash); }
+.option:first-child { border-top: 0; }
+.option:hover { background: var(--cream-soft); }
+/* Selection is a rule in the margin, not a tinted box. It marks the row the
+   way a tick marks a line in an exercise book. */
+.optionOn {
+  background: var(--accent-wash);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 
 .optionHead {
   display: flex;
@@ -33,8 +54,14 @@
   justify-content: space-between;
   gap: 12px;
 }
-.optionLabel { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
-.optionPromise { font-size: 13.5px; line-height: 1.5; color: var(--ink-mid); text-wrap: pretty; }
+.optionLabel {
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 24;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+.optionPromise { font-size: var(--t-small); line-height: 1.5; color: var(--ink-mid); text-wrap: pretty; }
 
 .suggested {
   position: absolute;
@@ -49,3 +76,11 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.footNote { font-size: var(--t-small); color: var(--ink-dim); }

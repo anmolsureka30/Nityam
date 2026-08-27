@@ -43,9 +43,19 @@ export default function IntensityScreen() {
           ))}
         </div>
 
-        <Button variant="primary" block onClick={() => nav(`/session?mode=revision&concept=${conceptId}&intensity=${picked}`)}>
-          Begin session
-        </Button>
+        {/* Not full-width. A 920px magenta block competed with the row the
+            student had just selected, and the accent is supposed to mark the
+            one thing to act on — spending it on a bar the width of the page
+            spends it on nothing. */}
+        <div className={s.foot}>
+          <Button
+            variant="primary"
+            onClick={() => nav(`/session?mode=revision&concept=${conceptId}&intensity=${picked}`)}
+          >
+            Begin session <span aria-hidden="true">→</span>
+          </Button>
+          <span className={s.footNote}>You can change pace once you are in.</span>
+        </div>
       </div>
     </Shell>
   );

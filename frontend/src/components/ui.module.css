@@ -1,60 +1,127 @@
-/* Shared primitives. Anything used by two or more features lives here. */
+/* Shared primitives. Anything used by two or more features lives here.
+   The three surfaces themselves live in styles/base.css. */
 
 .label {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-micro);
   text-transform: uppercase;
   color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
 }
-.labelAccent { color: var(--accent); }
+.labelAccent { color: var(--accent-deep); }
 .labelWarn   { color: var(--warn); }
 
+/* Card is kept for compatibility, but is now a plain SHEET rather than the
+   bordered rounded rectangle that used to be applied to everything. Anything
+   that wants an instrument should ask for a Panel instead. */
 .card {
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 20px;
+  border-radius: var(--r-sheet);
+  box-shadow: var(--e-sheet);
+  padding: var(--s-5);
 }
-.cardLg { border-radius: var(--r-lg); padding: 24px; }
-.cardQuiet { background: var(--paper-warm); }
+.cardLg { padding: var(--s-6); }
+.cardQuiet {
+  background: transparent;
+  box-shadow: none;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: var(--s-5) 0 0;
+}
 
-/* A card that is also a button. Lifts on hover; the primary one lifts into
-   the accent so the eye lands on the action the student should take. */
-.actionCard {
+.panel {
+  background: var(--data-ground);
+  border: 1px solid var(--line-cool-2);
+  border-radius: var(--r-panel);
+  padding: var(--s-5);
+}
+
+/* ────────────────────────────────────────────────────────── the choice list
+   The three top-level actions were three near-identical cards, which asked
+   the student to read all of them to find out which one mattered. They are
+   now rows on one sheet, separated by hairlines, and exactly one of them —
+   the one Nityam actually wants tonight — is a filled slab. Hierarchy you
+   can see before you read. */
+
+.choices {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  text-align: left;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 22px;
-  transition: transform 0.16s ease, box-shadow 0.22s ease, border-color 0.16s ease;
+  border-radius: var(--r-sheet);
+  box-shadow: var(--e-sheet);
+  overflow: hidden;
+  /* Capped, because a full-width row put the arrow five hundred pixels from
+     the sentence it belonged to and left the right half of every row empty.
+     A row should be about as wide as its longest line. */
+  max-width: 760px;
 }
-.actionCard:hover { transform: translateY(-3px); border-color: var(--accent); }
-.actionCardPrimary {
-  background: linear-gradient(160deg, #fff 0%, var(--accent-wash) 100%);
-  border-color: var(--accent-tint);
-}
-.actionCardPrimary:hover { box-shadow: var(--shadow-lift); border-color: var(--accent); }
 
-.cardTitle {
-  font-family: var(--prose);
-  font-size: 21px;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
+.choice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-5);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-soft);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-6);
+  transition: background 0.16s var(--ease);
 }
-.cardBody {
-  font-size: 14px;
-  line-height: 1.55;
+.choice:first-child { border-top: 0; }
+.choice:hover { background: var(--cream-soft); }
+.choice:hover .choiceGo { transform: translateX(3px); color: var(--accent); }
+
+.choicePrimary {
+  background: var(--ink-strong);
+  color: var(--paper);
+  border-top: 0;
+}
+.choicePrimary:hover { background: #171B24; }
+.choicePrimary .choiceTitle { color: var(--paper); }
+.choicePrimary .choiceBody  { color: rgba(255, 255, 255, 0.7); }
+.choicePrimary .choiceGo    { color: var(--accent-lift); }
+.choicePrimary:hover .choiceGo { color: var(--accent-lift); }
+
+.choiceMain { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+
+.choiceTitle {
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 28;
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.16;
+  letter-spacing: -0.012em;
+}
+.choiceBody {
+  font-size: var(--t-small);
+  line-height: 1.5;
   color: var(--ink-mid);
   text-wrap: pretty;
+  max-width: 46ch;
 }
 
+.choiceAside {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex: none;
+}
+.choiceGo {
+  font-size: 1.1rem;
+  color: var(--ink-faint);
+  transition: transform 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+/* Kept so existing callers keep compiling; ActionCard now renders a choice. */
+.cardTitle { composes: choiceTitle; }
+.cardBody  { composes: choiceBody; }
+
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: var(--r-pill);
   background: var(--accent);
   flex: none;
@@ -65,60 +132,81 @@
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
+  justify-content: center;
+  gap: var(--s-2);
+  border: 1px solid var(--line-hard);
   background: var(--paper);
   color: var(--ink);
-  border-radius: var(--r-pill);
-  padding: 9px 17px;
-  font-size: 13.5px;
+  border-radius: var(--r-slab);
+  padding: 9px 16px;
+  font-size: var(--t-small);
   font-weight: 500;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  letter-spacing: -0.003em;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+              color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
-.btn:hover { border-color: var(--accent); color: var(--accent-deep); }
+.btn:hover { border-color: var(--ink-dim); box-shadow: var(--e-flat); }
 
+/* Square-ish rather than a pill: the old --r-pill on every button made a
+   submit and a filter look like the same kind of thing. Pills are reserved
+   for genuinely pill-shaped controls (the role switch, status chips). */
 .btnPrimary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-.btnPrimary:hover { background: var(--accent-deep); border-color: var(--accent-deep); color: #fff; }
+.btnPrimary:hover {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  box-shadow: var(--e-accent);
+}
 
 .btnGhost { background: transparent; border-color: transparent; color: var(--ink-mid); }
-.btnGhost:hover { background: var(--cream); color: var(--ink); border-color: transparent; }
+.btnGhost:hover { background: var(--cream); color: var(--ink); border-color: transparent; box-shadow: none; }
 
-.btnSm { padding: 6px 12px; font-size: 12px; }
+.btnSm { padding: 5px 11px; font-size: var(--t-micro); letter-spacing: 0.02em; }
 
-.btnBlock { width: 100%; justify-content: center; padding: 13px 20px; font-size: 15px; }
+.btnBlock { width: 100%; padding: 12px 20px; font-size: var(--t-body); }
 
 /* Mastery ------------------------------------------------------------- */
 
-.masteryRow { display: flex; flex-direction: column; gap: 6px; }
+/* The number now sits on the baseline of the bar rather than under it —
+   in the old layout every percentage was vertically orphaned from the bar
+   it described, which is why the tables read as loose. */
+.masteryRow { display: flex; flex-direction: column; gap: var(--s-2); }
 
 .masteryHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--s-3);
 }
-.masteryName { font-size: 13.5px; }
+.masteryName { font-size: var(--t-small); }
 .masteryPct {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--t-micro);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--ink-mid);
 }
 
+.masteryInline {
+  display: grid;
+  grid-template-columns: minmax(56px, 1fr) 34px;
+  align-items: center;
+  gap: var(--s-3);
+}
+
 .track {
-  height: 5px;
-  border-radius: var(--r-pill);
+  height: 4px;
+  border-radius: 2px;
   background: var(--cream-deep);
   overflow: hidden;
 }
 .fill {
   height: 100%;
-  border-radius: var(--r-pill);
-  transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-radius: 2px;
+  transition: width 0.55s var(--ease-out);
 }
 /* Band, not brand: red/amber/green encode where the student stands. */
 .fillLow  { background: var(--danger); }
@@ -130,36 +218,59 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-2);
   border: 1px solid var(--line);
-  background: var(--cream-soft);
-  border-radius: var(--r-xs);
-  padding: 5px 10px;
+  background: var(--paper);
+  border-radius: var(--r-chip);
+  padding: 4px 9px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--ink-mid);
 }
 .chipAccent { background: var(--accent-wash); border-color: var(--accent-tint); color: var(--accent-deep); }
-.chipWarn   { background: var(--warn-wash); border-color: #F2E3CB; color: var(--warn); }
+.chipWarn   { background: var(--warn-wash); border-color: #EFE0C8; color: var(--warn); }
 
-/* Stat tile ----------------------------------------------------------- */
+/* Stat ----------------------------------------------------------------
+   Statistics are no longer three boxes in a row. They are cells of one
+   strip divided by hairlines — the same information with two thirds less
+   drawing, and the eye compares them instead of reading three cards. */
+
+.statStrip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.statStrip > .stat + .stat { border-left: 1px solid var(--line); }
 
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  background: var(--paper);
-  border: 1px solid var(--line-cool);
-  border-radius: var(--r-md);
-  padding: 16px 18px;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5) var(--s-5);
 }
+.stat:first-child { padding-left: 0; }
+
 .statValue {
   font-family: var(--prose);
-  font-size: 29px;
+  font-variation-settings: "opsz" 40;
+  font-size: 2.1rem;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
+  color: var(--ink-strong);
 }
-.statNote { font-size: 12.5px; color: var(--ink-mid); }
+.statNote { font-size: var(--t-small); color: var(--ink-mid); }
+
+@media (max-width: 760px) {
+  .statStrip { grid-auto-flow: row; }
+  .statStrip > .stat + .stat { border-left: 0; border-top: 1px solid var(--line); }
+  .stat, .stat:first-child { padding: var(--s-4) 0; }
+  .choice { grid-template-columns: minmax(0, 1fr); padding: var(--s-5) var(--s-5); }
+  .choiceAside { display: none; }
+}

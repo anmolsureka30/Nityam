@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Shell } from "../../components/Shell";
-import { Button, Card, Label, MasteryBar } from "../../components/ui";
+import { Label, MasteryInline } from "../../components/ui";
 import {
   concepts, daysToUnitTest, readinessPattern, readinessPct, readinessRecommendation,
 } from "../../lib/data";
@@ -44,8 +44,7 @@ export default function ReadinessScreen() {
                 <div className={s.id}>{c.id}</div>
               </td>
               <td className={s.barCell}>
-                <MasteryBar pct={c.mastery} hideName />
-                <div className={s.pct}>{c.mastery}%</div>
+                <MasteryInline pct={c.mastery} />
               </td>
               <td className={s.issue}>{c.issue}</td>
             </tr>
@@ -54,17 +53,19 @@ export default function ReadinessScreen() {
       </table>
 
       <div className={s.lower}>
-        <Card size="lg">
+        <div className={s.pattern}>
           <Label>The pattern behind it</Label>
           <p className={s.patternText}>{readinessPattern}</p>
-        </Card>
-        <Card size="lg">
-          <Label tone="accent">Recommended next</Label>
-          <p className={s.recText}>{readinessRecommendation}</p>
-          <Button variant="primary" block onClick={() => nav(`/session?mode=exam&concept=${worst.id}`)}>
-            Start that session
-          </Button>
-        </Card>
+        </div>
+        <button
+          type="button"
+          className={s.next}
+          onClick={() => nav(`/session?mode=exam&concept=${worst.id}`)}
+        >
+          <span className={s.nextLabel}>Recommended next</span>
+          <span className={s.recText}>{readinessRecommendation}</span>
+          <span className={s.nextGo}>Start that session <span aria-hidden="true">→</span></span>
+        </button>
       </div>
     </Shell>
   );

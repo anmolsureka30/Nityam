@@ -8,51 +8,88 @@
   /* Deep enough to scroll the last line clear of the avatar and the control
      bar. She stands in front of the page, so the only honest fix for the
      content behind her is to let the student scroll it out from under. */
-  padding: 0 4px calc(var(--avatar-h, 288px) + 96px);
+  /* She stands to the RIGHT of the page now rather than in front of it, so
+     the deep bottom padding that existed only to let the student scroll the
+     last line out from under her is no longer needed — just clearance for
+     the control bar. */
+  padding: 0 4px 120px;
   scroll-behavior: smooth;
 }
 
+/* THE PAGE.
+   ─────────────────────────────────────────────────────────────────────────
+   This is an exercise book, so it has a margin rule. Everything the tutor
+   writes sits to the right of it; the page's own metadata sits to the left.
+   That single device is what turns this from "a card containing text" into
+   "a page in a book", and it is the same rule the rest of the product is
+   built on, so navigating between them feels like one object.
+
+   No border and a real shadow: paper rests on the desk rather than being
+   drawn onto it. Corners are nearly square, because sheets have corners —
+   the old 16px radius was the same shape as every statistic and every
+   chart on every other screen. */
 .sheet {
   position: relative;
   background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  padding: 28px 34px 34px;
-  margin-bottom: 16px;
-  animation: n-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  border-radius: var(--r-sheet);
+  box-shadow: var(--e-sheet);
+  padding: var(--s-6) var(--s-7) var(--s-8) 108px;
+  margin-bottom: var(--s-4);
+  min-height: 82vh;
+  /* A column, not the whole window. At full width the page ran to 1900px with
+     an empty right half and the tutor standing on top of it; capped, the
+     screen has an honest two-column structure — the page, and her beside it. */
+  max-width: 920px;
+  animation: n-rise 0.45s var(--ease-out) both;
 }
-
+/* The rule itself. Sits inside the sheet's left padding, full height, so a
+   long lesson keeps its margin all the way down. */
+.sheet::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 84px;
+  width: 1px;
+  background: var(--accent-rule);
+  opacity: 0.7;
+}
 
 .sheetHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 20px;
+  gap: var(--s-4);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: var(--s-6);
 }
 
 /* The sheet is as wide as the screen, but a 150-character line is unreadable,
    so running text keeps a measure while figures use the whole width. */
 .heading, .para, .callout, .pulled {
-  max-width: 74ch;
+  max-width: 68ch;
 }
 
 .heading {
   font-family: var(--prose);
-  font-size: 30px;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 32;
+  font-size: 1.95rem;
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.018em;
   text-wrap: balance;
-  margin: 0 0 14px;
+  color: var(--ink-strong);
+  margin: var(--s-6) 0 var(--s-3);
 }
+.heading:first-of-type { margin-top: 0; }
 
 .para {
   font-family: var(--prose);
-  font-size: 16.5px;
-  line-height: 1.62;
-  margin: 0 0 15px;
+  font-variation-settings: "opsz" 14;
+  font-size: 1.0625rem;
+  line-height: var(--lh-prose);
+  margin: 0 0 var(--s-4);
   text-wrap: pretty;
 }
 
@@ -73,49 +110,63 @@
   border-radius: 2px;
 }
 
+/* A formula is the most important thing on the page and it was being set in
+   a grey rounded box at 25px — the same container as a statistic on the
+   teacher dashboard. It now hangs off its own accent rule at display scale,
+   with the caption below in mono. Nothing else on the page looks like this,
+   which is the point: the student's eye should find the formula first. */
 .equation {
-  max-width: 74ch;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  flex-wrap: wrap;
-  background: var(--cream-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 17px 20px;
-  margin: 20px 0;
+  max-width: 68ch;
+  border-left: 2px solid var(--accent);
+  padding: var(--s-1) 0 var(--s-2) var(--s-5);
+  margin: var(--s-6) 0;
 }
 .equationTex {
+  display: block;
   font-family: var(--prose);
-  font-size: 25px;
-  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 40;
+  font-size: 2.15rem;
+  font-weight: 400;
+  line-height: 1.24;
+  letter-spacing: -0.012em;
+  color: var(--ink-strong);
+}
+.equationCaption {
+  display: block;
+  margin-top: var(--s-3);
 }
 
 .callout {
-  border-radius: var(--r-md);
-  padding: 15px 18px;
-  margin: 18px 0;
+  border-left: 2px solid var(--line-hard);
+  border-radius: 0;
+  padding: var(--s-3) 0 var(--s-3) var(--s-5);
+  margin: var(--s-5) 0;
 }
-.calloutCorrection { background: var(--warn-wash); border: 1px solid #F2E3CB; }
-.calloutFinding { background: #F1FAF6; border: 1px solid #CDEBDF; }
+.calloutCorrection { border-left-color: var(--warn); background: var(--warn-wash); }
+.calloutFinding    { border-left-color: var(--good); background: var(--good-wash); }
+.calloutCorrection, .calloutFinding {
+  padding-right: var(--s-5);
+  border-radius: 0 var(--r-sheet) var(--r-sheet) 0;
+}
 .calloutText {
   font-family: var(--prose);
-  font-size: 15.5px;
-  line-height: 1.55;
-  margin: 7px 0 0;
+  font-variation-settings: "opsz" 14;
+  font-size: 1rem;
+  line-height: 1.58;
+  margin: var(--s-2) 0 0;
   text-wrap: pretty;
 }
-.calloutFoot { margin-top: 11px; }
+.calloutFoot { margin-top: var(--s-3); }
 
+/* Something from outside the lesson — the textbook — so it gets the cool
+   data treatment rather than looking like more of the tutor's own writing. */
 .pulled {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent-tint);
-  border-radius: var(--r-xs);
-  background: var(--paper-warm);
-  padding: 14px 17px;
-  margin: 18px 0;
-  animation: n-fade 0.35s ease both;
+  border: 1px solid var(--line-cool-2);
+  border-radius: var(--r-panel);
+  background: var(--data-ground);
+  padding: var(--s-4) var(--s-4) var(--s-3);
+  margin: var(--s-5) 0;
+  animation: n-fade 0.3s var(--ease) both;
 }
 .pulledHead {
   display: flex;
@@ -126,7 +177,8 @@
 }
 .pulledQuote {
   font-family: var(--prose);
-  font-size: 15.5px;
+  font-variation-settings: "opsz" 14;
+  font-size: 1rem;
   line-height: 1.55;
   font-style: italic;
   color: var(--ink);
@@ -139,7 +191,7 @@
 .figure {
   background: var(--cream);
   border: 1px dashed var(--line);
-  border-radius: var(--r-xs);
+  border-radius: var(--r-chip);
   padding: 18px;
   text-align: center;
   margin-bottom: 10px;
@@ -148,24 +200,28 @@
 .next { background: var(--cream-soft); }
 .nextTitle {
   font-family: var(--prose);
-  font-size: 21px;
-  letter-spacing: -0.015em;
-  margin: 0 0 8px;
+  font-variation-settings: "opsz" 24;
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  margin: 0 0 var(--s-2);
 }
 
 /* An empty board is the design, not a failure — say so where the writing will
    appear, so the student knows to start talking. */
+/* An empty page says so in the margin's own voice — a pencil note, not a
+   dashed placeholder box. A dashed rectangle reads as a broken image. */
 .waiting {
-  margin: 28px 0 8px;
-  padding: 16px 18px;
-  border: 1px dashed var(--line);
-  border-radius: var(--r-lg);
-  background: var(--cream);
-  color: var(--ink-mid);
+  margin: var(--s-6) 0 var(--s-2);
+  padding: 0 0 0 var(--s-4);
+  border-left: 2px solid var(--line);
+  color: var(--ink-dim);
   font-family: var(--prose);
-  font-size: 15px;
-  line-height: 1.55;
-  max-width: 62ch;
+  font-variation-settings: "opsz" 14;
+  font-size: 1rem;
+  font-style: italic;
+  line-height: 1.6;
+  max-width: 54ch;
 }
 
 /* Struck through rather than deleted: a corrected mistake teaches more than a
@@ -250,8 +306,25 @@
   max-height: 420px;
   object-fit: contain;
   object-position: left;
-  margin: 10px 0 2px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
+  margin: var(--s-2) 0 2px;
+  border: 1px solid var(--line-cool);
+  border-radius: var(--r-sheet);
   background: #fff;
+}
+
+/* Under 1240px she stands in front of the page again, so the page needs the
+   clearance back or its last line sits behind her. */
+@media (max-width: 1240px) {
+  .scroll { padding-bottom: calc(var(--avatar-h, 288px) + 96px); }
+  .sheet { max-width: none; }
+}
+
+@media (max-width: 900px) {
+  .sheet {
+    padding: var(--s-5) var(--s-4) var(--s-6);
+    min-height: 0;
+  }
+  .sheet::before { display: none; }
+  .heading { font-size: 1.55rem; }
+  .equationTex { font-size: 1.6rem; }
 }

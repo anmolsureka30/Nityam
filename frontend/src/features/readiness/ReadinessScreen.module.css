@@ -7,19 +7,26 @@
 }
 .title {
   font-family: var(--prose);
-  font-size: 33px;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 48;
+  font-size: var(--t-display);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight);
+  color: var(--ink-strong);
+  margin: 0;
 }
-.sub { color: var(--ink-mid); font-size: 14.5px; margin-top: 8px; }
+.sub { color: var(--ink-mid); font-size: var(--t-lede); margin-top: var(--s-3); }
 
-.score { display: flex; align-items: baseline; gap: 10px; }
+.score { display: flex; align-items: baseline; gap: var(--s-3); }
 .scoreValue {
   font-family: var(--prose);
-  font-size: 46px;
+  font-variation-settings: "opsz" 60;
+  font-size: 3.4rem;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
+  color: var(--ink-strong);
 }
 
 .table { width: 100%; border-collapse: collapse; margin-top: 26px; }
@@ -41,24 +48,92 @@
 }
 .table tr:last-child td { border-bottom: none; }
 
-.name { font-size: 15px; font-weight: 600; }
-.id { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); margin-top: 3px; }
+.name { font-size: var(--t-body); font-weight: 600; }
+.id {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
 
 .barCell { width: 190px; }
-.pct { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; margin-top: 6px; }
-.issue { font-size: 14px; line-height: 1.5; color: var(--ink-mid); text-wrap: pretty; }
+.pct { font-family: var(--mono); font-size: var(--t-micro); font-variant-numeric: tabular-nums; }
+.issue { font-size: var(--t-small); line-height: 1.5; color: var(--ink-mid); text-wrap: pretty; }
 
-.rowWorst { background: var(--warn-wash); }
+/* The row that matters most gets a left rule rather than a wash across the
+   whole row: a full-width tint reads as a selection, a rule reads as
+   emphasis. */
+.rowWorst td:first-child { box-shadow: inset 2px 0 0 var(--warn); padding-left: var(--s-4); }
 
-.lower { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-top: 22px; }
+/* No boxes here. The pattern sentence is the conclusion of the table above
+   it, so it closes the page as a statement; the action beside it is the one
+   filled thing on the screen. Two equal bordered cards said "these are the
+   same kind of thing" — a conclusion and a button are not. */
+.lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--s-7);
+  margin-top: var(--s-8);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--line);
+  align-items: start;
+}
+
+.pattern { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  text-align: left;
+  background: var(--ink-strong);
+  color: var(--paper);
+  border: 0;
+  border-radius: var(--r-slab);
+  box-shadow: var(--e-lift);
+  padding: var(--s-5) var(--s-5) var(--s-5);
+  transition: background 0.16s var(--ease);
+}
+.next:hover { background: #171B24; }
+.next:hover .nextGo { gap: 10px; }
+
+.nextLabel {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--accent-lift);
+}
+.nextGo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--paper);
+  transition: gap 0.16s var(--ease);
+}
 .patternText {
   font-family: var(--prose);
-  font-size: 19px;
-  line-height: 1.45;
-  letter-spacing: -0.01em;
-  margin: 12px 0 0;
+  font-variation-settings: "opsz" 32;
+  font-size: 1.7rem;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -0.014em;
+  color: var(--ink-strong);
+  margin: 0;
   text-wrap: pretty;
 }
-.recText { font-size: 14.5px; line-height: 1.55; color: var(--ink-mid); margin: 12px 0 18px; text-wrap: pretty; }
+.recText {
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 16;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 0;
+  text-wrap: pretty;
+}
 
 @media (max-width: 860px) { .lower { grid-template-columns: 1fr; } }

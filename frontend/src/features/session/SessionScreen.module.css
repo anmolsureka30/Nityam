@@ -14,29 +14,38 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding: 0 24px;
+  gap: var(--s-5);
+  padding: 0 var(--s-6);
   height: var(--header-h);
   border-bottom: 1px solid var(--line);
-  background: var(--paper);
+  background: var(--ground);
   flex: none;
 }
 
 .left { display: flex; align-items: center; gap: 14px; }
 
 .brand { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; }
-.mark { width: 9px; height: 9px; border-radius: var(--r-pill); background: var(--accent); }
-.word { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.mark { width: 3px; height: 16px; border-radius: 2px; background: var(--accent); }
+.word {
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 18;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+}
 
 .mode {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  padding: 4px 11px;
-  font-size: 12.5px;
-  color: var(--ink-mid);
+  gap: var(--s-2);
+  padding: 0 0 0 var(--s-4);
+  border-left: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-dim);
 }
 
 .right { display: flex; align-items: center; gap: 12px; }
@@ -44,12 +53,12 @@
 .chipBtn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid var(--line);
+  gap: var(--s-2);
+  border: 1px solid var(--line-hard);
   background: var(--paper);
-  border-radius: var(--r-pill);
-  padding: 6px 13px;
-  font-size: 12.5px;
+  border-radius: var(--r-slab);
+  padding: 6px 12px;
+  font-size: var(--t-small);
   color: var(--ink-mid);
 }
 .chipBtn:hover { border-color: var(--accent); color: var(--accent-deep); }
@@ -63,25 +72,26 @@
 }
 .who { font-size: 13px; color: var(--ink-mid); }
 .avatarChip {
-  width: 27px; height: 27px;
+  width: 26px; height: 26px;
   border-radius: var(--r-pill);
-  background: var(--cream-deep);
-  border: 1px solid var(--line);
+  background: var(--ink-strong);
   display: grid; place-items: center;
-  font-size: 11.5px; font-weight: 600; color: var(--ink-mid);
+  font-size: var(--t-micro); font-weight: 600; color: var(--paper);
 }
 
 /* concept strip — the slim always-visible progress bar */
+/* The lesson plan strip. Cool rather than cream, because it is status about
+   the session and not part of the writing. */
 .concept {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 9px 24px;
-  background: var(--cream-soft);
-  border-bottom: 1px solid var(--line);
+  gap: var(--s-4);
+  padding: var(--s-2) var(--s-6);
+  background: var(--data-ground);
+  border-bottom: 1px solid var(--line-cool-2);
   flex: none;
 }
-.conceptName { font-size: 13.5px; font-weight: 600; }
+.conceptName { font-size: var(--t-small); font-weight: 600; }
 .conceptTrack { flex: 1; min-width: 60px; max-width: 320px; }
 .conceptPct {
   font-family: var(--mono);
@@ -101,11 +111,22 @@
 
 /* The canvas is the page. Every control floats over it, so nothing steals
    width from the thing the student is actually reading. */
+/* The desk the page rests on. Slightly deeper than the app ground so the
+   white sheet reads as sitting ON something — that contrast is what stops
+   the board looking like a card floating in an empty field, which was most
+   of what made this screen feel unfinished. */
 .stage {
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 16px 24px 0;
+  padding: var(--s-5) var(--s-6) 0;
+  background: var(--ground-deep);
+}
+
+/* Below this the two columns cannot both fit, so she goes back to standing
+   in front of the page and the page gets its scroll clearance back. */
+@media (max-width: 1240px) {
+  .stage { padding-right: var(--s-4); }
 }
 
 /* progress through tonight, in the strip rather than a panel */
@@ -119,19 +140,20 @@
   white-space: nowrap;
 }
 .planTick {
-  width: 14px; height: 14px;
+  width: 13px; height: 13px;
   flex: none;
   display: grid; place-items: center;
   border-radius: var(--r-pill);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-cool);
   font-size: 8px;
-  color: var(--ink-dim);
+  color: var(--ink-faint);
   background: var(--paper);
 }
 .planDone { color: var(--ink-mid); }
-.planDone .planTick { border-color: #CDEBDF; background: #F1FAF6; color: var(--good); }
-.planNow { color: var(--ink); font-weight: 500; }
+.planDone .planTick { border-color: #C6E4D8; background: var(--good-wash); color: var(--good); }
+.planNow { color: var(--ink-strong); font-weight: 600; }
 .planNow .planTick { border-color: var(--accent); background: var(--accent); color: #fff; }
+.planStep { font-size: var(--t-small); }
 
 @media (max-width: 1180px) { .plan { display: none; } }
 @media (max-width: 900px) {

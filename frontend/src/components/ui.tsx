@@ -17,6 +17,18 @@ export function Label({
   );
 }
 
+/** A data surface. Cool, hairlined, tabular — never mistaken for notebook
+ *  paper even when it sits next to some. */
+export function Panel({
+  children, style, as: As = "div",
+}: {
+  children: ReactNode;
+  style?: CSSProperties;
+  as?: "div" | "section" | "article" | "aside";
+}) {
+  return <As className={s.panel} style={style}>{children}</As>;
+}
+
 export function Card({
   children, size = "md", quiet, style, as: As = "div",
 }: {
@@ -33,6 +45,16 @@ export function Card({
   );
 }
 
+/** The list the three top-level actions live in.
+ *
+ *  They used to be three cards side by side, which meant reading all three to
+ *  find out which one mattered tonight. One sheet, hairline-separated rows,
+ *  and exactly one filled slab: the hierarchy is visible before anything is
+ *  read. */
+export function Choices({ children }: { children: ReactNode }) {
+  return <div className={s.choices}>{children}</div>;
+}
+
 export function ActionCard({
   eyebrow, title, body, footer, primary, onClick,
 }: {
@@ -47,15 +69,20 @@ export function ActionCard({
     <button
       type="button"
       onClick={onClick}
-      className={cx(s.actionCard, primary && s.actionCardPrimary)}
+      className={cx(s.choice, primary && s.choicePrimary)}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {primary && <span className={s.dot} />}
-        <Label tone={primary ? "accent" : undefined}>{eyebrow}</Label>
-      </div>
-      <div className={s.cardTitle}>{title}</div>
-      <div className={s.cardBody}>{body}</div>
-      {footer && <div style={{ marginTop: "auto", paddingTop: 12 }}>{footer}</div>}
+      <span className={s.choiceMain}>
+        <Label tone={primary ? "accent" : undefined}
+               style={primary ? { color: "var(--accent-lift)" } : undefined}>
+          {eyebrow}
+        </Label>
+        <span className={s.choiceTitle}>{title}</span>
+        <span className={s.choiceBody}>{body}</span>
+      </span>
+      <span className={s.choiceAside}>
+        {footer}
+        <span className={s.choiceGo} aria-hidden="true">→</span>
+      </span>
     </button>
   );
 }
@@ -130,6 +157,13 @@ export function Chip({
   );
 }
 
+/** Statistics as cells of one strip rather than a row of boxes: the same
+ *  information with two thirds less drawing, and the eye compares them
+ *  instead of reading three separate cards. */
+export function StatStrip({ children }: { children: ReactNode }) {
+  return <div className={s.statStrip}>{children}</div>;
+}
+
 export function Stat({
   label, value, note,
 }: { label: string; value: ReactNode; note?: string }) {
@@ -138,6 +172,22 @@ export function Stat({
       <Label>{label}</Label>
       <div className={s.statValue}>{value}</div>
       {note && <div className={s.statNote}>{note}</div>}
+    </div>
+  );
+}
+
+/** A bar with its number on the same baseline. In the old table every
+ *  percentage sat under the bar it described, which is most of why those
+ *  tables read as loose. */
+export function MasteryInline({ pct }: { pct: number }) {
+  const band = pct < 50 ? s.fillLow : pct < 75 ? s.fillMid : s.fillHigh;
+  return (
+    <div className={s.masteryInline}>
+      <div className={s.track}>
+        <div className={cx(s.fill, band)}
+             style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
+      </div>
+      <span className={s.masteryPct}>{pct}%</span>
     </div>
   );
 }

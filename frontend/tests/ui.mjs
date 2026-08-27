@@ -462,18 +462,26 @@ check("the avatar animates while speaking", new Set(frames).size >= 3,
       `${new Set(frames).size} distinct frames out of ${frames.length}`);
 
 // ──────────────────────────────────────────────────── layout and scroll room
-const widths = await ev(`
-  const sheet = document.querySelector('article');
-  return { sheet: sheet ? Math.round(sheet.getBoundingClientRect().width) : 0, page: window.innerWidth };
-`);
-check("the canvas spans the full width", widths.sheet / widths.page > 0.9,
-      `${widths.sheet}px of ${widths.page}px`);
-
-/* She stands in front of the page, so content CAN sit behind her. What must be
-   true is that the student can always scroll it out from under her. */
-const clearance = await ev(`
+/* The requirement is that HER FIGURE NEVER COVERS THE PAGE. There are two
+   honest ways to satisfy it, and the design uses both depending on width:
+ 
+     wide   she stands BESIDE the page — they do not overlap horizontally
+     narrow she stands in FRONT of it, and the student can always scroll the
+            last line out from under her
+ 
+   The old pair of checks asserted one implementation rather than the
+   requirement: "the sheet fills the window" and "content scrolls clear of
+   her". Capping the page to a readable column and moving her into her own
+   column satisfied the requirement better and failed both of them. */
+const layout = await ev(`
   const sc = document.querySelector('[class*="scroll"]');
-  if (!sc) return { ok: false };
+  const sheet = document.querySelector('article');
+  if (!sc || !sheet) return { ok: false };
+
+  const page = sheet.getBoundingClientRect();
+  const av = document.querySelector('canvas').getBoundingClientRect();
+  const sideBySide = av.left >= page.right - 2;
+
   // scroll-behavior is smooth, so assigning scrollTop animates; force it.
   sc.scrollTo({ top: sc.scrollHeight, behavior: 'instant' });
   await new Promise(r => setTimeout(r, 300));
@@ -481,15 +489,33 @@ const clearance = await ev(`
   // height, so it must not count as content.
   const kids = [...sc.children].filter(el => getComputedStyle(el).position !== 'absolute');
   const lowest = Math.max(...kids.map(b => b.getBoundingClientRect().bottom));
-  const av = document.querySelector('canvas').getBoundingClientRect();
-  return { ok: true, lowest: Math.round(lowest), avatarTop: Math.round(av.top),
-           scrolled: Math.round(sc.scrollTop),
-           range: Math.round(sc.scrollHeight - sc.clientHeight) };
+
+  return {
+    ok: true, sideBySide,
+    pageW: Math.round(page.width), win: window.innerWidth,
+    pageRight: Math.round(page.right), avatarLeft: Math.round(av.left),
+    lowest: Math.round(lowest), avatarTop: Math.round(av.top),
+    scrolled: Math.round(sc.scrollTop),
+    range: Math.round(sc.scrollHeight - sc.clientHeight),
+  };
 `);
-check("content can be scrolled clear of the avatar",
-      clearance.ok && clearance.lowest < clearance.avatarTop,
-      `scrolled ${clearance.scrolled}px; last line ends at ${clearance.lowest}px, she starts at ${clearance.avatarTop}px`);
-check("there is scroll range to do it with", clearance.range > 200, `${clearance.range}px of scroll`);
+check("she never covers the page",
+      layout.ok && (layout.sideBySide || layout.lowest < layout.avatarTop),
+      layout.sideBySide
+        ? `beside it — page ends at ${layout.pageRight}px, she starts at ${layout.avatarLeft}px`
+        : `in front of it — last line ${layout.lowest}px, she starts at ${layout.avatarTop}px`);
+
+/* Whichever way she stands, the lesson must have room to scroll. A page with
+   no scroll range would pass the check above by accident. */
+check("and the lesson has room to scroll", layout.ok && layout.range > 200,
+      `${layout.range}px of scroll`);
+
+/* A readable measure. The page used to fill the window, which at 1440px gave
+   150-character lines; it is now a column. Both extremes are wrong, so this
+   asserts the band rather than a target. */
+check("the page is a readable column, not the whole window",
+      layout.ok && layout.pageW > 520 && layout.pageW <= layout.win * 0.75,
+      `${layout.pageW}px of ${layout.win}px`);
 
 const shot = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
 writeFileSync(`${OUT}/fe_session3.png`, Buffer.from(shot.data, "base64"));

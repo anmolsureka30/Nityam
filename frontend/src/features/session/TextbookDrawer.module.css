@@ -78,7 +78,7 @@
   text-align: left;
   border: none;
   background: none;
-  border-radius: var(--r-md);
+  border-radius: var(--r-panel);
   padding: 7px 9px;
   font-size: 13px;
   color: var(--ink-mid);
@@ -102,7 +102,7 @@
 .fig {
   border: 1px solid var(--line);
   background: var(--paper);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-chip);
   padding: 3px 7px;
   font-family: var(--mono);
   font-size: 10.5px;
@@ -153,7 +153,7 @@
 .pager button {
   border: 1px solid var(--line);
   background: var(--paper);
-  border-radius: var(--r-md);
+  border-radius: var(--r-panel);
   width: 30px; height: 30px;
   color: var(--ink-mid);
   cursor: pointer;

@@ -1,66 +1,168 @@
-/* Design tokens, lifted from Nityam_Claude_Design/Nityam.dc.html.
-   Change a value here, not in a component. */
+/* Design tokens. Change a value here, not in a component.
+   ─────────────────────────────────────────────────────────────────────────
+   THE IDEA: a school exercise book and its margin.
+
+   An Indian exercise book has a vertical rule down the left edge. Everything
+   is written to the right of it and the margin holds what is *about* the work
+   rather than the work itself — the date, the question number, the teacher's
+   tick. That gives this product a spine: every screen has a margin column,
+   metadata lives in it, content hangs off it, and the eye always knows where
+   a line begins.
+
+   It also replaces the thing that made the old design read as generated: one
+   shape (16px radius + hairline border + white fill) was doing every job —
+   call to action, statistic, chart, notebook page, pull quote. When every
+   container is identical the container stops carrying meaning. So there are
+   now three surfaces with three jobs, and they do not look alike:
+
+     SHEET  paper, for the board and for prose. Nearly square, no border,
+            a soft shadow so it rests on the ground rather than being drawn
+            onto it.
+     PANEL  data, for tables and figures. Cool ground, cool hairline, tabular
+            numerals. Reads as an instrument, not as notebook paper.
+     SLAB   the one thing to act on. Filled, no border, no competition.
+            One per screen at most — that is what makes it work. */
 
 :root {
   /* --- ground and surfaces -------------------------------------------
-     Warm paper for the student's world; cooler greys appear only inside
-     data surfaces (teacher tables, the textbook) so charts read as data
-     rather than as part of the notebook. */
-  --ground:      #FBFAF7;
+     Warm paper for the student's world; cool greys only inside data
+     surfaces, so a chart never reads as part of the notebook.
+
+     The warmth is dialled back from the original #FBFAF7 / #F4F1EA. That
+     cream is the single most over-used ground in generated design, and at
+     that saturation it also greys the ink. This is still unmistakably paper,
+     just less like a template. */
+  --ground:      #F7F6F3;
+  --ground-deep: #F1EFEA;
   --paper:       #FFFFFF;
-  --paper-warm:  #FCFBF8;
-  --cream:       #F4F1EA;
-  --cream-deep:  #F1EDE6;
-  --cream-soft:  #F8F5F0;
-  --data-ground: #FAFBFC;
-  --data-cream:  #F4F5F7;
+  --paper-warm:  #FCFBF9;
+  --cream:       #F2F0EA;
+  --cream-deep:  #EBE8E1;
+  --cream-soft:  #F7F5F1;
+  --data-ground: #F8F9FA;
+  --data-cream:  #EFF1F3;
 
-  /* --- ink ---------------------------------------------------------- */
-  --ink:         #161A22;
-  --ink-mid:     #5A6070;
-  --ink-dim:     #8A90A0;
+  /* --- ink -----------------------------------------------------------
+     Deeper and slightly cooler than before: #161A22 on cream measured
+     11.8:1, but the mid greys were doing the real work and #5A6070 on
+     #FBFAF7 is only 5.6:1 — fine for body, too weak for the 11px metadata
+     it was being used for. Each step below is a real step. */
+  --ink:         #12151C;
+  --ink-strong:  #0B0E14;
+  --ink-mid:     #4A5160;
+  --ink-dim:     #737B8C;
+  --ink-faint:   #9AA1B0;
 
-  /* --- rules -------------------------------------------------------- */
-  --line:        #E9E6DF;   /* warm, for paper surfaces */
-  --line-soft:   #EFE9E1;
-  --line-cool:   #E3E5E9;   /* cool, for data surfaces */
-  --line-cool-2: #E8EAEE;
-  --line-cool-3: #EDEFF3;
+  /* --- rules ---------------------------------------------------------
+     Hairlines carry the structure now that borders no longer wrap
+     everything, so there are more of them and they are graded. */
+  --line:        #E5E2DA;   /* warm, for paper surfaces */
+  --line-soft:   #EDEAE3;
+  --line-hard:   #D6D2C8;
+  --line-cool:   #DFE2E7;   /* cool, for data surfaces */
+  --line-cool-2: #E7EAEE;
+  --line-cool-3: #EFF1F4;
 
-  /* --- accent -------------------------------------------------------
-     Nityam's magenta. One accent, spent on what the student should act on. */
-  --accent:      #E8437A;
-  --accent-deep: #C22B5F;
-  --accent-tint: #F3CFDD;
-  --accent-wash: #FDF4F7;
+  /* --- accent --------------------------------------------------------
+     Nityam's magenta, spent on what the student should act on and on the
+     margin rule. Deepened a little: the old #E8437A on white was 3.5:1,
+     which fails on text, so every use had to fall back to --accent-deep
+     anyway. This one carries type. */
+  --accent:      #D92D68;
+  --accent-deep: #A81F4E;
+  --accent-lift: #F04A80;
+  --accent-tint: #F0C6D6;
+  --accent-wash: #FCF2F6;
+  --accent-rule: #E8B4C8;   /* the margin rule: present, never loud */
 
-  /* --- semantic -----------------------------------------------------
-     Kept separate from the accent: these encode state, not brand. */
-  --warn:        #C2700F;
-  --warn-wash:   #FDF8F1;
-  --danger:      #C1443A;
-  --good:        #10916B;
-  --sim:         #2A78D6;   /* simulations only — matches artifact_generator */
+  /* --- semantic ------------------------------------------------------
+     State, not brand. Three real steps for mastery, so a bar's colour is
+     information rather than decoration. */
+  --warn:        #B26206;
+  --warn-wash:   #FCF7F0;
+  --danger:      #B23A31;
+  --danger-wash: #FCF3F2;
+  --good:        #0E7F5E;
+  --good-wash:   #F0F8F5;
+  --sim:         #2166BF;   /* simulations only — matches artifact_generator */
+  --sim-wash:    #F1F5FB;
 
-  /* --- type --------------------------------------------------------- */
+  /* --- type ----------------------------------------------------------
+     Three families, three jobs: sans for interface, serif for anything
+     the student reads as language, mono for anything they read as data. */
   --ui:      "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
   --prose:   "Source Serif 4", Georgia, "Times New Roman", serif;
   --mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* --- shape -------------------------------------------------------- */
+  /* A real scale, and Source Serif 4's optical-size axis actually used — it
+     was being loaded with `opsz 8..60` and then never set, so display type
+     was rendered with text-size letterforms. */
+  --t-display: 3.1rem;   /* 49.6px */
+  --t-title:   1.9rem;   /* 30.4px */
+  --t-head:    1.3rem;   /* 20.8px */
+  --t-lede:    1.1875rem;/* 19px   */
+  --t-body:    0.96rem;  /* 15.4px */
+  --t-small:   0.8125rem;/* 13px   */
+  --t-micro:   0.6875rem;/* 11px   */
+
+  --lh-tight:  1.06;
+  --lh-head:   1.2;
+  --lh-body:   1.6;
+  --lh-prose:  1.66;
+
+  --track-micro: 0.12em;  /* mono labels */
+  --track-tight: -0.015em;/* display */
+
+  /* --- space ---------------------------------------------------------
+     4px base. Named so a gap is chosen from the scale rather than typed. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+
+  /* --- shape ---------------------------------------------------------
+     Radii are now differentiated by surface rather than uniform. Paper is
+     nearly square (a sheet has corners); instruments are slightly rounded;
+     only genuinely pill-shaped things are pills. */
+  --r-sheet: 3px;
+  --r-panel: 7px;
+  --r-slab:  5px;
+  --r-chip:  5px;
   --r-pill:  99px;
-  --r-lg:    16px;
-  --r-md:    12px;
-  --r-sm:    10px;
-  --r-xs:    7px;
-  --r-tick:  3px;
+  --r-tick:  2px;
 
-  --shadow:      0 2px 12px rgba(22, 26, 34, 0.05);
-  --shadow-lift: 0 8px 26px rgba(232, 67, 122, 0.16);
+  /* Elevation says how far off the ground something sits. Paper barely
+     lifts; a dialog lifts a lot. */
+  --e-flat:  0 1px 0 rgba(18, 21, 28, 0.03);
+  --e-sheet: 0 1px 2px rgba(18, 21, 28, 0.05), 0 8px 24px -12px rgba(18, 21, 28, 0.09);
+  --e-lift:  0 2px 4px rgba(18, 21, 28, 0.05), 0 16px 40px -16px rgba(18, 21, 28, 0.14);
+  --e-modal: 0 32px 80px -24px rgba(18, 21, 28, 0.3);
+  --e-accent:0 10px 30px -10px rgba(217, 45, 104, 0.42);
 
-  /* --- layout ------------------------------------------------------- */
-  --page-max:   1140px;
+  /* --- layout --------------------------------------------------------
+     The margin is the layout. --margin-w is the exercise-book margin: wide
+     enough to hold an 11px mono label, and the same on every screen so the
+     rule lines up as you navigate. */
+  --page-max:   1180px;
+  --margin-w:   132px;
+  --measure:    64ch;      /* prose line length, ~66 characters */
   --rail-w:     344px;
-  --drawer-w:   min(560px, 46vw);
-  --header-h:   58px;
+  --drawer-w:   min(600px, 48vw);
+  --header-h:   60px;
+
+  --ease:       cubic-bezier(0.2, 0.7, 0.25, 1);
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 900px) {
+  :root {
+    --t-display: 2.35rem;
+    --t-title:   1.6rem;
+    --margin-w:  0px;
+  }
 }
