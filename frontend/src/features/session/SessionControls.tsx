@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Label } from "../../components/ui";
+import { describeSource } from "../../lib/grounding";
 import type { ContextPacket, MarkTool } from "../../lib/types";
 import s from "./SessionControls.module.css";
 
@@ -13,7 +14,7 @@ const TOOLS: { id: MarkTool; glyph: string; label: string }[] = [
 
 export default function SessionControls({
   tool, onTool, onClear, hasMarks, packet, packetSummary, onAskAboutMark,
-  onSend, listening, onToggleMic, onEnd,
+  onSend, onEnd, heard, thinking,
 }: {
   tool: MarkTool | null;
   onTool: (t: MarkTool | null) => void;
@@ -23,14 +24,34 @@ export default function SessionControls({
   packetSummary: string;
   onAskAboutMark: () => void;
   onSend: (text: string) => void;
-  listening: boolean;
-  onToggleMic: () => void;
   onEnd: () => void;
+  /** The last thing she heard. Shown verbatim: it is the only unambiguous
+   *  answer to "is this thing even listening to me". */
+  heard: string;
+  /** She has delegated and is waiting. That wait is real — 15-20 seconds — so
+   *  it has to be visible or the page reads as broken. */
+  thinking: boolean;
 }) {
   const [draft, setDraft] = useState("");
 
   return (
     <>
+      {(heard || thinking) && (
+        <div className={s.heard}>
+          {thinking ? (
+            <span className={s.thinking}>
+              <i /><i /><i />
+              <span className={s.thinkingText}>Working that out…</span>
+            </span>
+          ) : (
+            <>
+              <Label>You said</Label>
+              <p className={s.heardText}>{heard}</p>
+            </>
+          )}
+        </div>
+      )}
+
       {hasMarks && packet && (
         <div className={s.marked}>
           <Label tone="accent">You marked on the page</Label>
@@ -38,11 +59,11 @@ export default function SessionControls({
             <span className={s.markedText}>{packetSummary}</span>
             <Button variant="primary" size="sm" onClick={onAskAboutMark}>Ask about this</Button>
           </div>
-          {packet.resolved.length > 0 && (
-            <div className={s.confidence}>
-              Confidence {Math.round(packet.confidence * 100)}%
-              {packet.nearby.length > 0 && ` · also near “${packet.nearby[0].text}”`}
-            </div>
+          {/* A DOM-measured sweep is exact, so there is no confidence score to
+              report any more — what is worth showing is WHERE it came from, so
+              the student can see the tutor read the right part of the page. */}
+          {packet.regions.length > 0 && (
+            <div className={s.confidence}>{describeSource(packet)}</div>
           )}
         </div>
       )}
@@ -87,14 +108,17 @@ export default function SessionControls({
               onChange={(e) => setDraft(e.target.value)}
             />
           </div>
+          {/* A real submit button, not decoration: without one the form has no
+              implicit-submission target, so pressing Enter in the field did
+              nothing at all. */}
           <button
-            type="button"
-            className={cx(s.mic, listening && s.micOn)}
-            aria-pressed={listening}
-            aria-label={listening ? "Stop listening" : "Talk to Nityam"}
-            onClick={onToggleMic}
+            type="submit"
+            className={s.send}
+            disabled={!draft.trim()}
+            aria-label="Send to Nityam"
+            title="Send"
           >
-            ◍
+            ↵
           </button>
         </form>
 

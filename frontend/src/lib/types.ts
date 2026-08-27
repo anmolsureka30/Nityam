@@ -81,14 +81,40 @@ export interface Anchor {
   concept?: string;
 }
 
+/** Every block can be struck through. Not a delete: a corrected mistake stays
+ *  visible, because it teaches more than a mistake that quietly vanished.
+ *  Written by the tutor's strike_block tool (backend/app/canvas/tools.py). */
+interface BlockCommon {
+  id: string;
+  struck?: boolean;
+}
+
 export type NotebookBlock =
-  | { kind: "heading"; id: string; text: string }
-  | { kind: "tutor_text"; id: string; text: string; anchors?: Anchor[] }
-  | { kind: "equation"; id: string; tex: string; caption?: string; anchors?: Anchor[] }
-  | { kind: "callout"; id: string; tone: "correction" | "finding"; label: string; text: string }
-  | { kind: "artifact"; id: string; artifactId: string }
-  | { kind: "pulled"; id: string; label: string; source: string; body: string; quote?: string; figure?: boolean }
-  | { kind: "next"; id: string; label: string; title: string; text: string };
+  | (BlockCommon & { kind: "heading"; text: string })
+  | (BlockCommon & { kind: "tutor_text"; text: string; anchors?: Anchor[] })
+  | (BlockCommon & { kind: "equation"; tex: string; caption?: string; anchors?: Anchor[] })
+  | (BlockCommon & {
+      kind: "callout";
+      tone: "correction" | "finding";
+      label: string;
+      text: string;
+    })
+  | (BlockCommon & {
+      kind: "artifact";
+      artifactId: string;
+      /** The validated Artifact IR, generated live by ArtifactAgent and carried
+       *  inline in the patch. Absent for the hand-written fallback kernel. */
+      ir?: unknown;
+    })
+  | (BlockCommon & {
+      kind: "pulled";
+      label: string;
+      source: string;
+      body: string;
+      quote?: string;
+      figure?: boolean;
+    })
+  | (BlockCommon & { kind: "next"; label: string; title: string; text: string });
 
 export interface NotebookPage {
   page: number;
@@ -106,23 +132,39 @@ export interface Notebook {
 
 export type MarkTool = "marker" | "circle" | "lasso";
 
-/** One resolved thing the student pointed at. */
-export interface ResolvedTarget {
-  anchorId: string;
+/** One block the gesture touched, and what it swept from it.
+ *
+ *  There is deliberately only ONE kind of thing in a packet: text, plus the
+ *  block it came from. An earlier version scored the authored `Anchor` spans
+ *  and reported those instead, which meant a gesture across a whole sentence
+ *  came back holding two letters — `v` and `θ` — and a gesture across
+ *  unanchored prose came back empty. If an anchored term falls under the
+ *  stroke it is now simply part of `text`, like every other word. */
+export interface SweptRegion {
+  blockId: string;
+  kind: NotebookBlock["kind"];
+  /** Verbatim: only the words this gesture actually covered in this block.
+   *  `…` marks a gap where covered words were not adjacent. Empty for a block
+   *  with no text of its own, such as the simulation. */
   text: string;
-  concept?: string;
-  /** 0-1. Below the floor a target is "nearby" rather than resolved. */
-  coverage: number;
+  /** The complete sentence(s) `text` sits inside, so the tutor gets coherent
+   *  language even when the stroke started and ended mid-sentence. */
+  sentences: string;
 }
 
 /** What the canvas hands the tutor when the student marks the page. This is
  *  the interface the real product plugs into. */
 export interface ContextPacket {
-  gesture: MarkTool | "text_selection";
+  gesture: MarkTool;
   page: number;
+  /** Every word the gesture covered, in document order, across all blocks. */
+  text: string;
+  /** One entry per block the gesture touched, in document order. */
+  regions: SweptRegion[];
+  /** The block that contributed the most swept text. */
   blockId: string | null;
-  resolved: ResolvedTarget[];
-  nearby: ResolvedTarget[];
+  /** 1 when text was captured — a DOM-measured sweep is exact, not a guess —
+   *  and 0 when the gesture landed on nothing. */
   confidence: number;
   utterance?: string;
 }

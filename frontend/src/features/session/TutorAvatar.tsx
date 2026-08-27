@@ -23,7 +23,7 @@ const MOOD_STATE: Record<TutorMood, "idle" | "listening" | "thinking" | "speakin
 };
 
 export default function TutorAvatar({
-  mood, caption, speakKey,
+  mood, caption, speakKey, voice,
 }: {
   mood: TutorMood;
   /** What she is saying. Drives the mouth via the rig's syllable engine. */
@@ -31,6 +31,10 @@ export default function TutorAvatar({
   /** Changes whenever a NEW line should be spoken, so repeating the same
    *  caption does not restart the mouth and a re-render never does either. */
   speakKey: number;
+  /** The model's actual voice. When present the rig reads the waveform, which
+   *  is real lip sync; the syllable engine is only the fallback for mock mode,
+   *  where there is no model audio to read. */
+  voice?: MediaStream | null;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const avatarRef = useRef<AvatarHandle | null>(null);
@@ -55,12 +59,23 @@ export default function TutorAvatar({
     else a.setState(MOOD_STATE[mood]);
   }, [mood]);
 
-  // A new line: let the rig drive the mouth from the words themselves. When
-  // real audio arrives from the Live API this becomes attachAudio() instead,
-  // and nothing else in this file changes.
+  // Real audio when there is any: the rig's attachAudio reads the waveform and
+  // drives the mouth off actual energy, which no syllable estimate matches.
+  const audioRef = useRef<MediaStream | null>(null);
   useEffect(() => {
     const a = avatarRef.current;
-    if (!a || speakKey === spokenRef.current) return;
+    if (!a || !voice || audioRef.current === voice) return;
+    audioRef.current = voice;
+    a.attachAudio(voice);
+  }, [voice]);
+
+  // Fallback for mock mode, where nothing is actually played: drive the mouth
+  // from the syllables of the caption. Skipped once real audio is attached, or
+  // the two would fight over the same mouth parameters.
+  useEffect(() => {
+    const a = avatarRef.current;
+    if (!a || audioRef.current) return;
+    if (speakKey === spokenRef.current) return;
     spokenRef.current = speakKey;
     if (caption) a.say(caption);
   }, [speakKey, caption]);

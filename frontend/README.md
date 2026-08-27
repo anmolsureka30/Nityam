@@ -37,7 +37,7 @@ src/
 │   ├── types.ts          the domain model
 │   ├── data.ts           all demo content. The backend replaces THIS file.
 │   ├── kinematics.ts     the projectile kernel (hand-written physics)
-│   ├── grounding.ts      gesture → ContextPacket (the resolver)
+│   ├── grounding.ts      gesture → ContextPacket: the swept text and its block
 │   └── tutorScript.ts    the tutor's replies — the ADK seam
 ├── components/           Shell, TeacherShell, and shared primitives
 └── features/<screen>/    one folder per screen, CSS modules alongside
@@ -132,7 +132,7 @@ swapped for the real thing without touching the screens.
 | Sub-module | Here | Swap by |
 |---|---|---|
 | `adk` | `lib/tutorScript.ts` | Replacing scripted replies with a live WebSocket. Same `TutorState` out. |
-| `canvas` | `lib/grounding.ts`, `features/session/AnnotationLayer.tsx` | Nothing — the resolver is ported, including its scoring fix. |
+| `canvas` | `lib/grounding.ts`, `features/session/readPage.ts`, `features/session/AnnotationLayer.tsx` | Nothing. The coverage scoring is ported, including its fix, but it scores *words* rather than the module's authored anchors — see below. |
 | `artifact_generator` | `lib/kinematics.ts`, `features/session/ProjectileSim.tsx` | Feeding an IR instead of a fixed spec. The kernel stays hand-written. |
 | `avatar` | `lib/avatar/` | Nothing — the rig is ported verbatim. Wire `attachAudio()` for real lip sync. |
 | NCERT PDFs | `features/session/TextbookDrawer.tsx` | Real PDF rendering behind the same selectable regions. |
@@ -140,25 +140,53 @@ swapped for the real thing without touching the screens.
 `ContextPacket`, `NotebookBlock` and `TutorState` are the three contracts to
 keep stable; everything else is free to change.
 
+**`ContextPacket` deliberately diverges from the canvas module.** That module
+resolves a gesture to the authored `Anchor` spans it overlaps, so a packet comes
+back holding anchor ids. Here a gesture reports the **text it actually covered**
+and the **block it came from** — `text`, `regions[]`, `blockId` — and nothing
+else. There is no `resolved`/`nearby`/`coverage` tier.
+
+The reason is that anchors are authored, and a student highlights whatever they
+like. In this notebook only three tokens were ever anchored (`v`, `θ`,
+`sin(2θ)`), so sweeping a whole sentence came back holding two letters, and
+sweeping unanchored prose came back empty — the student pointed at something and
+was ignored. `features/session/readPage.ts` measures per word off the DOM
+instead, and `regions[].sentences` widens each swept run to the sentence it sits
+inside, because a stroke almost always starts and ends mid-sentence and a
+fragment is poor material for the tutor to reason about.
+
+Anchors still exist, but only for the tutor's half of two-way pointing: she
+lights one up while she is talking about it. They are no longer what a gesture
+resolves to.
+
 ## What is real and what is scripted
 
-**Real:** the projectile physics, the grounding resolver (gesture → anchors →
-confidence), the avatar (the actual rig, animating and lip-syncing), all layout
+**Real:** the projectile physics, the grounding resolver (gesture → swept text
+→ the block it came from), the avatar (the actual rig, animating and lip-syncing), all layout
 and interaction, the annotation tools, the checkpoint flow, mastery moving when
 the student earns it.
 
-**Scripted:** the tutor's words, and all content in `lib/data.ts`. There is no
-network call anywhere yet.
+**Live:** the tutor. Her words, everything she writes on the board, the quiz she
+sets and the artifacts she generates all come from the backend over a WebSocket
+— see "The live tutor" below. `lib/tutorScript.ts` is gone.
+
+**Still scripted:** every screen except the session — the class recap, the
+readiness numbers, the summary, the teacher views, and the textbook page, all
+from `lib/data.ts`. `backend/INTEGRATION.md` lists each one.
 
 ## Notes for whoever wires the backend
 
-- **`data.ts` is the whole integration surface.** Match its shapes and the UI
-  needs no changes.
+- **`data.ts` is the integration surface for every screen EXCEPT the session.**
+  The session board now arrives from the backend and grows by patch
+  (`lib/notebookReducer.ts`), so `data.ts`'s `notebook`, `checkpoint` and
+  `studentFinding` exports are dead and safe to delete. For the rest — recap,
+  readiness, summary, teacher — match the shapes and the UI needs no changes.
 - **Mastery moves on evidence, not on time.** `+16` appears when the checkpoint
   is answered correctly, not on a timer. Keep that property — a number that
   moves for free is worthless to a student.
-- **The greeting cue problem exists here too.** The Live API never speaks first
-  (see `sub_modules_examples/adk`), so the session has to prompt the opening turn.
+- **The greeting cue is handled.** The Live API never speaks first, so
+  `useLiveSession` sends `{type:"greet"}` on connect and the backend turns it
+  into a stage direction the student never sees.
 - **`onExplored` in `ProjectileSim` is a probe.** It fires when the student has
   been either side of the maximum and returned to it — behavioural evidence they
   found the peak rather than read it. That is the `artifact_generator` pattern;
@@ -172,5 +200,71 @@ network call anywhere yet.
   is a real dependency decision, not an afternoon.
 - Annotations are not persisted; a reload clears the page.
 - No auth, no routing guards. `/teacher` is reachable by anyone.
-- Voice input is a button that changes state and nothing else until `adk` is
-  wired in. Her mouth moves to the *text*, not to audio, until then.
+- The mic needs a real microphone, so headless tests exercise the typed path
+  instead — same upstream messages, no audio device. Her mouth reads the model's
+  actual waveform via `attachAudio`; the syllable engine is now only the
+  fallback for mock mode, where nothing is played.
+
+## The live tutor
+
+The scripted stub is gone. `src/lib/live/` is the transport, and the notebook is
+state driven by the tutor's own writes.
+
+```
+src/lib/live/
+  audio.ts          Float32 -> PCM16, base64url normalisation, RMS
+  session.ts        mic -> worklet -> socket -> worklet -> speaker, framework-free
+  protocol.ts       every message on the wire, mirroring backend/app/canvas/doc.py
+  useLiveSession.ts the hook: captions, patches, mic, screen snapshots
+src/lib/notebookReducer.ts   patch -> page. Pure, and tested without a browser.
+src/lib/artifact/            the artifact runtime, ported from the sub-module
+```
+
+Run the backend and the frontend together with `../backend/run.sh`. On its own,
+`npm run dev` proxies `/ws` to `127.0.0.1:8210` — so `location.host` is all
+`session.ts` ever needs and nothing carries a base URL.
+
+### Why the notebook is state
+
+`data.ts`'s `notebook` export is no longer used. The board arrives from the
+backend on connect and grows by patch: `append_block`, `replace_block`,
+`strike`, `point_at`, `show_quiz`, `goto`. One writer (the server), one reader
+(the reducer), no reconciliation.
+
+A three-question quiz arrives as three `show_quiz` patches in a row, which is
+why `quizQueue` is a queue and not a slot — with a slot, questions one and two
+flash past and only the last is ever answerable.
+
+### Artifacts
+
+Generated live as IR by ArtifactAgent and mounted by `ArtifactBlock.tsx` into a
+**shadow root**. The artifact ships its own stylesheet whose class names
+(`.card`, `.btn`, `.wrap`) collide with the notebook's in both directions; a
+shadow root stops that while CSS custom properties still inherit through, so the
+artifact picks up `tokens.css` and looks native to the page rather than embedded.
+
+`src/lib/artifact/embed.css` is generated — `node scripts/lift-artifact-css.mjs`
+regenerates it from the sub-module's own shell, so the sub-module stays the
+source of truth for how its artifacts look.
+
+An artifact block with no IR falls back to the hand-written `ProjectileSim`,
+which is what mock mode uses.
+
+### Tests
+
+```bash
+npm run build && npm test        # all four suites
+```
+
+| Suite | What it pins |
+|---|---|
+| `tests/contract.mjs` | `NotebookBlock` here vs the pydantic models in `backend/app/canvas/doc.py`, field by field, plus that the reducer handles every patch op the backend can emit. These files are hand-mirrored and nothing else compares them — a field added on one side only typechecks fine and renders a block with a piece missing. |
+| `tests/grounding.mjs` | the resolver's logic: word gaps, sentence bounds, coverage maths at its edges |
+| `tests/reducer.mjs` | patch → page, with no browser, socket or model |
+| `tests/ui.mjs` | the whole thing in headless Chrome |
+
+`tests/ui.mjs` runs the **backend in mock mode serving the built frontend** —
+one port, one real WebSocket, no proxy and no fake socket. So what it proves is
+the actual wiring: she writes on the board, the marker quotes the words it
+swept, a checkpoint opens and answers, and the avatar is drawn, transparent and
+animating.

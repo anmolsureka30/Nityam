@@ -1,8 +1,11 @@
 import { Fragment, useMemo } from "react";
 import { Label } from "../../components/ui";
-import type { Anchor, ContextPacket, MarkTool, Notebook as NotebookDoc, NotebookBlock } from "../../lib/types";
-import { projectile, studentFinding } from "../../lib/data";
+import type { EvidenceEvent } from "../../lib/artifact";
+import { projectile } from "../../lib/data";
+import type { PageBlock } from "../../lib/notebookReducer";
+import type { Anchor, ContextPacket, MarkTool, Notebook as NotebookDoc } from "../../lib/types";
 import AnnotationLayer, { type Stroke } from "./AnnotationLayer";
+import ArtifactBlock from "./ArtifactBlock";
 import ProjectileSim from "./ProjectileSim";
 import s from "./Notebook.module.css";
 
@@ -50,7 +53,7 @@ function segment(text: string, anchors: Anchor[] = []) {
 
 function Anchored({
   text, anchors, blockId, hot,
-}: { text: string; anchors?: Anchor[]; blockId: string; hot: Set<string> }) {
+}: { text: string; anchors?: Anchor[]; blockId: string; hot: Record<string, number> }) {
   const segs = useMemo(() => segment(text, anchors), [text, anchors]);
   return (
     <>
@@ -60,7 +63,7 @@ function Anchored({
             key={i}
             data-anchor={seg.anchor.id}
             data-block={blockId}
-            className={`${s.anchor} ${hot.has(seg.anchor.id) ? s.anchorHot : ""}`}
+            className={`${s.anchor} ${seg.anchor.id in hot ? s.anchorHot : ""}`}
             title={seg.anchor.concept}
           >
             {seg.text}
@@ -74,7 +77,8 @@ function Anchored({
 }
 
 export default function Notebook({
-  doc, hostRef, tool, strokes, onStroke, onPacket, pulled, finding, hot, onExplored,
+  doc, hostRef, tool, strokes, onStroke, onPacket, pulled, hot,
+  waiting, interest, onEvidence, onSimulation,
 }: {
   doc: NotebookDoc;
   hostRef: React.RefObject<HTMLDivElement | null>;
@@ -83,38 +87,40 @@ export default function Notebook({
   onStroke: (s: Stroke) => void;
   onPacket: (p: ContextPacket) => void;
   pulled: PulledNote[];
-  finding: boolean;
-  hot: Set<string>;
-  onExplored: (angle: number) => void;
+  /** anchorId -> expiry timestamp. Two-way pointing: the student marks a term,
+   *  and the tutor lights up the same term. */
+  hot: Record<string, number>;
+  /** True until the tutor has written anything, so the page can say so rather
+   *  than looking broken. */
+  waiting: boolean;
+  interest: string;
+  onEvidence: (event: { artifactId: string; event: string; detail?: string }) => void;
+  onSimulation: (state: Record<string, number>) => void;
 }) {
-  const anchorIndex = useMemo(() => {
-    const map = new Map<string, Anchor>();
-    for (const page of doc.pages) {
-      for (const block of page.blocks) {
-        if ("anchors" in block && block.anchors) {
-          for (const a of block.anchors) map.set(a.id, a);
-        }
-      }
-    }
-    return map;
-  }, [doc]);
+  const renderBlock = (block: PageBlock) => {
+    const struck = block.struck ? s.struck : "";
 
-  const renderBlock = (block: NotebookBlock) => {
     switch (block.kind) {
       case "heading":
-        return <h2 key={block.id} className={s.heading}>{block.text}</h2>;
+        return (
+          <h2 key={block.id} data-block={block.id} data-kind="heading"
+              className={`${s.heading} ${struck}`}>
+            {block.text}
+          </h2>
+        );
 
       case "tutor_text":
         return (
-          <p key={block.id} className={s.para}>
+          <p key={block.id} data-block={block.id} data-kind="tutor_text"
+             className={`${s.para} ${struck}`}>
             <Anchored text={block.text} anchors={block.anchors} blockId={block.id} hot={hot} />
           </p>
         );
 
       case "equation":
         return (
-          <div key={block.id} className={s.equation}>
-            <span className={s.equationTex} data-block={block.id}>
+          <div key={block.id} className={`${s.equation} ${struck}`}>
+            <span className={s.equationTex} data-block={block.id} data-kind="equation">
               <Anchored text={block.tex} anchors={block.anchors} blockId={block.id} hot={hot} />
             </span>
             {block.caption && <Label>{block.caption}</Label>}
@@ -122,13 +128,53 @@ export default function Notebook({
         );
 
       case "artifact":
-        return <ProjectileSim key={block.id} spec={projectile} onExplored={onExplored} />;
+        // An IR means ArtifactAgent generated this one; without it, fall back to
+        // the hand-written kernel so mock mode still has something to explore.
+        return block.ir ? (
+          <ArtifactBlock
+            key={block.id}
+            /* The shadow root hides the artifact's own text from readPage, so a
+               gesture here reports the block with no quote. That is correct and
+               deliberate — "you marked the simulation" beats a quote of its
+               internal axis labels. */
+            ir={block.ir}
+            artifactId={block.artifactId}
+            interest={interest}
+            struck={block.struck}
+            onEvidence={(event: EvidenceEvent) =>
+              onEvidence({
+                artifactId: block.artifactId,
+                event: event.event,
+                detail: event.detail ?? (event.concept_ids ?? []).join(", "),
+              })
+            }
+          />
+        ) : (
+          <div key={block.id} data-block={block.id} data-kind="artifact" className={struck}>
+            <ProjectileSim
+              spec={projectile}
+              onExplored={(angle) => {
+                onSimulation({ angle });
+                onEvidence({
+                  artifactId: block.artifactId,
+                  event: "discovered_optimum",
+                  detail: `settled at ${Math.round(angle)}°`,
+                });
+              }}
+              onChange={(angle) => onSimulation({ angle, speed: projectile.speed })}
+            />
+          </div>
+        );
 
       case "callout":
         return (
           <div
             key={block.id}
-            className={`${s.callout} ${block.tone === "correction" ? s.calloutCorrection : s.calloutFinding}`}
+            data-block={block.id}
+            data-kind="callout"
+            className={`${s.callout} ${
+              block.tone === "correction" ? s.calloutCorrection : s.calloutFinding
+            } ${struck}`}
           >
             <Label tone={block.tone === "correction" ? "warn" : undefined}>{block.label}</Label>
             <p className={s.calloutText}>{block.text}</p>
@@ -140,7 +186,13 @@ export default function Notebook({
 
       case "next":
         return (
-          <div key={block.id} className={`${s.sheet} ${s.next}`} style={{ margin: 0 }}>
+          <div
+            key={block.id}
+            data-block={block.id}
+            data-kind="next"
+            className={`${s.sheet} ${s.next} ${struck}`}
+            style={{ margin: 0 }}
+          >
             <Label>{block.label}</Label>
             <h3 className={s.nextTitle} style={{ marginTop: 10 }}>{block.title}</h3>
             <p className={s.para} style={{ margin: 0, fontSize: 15.5, color: "var(--ink-mid)" }}>
@@ -148,28 +200,47 @@ export default function Notebook({
             </p>
           </div>
         );
+
+      default:
+        // A block kind the backend added and this build does not know yet.
+        // Skipping quietly is better than crashing the lesson.
+        return null;
     }
   };
+
+  const lastPage = doc.pages.length ? doc.pages[doc.pages.length - 1].page : 1;
 
   return (
     <div className={s.scroll} ref={hostRef}>
       {doc.pages.map((page) => {
-        const isNextPage = page.blocks.every((b) => b.kind === "next");
-        if (isNextPage) return <div key={page.page}>{page.blocks.map(renderBlock)}</div>;
+        const isNextPage =
+          page.blocks.length > 0 && page.blocks.every((b) => b.kind === "next");
+        if (isNextPage) {
+          return <div key={page.page}>{(page.blocks as PageBlock[]).map(renderBlock)}</div>;
+        }
 
         return (
-          <article className={s.sheet} key={page.page}>
+          <article className={s.sheet} key={page.page} data-page={page.page}>
             <div className={s.sheetHead}>
               <Label>{page.eyebrow}</Label>
-              <Label>Page {page.page} of {doc.pages[doc.pages.length - 1].page}</Label>
+              <Label>Page {page.page} of {lastPage}</Label>
             </div>
 
-            {page.blocks.map(renderBlock)}
+            {(page.blocks as PageBlock[]).map(renderBlock)}
+
+            {/* The board fills as she teaches. Say that, rather than showing a
+                blank sheet that reads as a failed load. */}
+            {waiting && page.page === 1 && (
+              <p className={s.waiting}>
+                Your page starts empty — everything here gets written as you two
+                work through it. Press the mic and ask her something.
+              </p>
+            )}
 
             {/* Anything the student pulled in from the textbook lands here,
                 after the tutor's own writing, so authorship stays legible. */}
             {pulled.map((note) => (
-              <div className={s.pulled} key={note.id}>
+              <div className={s.pulled} key={note.id} data-block={note.id} data-kind="pulled">
                 <div className={s.pulledHead}>
                   <Label>{note.label}</Label>
                   <Label>{note.source}</Label>
@@ -183,16 +254,6 @@ export default function Notebook({
                 <p className={s.pulledBody}>{note.body}</p>
               </div>
             ))}
-
-            {finding && (
-              <div className={`${s.callout} ${s.calloutFinding}`}>
-                <Label>{studentFinding.label}</Label>
-                <p className={s.calloutText}>{studentFinding.text}</p>
-                <div className={s.calloutFoot}>
-                  <Label>{studentFinding.footnote}</Label>
-                </div>
-              </div>
-            )}
           </article>
         );
       })}
@@ -200,8 +261,6 @@ export default function Notebook({
       <AnnotationLayer
         hostRef={hostRef}
         tool={tool}
-        anchors={anchorIndex}
-        page={doc.pages[0].page}
         strokes={strokes}
         onStroke={onStroke}
         onPacket={onPacket}
