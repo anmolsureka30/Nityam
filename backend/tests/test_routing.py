@@ -70,8 +70,12 @@ CASES: list[tuple[str, str, str]] = [
      "notation, already in front of it"),
     (DIRECT, "Say that again but slower.",
      "no new information needed"),
-    (DIRECT, "What did my teacher say about range in class?",
-     "the grounding pack is in its context"),
+    # Moved from DIRECT on purpose. The grounding pack IS in its context, so it
+    # could answer this in a second — but quoting the teacher is teaching, and
+    # teaching has to reach the board or the student has nothing to revise from.
+    # "I shouldn't have to tell it to write this down" was the report.
+    (DELEGATE, "What did my teacher say about range in class?",
+     "quoting the class is teaching, and teaching gets written down"),
     (DIRECT, "Point at the sine term for me.",
      "it has the anchor ids; point_at is local"),
 
@@ -340,6 +344,28 @@ def main() -> int:
         ]
         check("no direct answer reached for physics it was not given",
               not strayed, str(strayed)[:160])
+
+        # SHE MUST NEVER READ A BRACKET OUT LOUD.
+        #
+        # Every message the system sends her is bracketed — the briefing, the
+        # board deltas, the stage direction closing a delegated turn. One of
+        # them used to wrap the words to say INSIDE the bracket along with the
+        # facts in parentheses, and she read the lot:
+        #
+        #   "[Your teaching layer has finished. "Here is figure 3.10 from your
+        #    NCERT textbook." (on board: figure 3.10, block_3_10)]Here is figure
+        #    3.10 from your NCERT textbook."
+        #
+        # The words now sit outside the bracket, where "never read a bracketed
+        # message out" leaves them alone.
+        leaked = [
+            (u, t.text[:80]) for _, u, _, t in scored
+            if "[" in t.text or "]" in t.text
+            or "teaching layer" in t.text.lower()
+            or "block_" in t.text.lower()
+        ]
+        check("she never read a bracketed stage direction aloud",
+              not leaked, str(leaked)[:220])
 
         spoke = [u for _, u, _, t in scored if not t.text]
         check("no turn left the student in silence",

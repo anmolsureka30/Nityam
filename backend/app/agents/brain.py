@@ -315,10 +315,9 @@ async def _turn(session_id: str, student_id: str, request: str,
         )
         logs.count("empty promise")
 
-    # Ground truth travels WITH the words, so she cannot narrate an action that
-    # did not happen. Every one of the invented "the simulation is on your
-    # screen now" lines came from a turn where she had the words and not the
-    # facts.
+    # Ground truth goes in SILENTLY, as context. It is facts for her to reason
+    # from, not words for her to say, so it travels the same channel as the
+    # board deltas and never reaches the student.
     facts = []
     if wrote:
         facts.append("Something new IS on their board now — you may tell them to look")
@@ -327,12 +326,26 @@ async def _turn(session_id: str, student_id: str, request: str,
     if not facts:
         facts.append("NOTHING went on their board this turn — say nothing about "
                      "their screen")
+    sessions.inject(session_id, f"[{'. '.join(facts)}.]")
 
+    # And the words go out with the WORDS OUTSIDE THE BRACKET.
+    #
+    # The previous format wrapped everything in one bracket — the instruction,
+    # the line in quotes, and the facts in parentheses — and she read the whole
+    # thing out loud, brackets included:
+    #
+    #   "[Your teaching layer has finished. "Here is figure 3.10 from your NCERT
+    #    textbook." (on board: figure 3.10, block_3_10)]Here is figure 3.10 from
+    #    your NCERT textbook."
+    #
+    # She already obeys "never read a bracketed message out". So the bracket now
+    # holds only the instruction and the words sit OUTSIDE it, where that rule
+    # leaves them alone. Nothing quoted, nothing parenthesised, nothing to echo.
     sessions.nudge(
         session_id,
-        "[Your teaching layer has finished. Say this to the student now, in your "
-        f'own voice, naturally: "{reply or "Take a look at your board."}"'
-        f" ({'. '.join(facts)}.)]",
+        "[Say the words after this bracket aloud now, in your own voice. Say "
+        "only those words. Never say this bracket.] "
+        + (reply or "Take a look at your board."),
     )
 
 
