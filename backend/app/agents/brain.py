@@ -52,7 +52,7 @@ from google.adk.sessions import InMemorySessionService
 from google.adk.tools import ToolContext
 from google.genai import types
 
-from app import logs
+from app import logs, sessions
 from app.agents.tutor_agent import build_tutor_agent
 
 log = logging.getLogger("nityam.brain")
@@ -64,6 +64,12 @@ BRAIN_APP = "nityam-brain"
 # student has been listening to silence too long and deserves an answer even if
 # it is an apology.
 TIMEOUT_S = float(os.getenv("NITYAM_BRAIN_TIMEOUT", "70"))
+
+#: How long the student will sit in silence before being told it is taking a
+#: while. Well inside TIMEOUT_S: a rate-limited turn spends over a minute inside
+#: one google-genai retry loop, and saying nothing for that long is the worst
+#: thing this system can do short of lying.
+PATIENCE_S = float(os.getenv("NITYAM_BRAIN_PATIENCE", "14"))
 
 def _cache_config():
     """Context caching, when the platform actually supports it.
@@ -149,6 +155,25 @@ def _record(session_id: str, student_id: str, asked: str, replied: str,
     tool_context.state["turn_buffer"] = buffer
 
 
+def _rate_limited(exc: BaseException) -> bool:
+    """Is this a 429, anywhere in the cause chain?
+
+    google-genai retries a RESOURCE_EXHAUSTED internally with backoff, so a
+    rate-limited turn does not fail fast — it sits inside one generate_content
+    for over a minute and then surfaces as a timeout or a _ResourceExhaustedError
+    several `raise ... from ...` levels deep. Walk the chain.
+    """
+    seen = 0
+    current: BaseException | None = exc
+    while current is not None and seen < 8:
+        text = f"{type(current).__name__} {current}"
+        if "RESOURCE_EXHAUSTED" in text or "429" in text:
+            return True
+        current = current.__cause__ or current.__context__
+        seen += 1
+    return False
+
+
 def _speakable(text: str) -> str:
     """Strip markup from a reply that is about to be read aloud.
 
@@ -176,43 +201,27 @@ def _promises_a_visual(reply: str) -> bool:
     return bool(_PROMISE.search(reply or ""))
 
 
-async def ask_tutor(bridge: str, request: str, tool_context: ToolContext) -> dict:
-    """Consult your teaching layer. Use this for anything with teaching content.
+#: Sessions with a brain turn in flight, and the one request waiting behind it.
+#:
+#: Two turns cannot run concurrently: they share one ADK session, so their state
+#: writes would interleave. But dropping the second is worse than making it
+#: wait — a student who asks a follow-up five seconds later would simply never
+#: get an answer to it. So the latest request is held and run when the current
+#: turn finishes. Latest, not a full queue: if they have asked twice, the second
+#: question is the one they are still waiting on, and replaying a stale one puts
+#: the lesson behind the conversation.
+_running: set[str] = set()
+_pending: dict[str, tuple[str, str, ToolContext]] = {}
 
-    It decides what to teach, grounds it in this student's own lecture, writes on
-    their board, and can bring in a simulation or a quiz. It hands you back a
-    short line to say out loud.
 
-    Args:
-        bridge: The one short thing you would have said before going quiet —
-            "achha, ek second", "good question, let me look at that with you".
-            The student sees it the instant you call this, so they know you
-            heard them. Required: never call this without one.
-        request: What the student needs, in your own words — their question or
-            doubt, plus anything you noticed. Be specific: "explain why 45
-            degrees maximises range, they think it is about throwing harder"
-            beats "help with projectiles".
+async def _turn(session_id: str, student_id: str, request: str,
+                tool_context: ToolContext) -> None:
+    """One brain turn, off the voice layer's critical path.
 
-    Returns:
-        dict with "reply" — say this in your own voice — or {"error": ...}.
+    Everything it produces reaches the student two ways: the board writes go
+    straight to the browser as patches (they are already on screen before this
+    returns), and the spoken line comes back as a nudge, which makes her say it.
     """
-    session_id = tool_context.state.get("session_id") or "unknown"
-    student_id = tool_context.state.get("student_id") or "demo_student"
-
-    # `bridge` needs no delivery code: the whole function_call, arguments and
-    # all, is already forwarded to the browser in main.py's downstream() frame.
-    # The frontend reads it off that event and puts it in her speech bubble
-    # while this runs. That is why it is a parameter rather than a separate
-    # message — see the note above VOICE_INSTRUCTION.
-    log.info("bridge: %r", (bridge or "").strip()[:120])
-    log.debug("request in full: %s", request)
-
-    try:
-        await _ensure_session(session_id, student_id)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("could not open a brain session")
-        return {"error": f"could not reach the teaching layer ({type(exc).__name__})"}
-
     said: list[str] = []
     calls: list[str] = []
 
@@ -237,18 +246,58 @@ async def ask_tutor(bridge: str, request: str, tool_context: ToolContext) -> dic
                 if part.text and event.author == "TutorAgent":
                     said.append(part.text)
 
+    async def keep_alive() -> None:
+        """So a slow turn is never silent.
+
+        A rate-limited turn spends over a minute inside one google-genai retry
+        loop. That produced seventy seconds of dead air and a student saying
+        "Hello?" into it.
+        """
+        await asyncio.sleep(PATIENCE_S)
+        log.info("brain still working after %ss — keeping the student company",
+                 PATIENCE_S)
+        sessions.nudge(
+            session_id,
+            "[Your teaching layer is still working and the student has been "
+            "waiting a while. Say one short line to let them know you are still "
+            "on it. Do not guess at the answer.]",
+        )
+
+    company = asyncio.get_running_loop().create_task(keep_alive())
     try:
         with logs.span("ask_tutor"):
             await asyncio.wait_for(drive(), timeout=TIMEOUT_S)
     except asyncio.TimeoutError:
         log.warning("brain timed out after %ss on %r", TIMEOUT_S, request[:80])
-        return {
-            "error": "the teaching layer took too long",
-            "reply": "Sorry — that took me too long to work out. Ask me again?",
-        }
+        sessions.nudge(
+            session_id,
+            "[Your teaching layer could not finish that one — it took too long. "
+            "NOTHING went on the student's board. Tell them briefly and honestly "
+            "that it did not work and ask them to try again. Do not claim "
+            "anything is on their page.]",
+        )
+        return
     except Exception as exc:  # noqa: BLE001 - never take the voice session down
         log.exception("brain turn failed")
-        return {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+        if _rate_limited(exc):
+            sessions.nudge(
+                session_id,
+                "[Your teaching layer is being rate limited by the platform "
+                "right now — this is not the student's fault and not something "
+                "they can fix. NOTHING went on their board. Say so plainly, in "
+                "one line, and suggest trying again in a few seconds.]",
+            )
+        else:
+            sessions.nudge(
+                session_id,
+                "[Your teaching layer failed on that one. NOTHING went on the "
+                "student's board. Say so briefly and ask them to try again.]",
+            )
+        return
+    finally:
+        company.cancel()
+        _running.discard(session_id)
+        _drain_pending(session_id)
 
     reply = _speakable(" ".join(said))
     _record(session_id, student_id, request, reply, tool_context)
@@ -256,13 +305,8 @@ async def ask_tutor(bridge: str, request: str, tool_context: ToolContext) -> dic
     log.debug("reply in full: %s", reply)
     log.debug("tools used: %s", calls)
 
-    # Ground truth for the voice layer, so it never has to take the reply's word
-    # for what happened. A reply that says "look at the board" while `wrote` is
-    # False is the exact failure this session was full of, and now it is one
-    # WARNING in the log rather than five minutes of a student staring at an
-    # unchanged page.
     wrote = [c for c in calls if c.startswith("write_") or c == "show_textbook_figure"]
-    building = "ArtifactAgent" in calls or "create_artifact" in calls
+    building = "commission_artifact" in calls or "create_artifact" in calls
     if _promises_a_visual(reply) and not (wrote or building):
         log.warning(
             "PROMISE WITHOUT ACTION — the reply says something appeared but no "
@@ -271,14 +315,109 @@ async def ask_tutor(bridge: str, request: str, tool_context: ToolContext) -> dic
         )
         logs.count("empty promise")
 
-    if not reply:
+    # Ground truth travels WITH the words, so she cannot narrate an action that
+    # did not happen. Every one of the invented "the simulation is on your
+    # screen now" lines came from a turn where she had the words and not the
+    # facts.
+    facts = []
+    if wrote:
+        facts.append("Something new IS on their board now — you may tell them to look")
+    if building:
+        facts.append("A simulation IS being built and will land in about half a minute")
+    if not facts:
+        facts.append("NOTHING went on their board this turn — say nothing about "
+                     "their screen")
+
+    sessions.nudge(
+        session_id,
+        "[Your teaching layer has finished. Say this to the student now, in your "
+        f'own voice, naturally: "{reply or "Take a look at your board."}"'
+        f" ({'. '.join(facts)}.)]",
+    )
+
+
+def _drain_pending(session_id: str) -> None:
+    """Run whatever came in while the last turn was busy."""
+    held = _pending.pop(session_id, None)
+    if held is None:
+        return
+    student_id, request, tool_context = held
+    log.info("running the request held during the last turn: %r", request[:90])
+    _running.add(session_id)
+    task = asyncio.get_running_loop().create_task(
+        _turn(session_id, student_id, request, tool_context)
+    )
+    sessions.track(session_id, task)
+
+
+async def ask_tutor(bridge: str, request: str, tool_context: ToolContext) -> dict:
+    """Consult your teaching layer. Returns IMMEDIATELY — do not wait for it.
+
+    Say the `bridge` line out loud the moment this returns, then stop and let the
+    student breathe. The answer comes back to you a few seconds later as a
+    bracketed message telling you exactly what to say; the board updates on its
+    own before that, so they are already looking at something.
+
+    Args:
+        bridge: What you say RIGHT NOW, out loud, while it works — "achha, ek
+            second", "good question, let me look at that with you", "sure, I'll
+            put that on the board". One short sentence, in your own voice.
+            Required, and it is the only thing you say this turn.
+        request: What the student needs, in your own words — their question or
+            doubt, plus anything you noticed. Be specific: "explain why 45
+            degrees maximises range, they think it is about throwing harder"
+            beats "help with projectiles".
+
+    Returns:
+        dict with "say" — say exactly that and then wait.
+    """
+    session_id = tool_context.state.get("session_id") or "unknown"
+    student_id = tool_context.state.get("student_id") or "demo_student"
+    spoken = (bridge or "").strip() or "Ek second."
+
+    log.info("bridge: %r", spoken[:120])
+    log.debug("request in full: %s", request)
+
+    # Fire-and-forget, and this is the whole point.
+    #
+    # It used to await the brain. The Live model will not begin a new turn while
+    # a function call is outstanding, so nothing — not a nudge, not an
+    # injection — could reach the student until the brain came back. Measured:
+    # the holding line was produced at 1.2s and not spoken until 11.5s, and a
+    # rate-limited turn gave seventy seconds of total silence. Returning at once
+    # means she says the holding line at ~1.5s and the answer arrives as a nudge
+    # when it is ready.
+    if session_id in _running:
+        # Held, not dropped. It runs the moment the current turn finishes.
+        _pending[session_id] = (student_id, request, tool_context)
+        log.info("brain busy for %s — holding this request", session_id)
         return {
-            "reply": "I've put that on your board — take a look.",
-            "tools_used": calls,
+            "say": spoken,
+            "note": "Your teaching layer is still on the previous question. Say "
+                    "the line and wait — this one is queued behind it and you "
+                    "will be told about both.",
         }
+
+    try:
+        await _ensure_session(session_id, student_id)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("could not open a brain session")
+        return {
+            "say": "Sorry — I cannot reach my teaching layer just now.",
+            "error": f"could not reach the teaching layer ({type(exc).__name__})",
+            "wrote_on_board": False,
+            "artifact_building": False,
+        }
+
+    _running.add(session_id)
+    task = asyncio.get_running_loop().create_task(
+        _turn(session_id, student_id, request, tool_context)
+    )
+    sessions.track(session_id, task)
+
     return {
-        "reply": reply,
-        "tools_used": calls,
-        "wrote_on_board": bool(wrote),
-        "artifact_building": building,
+        "say": spoken,
+        "note": "Say exactly that now, then stop. The answer will reach you in a "
+                "moment as a bracketed message, and their board may update "
+                "before it does.",
     }

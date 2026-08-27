@@ -76,6 +76,22 @@ def search_grounding(conn: sqlite3.Connection, concept_ids: list[str], limit: in
     return [GroundingChunk.model_validate_json(r[0]) for r in rows]
 
 
+def list_concept_ids(conn: sqlite3.Connection) -> list[str]:
+    """Every concept the grounding index actually holds.
+
+    Needed to turn a session plan's human topic name ("Maximum range") into
+    real concept ids before the first turn, so the voice layer can be briefed on
+    the topic without guessing an id that would return nothing.
+
+    store.py already looks for this by getattr, so adding it here is all that is
+    required for both backends to expose it.
+    """
+    rows = conn.execute(
+        "SELECT DISTINCT concept_id FROM grounding_chunk_concept ORDER BY concept_id"
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
 def get_dpm(conn: sqlite3.Connection, student_id: str) -> DPMProfile | None:
     row = conn.execute(
         "SELECT payload FROM dpm_profile WHERE student_id = ?", (student_id,)

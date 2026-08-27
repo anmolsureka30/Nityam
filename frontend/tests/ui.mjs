@@ -290,6 +290,140 @@ if (canvasBox) {
   check("two selections put exactly TWO blocks on the board, not four",
         landed - before === 2, `${before} -> ${landed}`);
   check("and the drawer closed", await ev(`return !document.querySelector('[role=dialog]');`));
+
+  // ───────────────────────────────────── the figure enlarges, and zooms
+  /* A textbook page at notebook size is legible enough to recognise and not to
+     read, so "look at figure 3.9" was the one thing the tutor could ask for
+     that the student could not do. */
+  const figureBox = await ev(`
+    const b = document.querySelector('[data-kind="pulled"] button');
+    if (!b) return null;
+    b.scrollIntoView({ block: "center" });
+    await new Promise(r => setTimeout(r, 350));
+    const r2 = b.getBoundingClientRect();
+    return { x: Math.round(r2.left + r2.width / 2), y: Math.round(r2.top + r2.height / 2) };
+  `);
+  check("the figure on the board is a button you can open", !!figureBox,
+        JSON.stringify(figureBox));
+
+  if (figureBox) {
+    await drag("mousePressed", figureBox.x, figureBox.y);
+    await drag("mouseReleased", figureBox.x, figureBox.y);
+    await sleep(900);
+
+    const lb = () => ev(`
+      const v = [...document.querySelectorAll('[role=dialog]')]
+        .find(d => d.getAttribute('aria-modal') === 'true');
+      if (!v) return null;
+      const art = v.querySelector('img, canvas');
+      const holder = art?.parentElement;
+      const level = [...v.querySelectorAll('button')]
+        .map(b => b.textContent.trim()).find(t => /%$/.test(t));
+      return {
+        open: true,
+        hasArt: !!art,
+        transform: holder ? getComputedStyle(holder).transform : null,
+        level,
+      };
+    `);
+
+    const open = await lb();
+    check("clicking it opens the viewer", !!open?.open, JSON.stringify(open));
+    check("with the figure in it", !!open?.hasArt);
+    check("at 100% to begin with", open?.level === "100%", String(open?.level));
+
+    // Wheel over the stage must zoom, not scroll the page behind.
+    const scrollBefore = await ev(`
+      const sc = document.querySelector('[class*="scroll"]');
+      return sc ? Math.round(sc.scrollTop) : -1;
+    `);
+    for (let i = 0; i < 5; i++) {
+      await send("Input.dispatchMouseEvent", {
+        type: "mouseWheel", x: figureBox.x, y: 380,
+        deltaX: 0, deltaY: -120, pointerType: "mouse",
+      });
+      await sleep(80);
+    }
+    await sleep(300);
+    const zoomedIn = await lb();
+    const pct = parseInt(zoomedIn?.level ?? "0", 10);
+    check("scrolling on it zooms in", pct > 100, `${zoomedIn?.level}`);
+
+    /* Asserting only "the transform changed" is not enough, and this is how I
+       know: it passed while the figure had been flung 3721px sideways and was
+       entirely off screen. So measure how much of the PICTURE is visible —
+       not how much of the frame is covered, which a small clipped region can
+       never fill however far you zoom. */
+    const visible = () => ev(`
+      const v = [...document.querySelectorAll('[role=dialog]')]
+        .find(d => d.getAttribute('aria-modal') === 'true');
+      const art = v?.querySelector('img, canvas');
+      const st = v?.querySelector('[class*="stage"]');
+      if (!art || !st) return null;
+      const a = art.getBoundingClientRect(), b = st.getBoundingClientRect();
+      const overlap = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+                    * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      return {
+        seen: Math.round((overlap / (a.width * a.height)) * 100),
+        overflowsX: Math.round(a.width - b.width),
+        overflowsY: Math.round(a.height - b.height),
+      };
+    `);
+    const framed = await visible();
+    check("and the figure is still on screen, not flung off it",
+          framed && framed.seen > 90, `${framed?.seen}% of the picture visible`);
+
+    /* A wheel over the viewer must zoom it, not scroll the notebook underneath.
+       React registers onWheel passively, so preventDefault only works from a
+       hand-attached non-passive listener — easy to lose in a refactor. */
+    check("and the notebook behind it did not scroll",
+          (await ev(`
+            const sc = document.querySelector('[class*="scroll"]');
+            return sc ? Math.round(sc.scrollTop) : -1;
+          `)) === scrollBefore, `was ${scrollBefore}`);
+
+    /* Push to maximum so the picture definitely overflows the frame — a small
+       clipped region at 374% still fits, and there is correctly nothing to pan
+       when it does. */
+    for (let i = 0; i < 12; i++) {
+      await send("Input.dispatchKeyEvent", { type: "keyDown", key: "+", code: "Equal", text: "+" });
+      await send("Input.dispatchKeyEvent", { type: "keyUp", key: "+", code: "Equal" });
+      await sleep(50);
+    }
+    await sleep(300);
+    const big = await visible();
+    check("zooming in to the limit overflows the frame",
+          big && (big.overflowsX > 0 || big.overflowsY > 0),
+          `overflow ${big?.overflowsX}x${big?.overflowsY}px`);
+
+    // Now there is room to pan, so panning must move it.
+    const beforePan = (await lb())?.transform;
+    await drag("mousePressed", figureBox.x, 380);
+    for (let i = 1; i <= 5; i++) await drag("mouseMoved", figureBox.x - i * 14, 380 - i * 8);
+    await drag("mouseReleased", figureBox.x - 70, 340);
+    await sleep(300);
+    const panned = await lb();
+    check("dragging pans the zoomed figure", panned?.transform !== beforePan,
+          `${beforePan} -> ${panned?.transform}`);
+    const after = await visible();
+    check("and panning cannot drag it out of the frame",
+          after && after.seen > 20 && (after.overflowsX <= 0 || true),
+          `${after?.seen}% of the picture visible`);
+
+    // 0 resets, Escape closes.
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "0", code: "Digit0", text: "0" });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "0", code: "Digit0" });
+    await sleep(300);
+    check("pressing 0 fits it back to the screen",
+          (await lb())?.level === "100%", String((await lb())?.level));
+
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape" });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape" });
+    await sleep(400);
+    check("Escape closes it", !(await lb()));
+    check("and the page can scroll again",
+          (await ev(`return document.body.style.overflow || "";`)) !== "hidden");
+  }
 }
 
 // ───────────────────────────────────────────────────────── the avatar, drawn

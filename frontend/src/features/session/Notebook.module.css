@@ -180,6 +180,69 @@
 /* A figure clipped out of the textbook. Rendered at 2× in the drawer, so it
    stays sharp here; capped so a full-page grab cannot push the lesson off
    screen. */
+/* The whole figure is one button. A textbook page shrunk into a notebook block
+   is legible enough to recognise and not to read, so the affordance has to be
+   obvious — the corner glyph appears on hover and focus rather than sitting
+   there permanently, which would read as page furniture. */
+.figureOpen {
+  display: block;
+  position: relative;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: zoom-in;
+  border-radius: 4px;
+  /* Above the annotation overlay (z-index 3), which is `pointer-events: auto`
+     whenever a marker is held and would otherwise swallow the click. Picking up
+     the marker used to make every figure silently unopenable, which is a nasty
+     thing to debug from the student's side. Nothing is lost by excluding
+     figures from the sweep surface: grounding measures words in the DOM
+     (readPage.ts) and a canvas has none, so there was never anything here to
+     sweep. */
+  z-index: 4;
+}
+.figureOpen:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.figureOpen .figureImg {
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.figureOpen:hover .figureImg,
+.figureOpen:focus-visible .figureImg {
+  border-color: var(--ink-dim);
+  box-shadow: 0 6px 20px rgba(22, 26, 34, 0.14);
+}
+
+.figureZoom {
+  position: absolute;
+  top: 18px;
+  left: 8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(14, 16, 21, 0.72);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  pointer-events: none;
+}
+.figureOpen:hover .figureZoom,
+.figureOpen:focus-visible .figureZoom {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .figureZoom { transition: none; }
+}
+
 .figureImg {
   display: block;
   width: 100%;

@@ -24,6 +24,7 @@ from __future__ import annotations
 import os
 
 LIVE_MODEL = "gemini-live-2.5-flash"
+# LIVE_MODEL = "gemini-3.1-flash-live-preview"
 """VoiceAgent — native audio, bidirectional (run_live) streaming.
 
 **Listed is not the same as provisioned, and only a real Live handshake tells

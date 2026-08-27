@@ -112,7 +112,10 @@ async def main(turns: list[str]) -> int:
     print(f"  memory reads : {tool_calls.count('get_dpm')} get_dpm, "
           f"{tool_calls.count('get_teaching_memory')} get_teaching_memory")
     print(f"  log_turn     : {tool_calls.count('log_turn')}")
-    print(f"  delegated to : {sorted({t for t in tool_calls if t.endswith('Agent')})}")
+    delegated = sorted(
+        {t for t in tool_calls if t.endswith("Agent") or t.startswith("commission_")}
+    )
+    print(f"  delegated to : {delegated}")
     print(f"  patches      : {len(drained)}  {[p.op for p in drained]}")
 
     # What actually has to be true for the product to work at all.

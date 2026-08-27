@@ -66,9 +66,10 @@ persistence rides on `append_event`.
 
 `app/sessions.py` — `_SESSIONS: dict[str, SessionState] = {}`
 
-Four things per session: the board (`CanvasDoc`), the id minter, the screen
-snapshot, and the outbox queue. A second instance sees none of it, and a restart
-mid-lesson loses the page the student is looking at.
+Per session: the board (`CanvasDoc`), the id minter, the screen snapshot, and
+three queues — `outbox` (patches for the browser), `nudges` (things she must
+say) and `context` (things she must know). A second instance sees none of it,
+and a restart mid-lesson loses the page the student is looking at.
 
 **To swap:** `publish()` is the single write path — it applies the patch to the
 board *and* enqueues it. That is deliberate: split them and `read_screen` can
@@ -86,6 +87,34 @@ Then delete `outbound()` from `app/main.py` and have the browser subscribe with
 `onSnapshot` instead of listening for `canvas_patch` frames. The frontend change
 is `useLiveSession.ts`'s one `canvas_patch` branch — the reducer, the patch
 types and every component stay exactly as they are.
+
+**One thing not to break while doing it.** `publish()` is also what triggers the
+context injection that keeps the voice layer able to answer without delegating
+(`canvas/tools.py:_brief_voice`). That injection is a *live-session* concern, not
+a persistence one, so it must survive the move to Firestore — it does not belong
+inside the document write. Keep `_brief_voice` where it is, at the tool call
+sites, and Firestore replaces only the queue.
+
+## 3b. The voice layer's context channel is RAM, and should stay that way
+
+`app/sessions.py` — `state.context: asyncio.Queue[str]`, `sessions.inject()`
+
+The counterpart to `nudges`: a nudge makes her speak, an injection makes her
+*know*. The session's grounding pack (`app/briefing.py`) and every board change
+go down it as `partial=True` content, which reaches the Live model's context
+without completing a turn. It is what lets "which formula was it?" cost one
+second instead of nine.
+
+**This one is deliberately NOT a Firestore seam.** It is per-live-session,
+per-process, and meaningless outside the lifetime of one WebSocket — the Live
+API session it feeds does not outlive the connection either. If the process dies
+mid-lesson the injections are lost, and that is correct: the replacement
+connection rebuilds the briefing from `briefing.brief_voice_layer()` and the
+board it reloads. Do not persist it.
+
+Verified against the real Live API: partial content injected *while a function
+call is outstanding* is accepted, and the text provably reaches the model's
+context.
 
 ## 4. The in-session turn buffer is RAM
 

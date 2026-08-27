@@ -12,7 +12,7 @@ const TOOLS: { id: MarkTool; glyph: string; label: string }[] = [
 
 export default function SessionControls({
   tool, onTool, onClear, hasMarks,
-  onSend, onEnd, thinking,
+  onSend, onEnd, thinking, bridge,
 }: {
   tool: MarkTool | null;
   onTool: (t: MarkTool | null) => void;
@@ -20,9 +20,15 @@ export default function SessionControls({
   hasMarks: boolean;
   onSend: (text: string) => void;
   onEnd: () => void;
-  /** She has delegated and is waiting. That wait is real — 15-20 seconds — so
+  /** She has delegated and is waiting. That wait is real — 6-20 seconds — so
    *  it has to be visible or the page reads as broken. */
   thinking: boolean;
+  /** What she said she was going off to do, in her own words. Shown instead of
+   *  a generic placeholder: "Working that out…" told the student nothing they
+   *  could not already see, while the line she actually produced —
+   *  "Certainly, I can show you the derivation of the range formula" — was
+   *  sitting unused in the tool call. */
+  bridge?: string;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -36,7 +42,9 @@ export default function SessionControls({
         <div className={s.heard}>
           <span className={s.thinking}>
             <i /><i /><i />
-            <span className={s.thinkingText}>Working that out…</span>
+            <span className={s.thinkingText}>
+              {bridge?.trim() || "Looking that up for you…"}
+            </span>
           </span>
         </div>
       )}

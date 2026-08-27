@@ -27,7 +27,7 @@ from google.adk.agents import LlmAgent
 from google.adk.agents.callback_context import CallbackContext
 
 from app import config
-from app.agents.artifact_agent import build_artifact_agent
+from app.agents.artifact_agent import commission_artifact
 from app.agents.quiz_agent import build_quiz_agent
 from app.canvas.tools import BOARD_TOOLS
 from app.textbook import TEXTBOOK_TOOLS
@@ -167,21 +167,23 @@ diagram, a wave shape, the geometry of a launch. Not as decoration.
 
 ## Delegating
 
-  ArtifactAgent — when a diagram or an explorable simulation would teach better
-                  than words. Give it the pedagogical intent, not a design.
-                  It STARTS the build and returns straight away; the thing takes
-                  about thirty seconds to appear. Do not wait for it and do not
-                  go quiet. Say it is coming, then keep teaching in the
-                  meantime — ask them something, work a step, set a checkpoint.
+  commission_artifact — when a diagram or an explorable simulation would teach
+                  better than words. Hands a brief to ArtifactAgent, a separate
+                  specialist, and returns to you IMMEDIATELY — it does its work
+                  in parallel with yours, so put this call in the SAME message
+                  as your board writing rather than waiting on it. Give it the
+                  pedagogical intent, not a design.
+
+                  The thing takes about thirty seconds to appear. Do not wait
+                  and do not go quiet. Say it is coming, then keep teaching in
+                  the same turn — ask them to predict what it will show, work a
+                  numeric example, set a checkpoint. Do not hand the floor back
+                  with "let me know when you are ready": that leaves a student
+                  sitting in silence driving a lesson they came here not to have
+                  to drive. Thirty seconds is a whole teaching move; use it.
+
                   You will be told the moment it lands, and then you bring them
                   to it.
-
-                  While it builds, YOU keep the conversation. Do not hand the
-                  floor back with "let me know when you are ready" — that leaves
-                  the student sitting in silence driving a lesson they came here
-                  not to have to drive. Ask them to predict the answer, work a
-                  numeric example, or set a checkpoint. Thirty seconds is a
-                  whole teaching move; use it.
   QuizAgent     — when they have worked through something and a check is due.
                   Give it a brief: what to test, which misconceptions to probe.
 
@@ -352,9 +354,17 @@ def build_tutor_agent(mode: str | None = None) -> LlmAgent:
         instruction=TUTOR_INSTRUCTION,
         tools=[
             search_grounding,
+            commission_artifact,
             *BOARD_TOOLS,
             *TEXTBOOK_TOOLS,
         ],
-        sub_agents=[build_artifact_agent(), build_quiz_agent()],
+        # ArtifactAgent is NOT a sub_agent any more, and is still very much a
+        # separate agent — commission_artifact runs it in its own Runner, as a
+        # background task. As a mode='single_turn' sub-agent ADK wrapped it in a
+        # synchronous _SingleTurnAgentTool, so this agent blocked on its two
+        # model round trips (7.1s measured) before generation even started.
+        # QuizAgent stays a sub-agent on purpose: the checkpoint's actual
+        # questions have to be in hand to introduce it.
+        sub_agents=[build_quiz_agent()],
         before_agent_callback=_init_state,
     )

@@ -1,0 +1,158 @@
+/* Darker than CheckpointModal's veil on purpose: a checkpoint is a card on the
+   page, this is a viewer that replaces it, and a figure reads better against
+   something close to black. */
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: rgba(14, 16, 21, 0.86);
+  backdrop-filter: blur(3px);
+  animation: n-fade 0.16s ease both;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  color: #fff;
+}
+
+.caption {
+  font-family: var(--ui);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.82);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.tool {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 9px;
+  font-family: var(--ui);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.tool:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.tool:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+.tool:focus-visible,
+.zoomLevel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.close {
+  margin-left: 6px;
+}
+
+.zoomLevel {
+  min-width: 56px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 9px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.zoomLevel:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); }
+.zoomLevel:disabled { opacity: 0.38; cursor: default; }
+
+/* The stage clips; the holder inside it is what moves. Keeping the transform on
+   an inner element means the clip does not travel with the pan. */
+.stage {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
+  cursor: zoom-in;
+  min-height: 0;
+}
+.stageZoomed { cursor: grab; }
+.stageDragging { cursor: grabbing; }
+
+.holder {
+  /* Centre origin, so the zoom-about-a-point arithmetic in the component
+     matches what the browser actually does. */
+  transform-origin: center center;
+  will-change: transform;
+  display: grid;
+  place-items: center;
+}
+/* No transition while a gesture is live — a wheel produces a burst of events
+   and easing each one turns a magnifier into treacle. */
+@media (prefers-reduced-motion: reduce) {
+  .holder { transition: none; }
+}
+
+.art {
+  display: block;
+  /* Fits the stage at 100%, so "reset" always means "the whole page is
+     visible" rather than some arbitrary scale. */
+  max-width: min(1180px, calc(100vw - 48px));
+  max-height: calc(100vh - 132px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.loading,
+.failed {
+  font-family: var(--ui);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 40px 0;
+}
+.failed { color: #ffb4ac; }
+
+.hint {
+  margin: 0;
+  padding: 10px 16px 16px;
+  text-align: center;
+  font-family: var(--ui);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.hintKeys { color: rgba(255, 255, 255, 0.34); }
+
+@media (max-width: 640px) {
+  .caption { display: none; }
+  .hint { font-size: 11px; }
+}

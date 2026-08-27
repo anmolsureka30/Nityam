@@ -83,7 +83,14 @@ class Elapsed(logging.Formatter):
             now = time.monotonic()
             record.gap = f"+{now - _CLOCK.previous:.2f}s"
             record.turn = f"T+{now - _CLOCK.turn:.1f}s"
-            _CLOCK.previous = now
+            # Only INFO and above advance the clock, so the gap column means the
+            # same thing in the file as in the terminal. Without this the mic
+            # frame counter — a DEBUG line every few seconds, invisible on the
+            # terminal — lands between "Sending out request" and "Response
+            # received" and splits a 6.1s model call into two meaningless
+            # fragments in the very file you opened to measure it.
+            if record.levelno >= logging.INFO:
+                _CLOCK.previous = now
         return super().format(record)
 
 

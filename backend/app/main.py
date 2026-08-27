@@ -5,12 +5,13 @@ with no browser client. This process owns the Runner, the LiveRequestQueue and
 the board; the browser owns the microphone, the speaker and the page.
 One WebSocket between them.
 
-Three concurrent tasks per connection, not two:
+Five concurrent tasks per connection:
 
     read_client() browser -> LiveRequestQueue     (mic, text, gestures, screen)
     downstream()  runner.run_live() -> browser    (audio, transcripts, tool calls)
     outbound()    board outbox -> browser         (canvas patches)
     nudges()      background work -> the model    (an artifact finished building)
+    injections()  board state -> the model        (context only; she must not reply)
 
 The third one is why the tutor can write on the page at all. Board tools run
 inside a mode='single_turn' sub-agent invocation, several frames deep, with no
@@ -152,7 +153,7 @@ async def send_control(ws: WebSocket, **payload) -> None:
 
 
 async def nudges(sink, session_id: str) -> None:
-    """Background work -> the live conversation.
+    """Background work -> the live conversation, as a COMPLETED turn.
 
     An artifact takes half a minute to build, so the tutor starts it and keeps
     teaching. This is how it finds out the thing landed: a completed turn, not
@@ -164,6 +165,27 @@ async def nudges(sink, session_id: str) -> None:
         log.info("nudge: %s", text[:140])
         log.debug("nudge in full: %s", text)
         sink.text(text)
+
+
+async def injections(sink, session_id: str) -> None:
+    """Background work -> the live conversation, as CONTEXT ONLY.
+
+    The sibling of nudges() and the opposite half of the same idea: a nudge
+    makes her talk, an injection makes her *know*. Board writes and the
+    session's grounding pack arrive here, as partial content, so she can answer
+    "which formula was it?" or "did that go on the board?" herself instead of
+    spending nine seconds asking the reasoning layer what it just did.
+
+    Two tasks rather than one because a single task awaiting two queues would
+    have to poll or race; `asyncio.Queue.get()` on its own coroutine is the
+    honest way to wait on both.
+    """
+    state = sessions.get(session_id)
+    while True:
+        text = await state.context.get()
+        log.info("→ context: %s", text[:140])
+        log.debug("context in full: %s", text)
+        sink.text(text, partial=True)
 
 
 async def outbound(ws: WebSocket, session_id: str) -> None:
@@ -231,6 +253,17 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
         elif kind == "start":
             incoming.apply_plan(state, payload)
             log.info("session plan: %s", state.plan)
+            # Brief the voice layer NOW, before the greeting. This is the
+            # window: the frontend sends `start` and `greet` on the same tick in
+            # that order, so the topic, the student's record and their own
+            # teacher's words are in context before the first turn. Without it
+            # VoiceAgent has to delegate every question, however small.
+            from app import briefing
+
+            try:
+                briefing.brief_voice_layer(session_id, state.student_id)
+            except Exception:  # noqa: BLE001 - a lesson must start regardless
+                log.exception("could not brief the voice layer")
 
         elif kind == "greet":
             # The agent is told to open the conversation, but nothing makes it
@@ -267,8 +300,17 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
 
         elif kind == "artifact_evidence" and payload.get("event"):
             line = incoming.describe_artifact_evidence(payload)
-            log.info("evidence: %s", line[:160])
-            sink.text(line)
+            # CONTEXT, not a turn. Seven of these arrived in twelve seconds in
+            # one session — one per slider drag — and because each completed a
+            # turn, each provoked a reply that the next one cut off. She
+            # announced the same simulation three times in three seconds, was
+            # interrupted four times, and ended up speaking a full turn behind.
+            # A discovery still deserves a real turn; ordinary fiddling does not.
+            event = str(payload.get("event") or "")
+            worth_saying = "discover" in event or "misconception" in event
+            log.info("evidence (%s): %s",
+                     "turn" if worth_saying else "context", line[:150])
+            sink.text(line, partial=not worth_saying)
 
         elif kind == "quiz_answer":
             state.screen.quiz = {
@@ -343,6 +385,7 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
             downstream(),
             outbound(ws, session_id),
             nudges(sink, session_id),
+            injections(sink, session_id),
             return_exceptions=True,
         )
         # gather(return_exceptions=True) swallows failures — surface them, or a
@@ -455,6 +498,7 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
             downstream(),
             outbound(ws, session_id),
             nudges(mock_sink, session_id),
+            injections(mock_sink, session_id),
             return_exceptions=True,
         )
     finally:
@@ -462,6 +506,18 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
 
 
 # --------------------------------------------------------------- static
+
+@app.on_event("shutdown")
+async def flush_session_logs() -> None:
+    """Print every open session's turn timeline on the way out.
+
+    logs.close_session() normally runs in the WebSocket handler's `finally`,
+    which never runs on Ctrl-C — so the one log you most want to read, the one
+    from the session you just cut short, was the one with no summary in it.
+    """
+    for session_id in list(logs._OPEN):
+        logs.close_session(session_id)
+
 
 @app.get("/health")
 async def health() -> dict:

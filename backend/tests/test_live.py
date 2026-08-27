@@ -124,6 +124,26 @@ def main() -> int:
         # The reasoning turn happens in the brain runner, off the socket, so the
         # server log is the only place its tool calls are visible.
         log = log_path.read_text()
+
+        # Express-mode quota is easy to exhaust when several live runs land in
+        # the same hour, and google-genai retries a 429 internally with backoff
+        # — so a rate-limited turn looks exactly like a broken one from out
+        # here. Say so and stop, rather than reporting eight failures that are
+        # all one exhausted project.
+        if "RESOURCE_EXHAUSTED" in log:
+            print()
+            print("  note  Vertex quota exhausted mid-run (429 RESOURCE_EXHAUSTED).")
+            print("        Everything below would be measuring the quota, not the")
+            print("        code. Re-run in a few minutes.")
+            rate_limited = "rate limited by the platform" in log
+            check("the rate-limit path told the student the truth "
+                  "instead of inventing", rate_limited,
+                  next((l.split("says: ")[1][:90] for l in log.splitlines()
+                        if "says:" in l and "nothing" in l.lower()),
+                       "no honest line found"))
+            print()
+            print(f"{FAILED} failed" if FAILED else "all passed (quota-limited run)")
+            return 1 if FAILED else 0
         check("it grounded the answer in the lecture", "search_grounding" in log,
               " ".join(sorted({
                   line.split("calls ")[1].split("(")[0]
@@ -165,27 +185,36 @@ async def run(port: int) -> None:
             "text": "Why is 45 degrees the best launch angle? Put the formula on my board.",
         }))
 
-        # Live turns take a while: VoiceAgent delegates in silence, TutorAgent
-        # runs its own tool calls, then VoiceAgent speaks the answer.
+        # A delegated turn is now TWO spoken things, seconds apart:
         #
-        # Stop on AUDIO, not on a transcription. ADK emits the settled
-        # outputTranscription for a turn BEFORE the PCM for that same turn, and
-        # there is a turnComplete immediately after the ask_tutor response — so
-        # a predicate that waited for "a settled transcription and a
-        # turnComplete after the last patch" was satisfied before a single audio
-        # frame had arrived, and then reported 0 KB of audio while the model was
-        # in fact streaming a megabyte of it. Wait for a turnComplete that
-        # follows the last audio frame.
+        #   ~1.3s   the holding line — "Achha, ek second."
+        #   ~6s     the board fills (patches)
+        #   ~13s    the answer, delivered as a nudge
+        #
+        # ask_tutor returns immediately so the Live model is free to speak while
+        # the brain works. That broke the previous predicate: it stopped as soon
+        # as audio and a turnComplete followed the last patch, which the
+        # *holding line* satisfies — 196 KB of audio and a transcript reading
+        # only "Achha, ek second." So require a SUBSTANTIAL settled
+        # transcription after the last patch: the holding line is one short
+        # sentence, the answer is not.
+        ANSWER_CHARS = 60
+
         def done(f):
             patches = [i for i, x in enumerate(f)
                        if x.get("nityam", {}).get("kind") == "canvas_patch"]
             if len(patches) < 2:
                 return False
             tail = f[patches[-1]:]
-            spoken = [i for i, x in enumerate(tail) if _audio_bytes(x)]
-            if not spoken:
+            answer = [
+                i for i, x in enumerate(tail)
+                if x.get("partial") is False
+                and len((x.get("outputTranscription", {}).get("text") or "").strip())
+                > ANSWER_CHARS
+            ]
+            if not answer:
                 return False
-            return any(x.get("turnComplete") for x in tail[spoken[-1]:])
+            return any(x.get("turnComplete") for x in tail[answer[-1]:])
 
         frames = await collect(ws, 150.0, stop=done)
 

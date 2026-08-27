@@ -93,7 +93,11 @@ def _generate_ir(spec) -> tuple[dict, str]:
             )
         except Exception as exc:  # noqa: BLE001
             log.warning("artifact generation call failed: %s", exc)
-            break
+            detail = f"{type(exc).__name__}"
+            if "RESOURCE_EXHAUSTED" in str(exc) or "429" in str(exc):
+                detail = "rate limited (429)"
+            ir, _ = generator.generate_mock(spec)
+            return ir, f"mock fallback — the generation call failed: {detail}"
 
         raw = (response.text or "").strip()
         if raw.startswith("```"):
@@ -112,7 +116,9 @@ def _generate_ir(spec) -> tuple[dict, str]:
         log.info("artifact IR rejected on attempt %s: %s", attempt, errors[:3])
 
     ir, _ = generator.generate_mock(spec)
-    return ir, "mock fallback (live rejected by the validator)"
+    return ir, (
+        f"mock fallback — {MAX_ATTEMPTS} generated IR(s) failed validation"
+    )
 
 
 async def _build(session_id: str, spec, interest: str, placeholder_id: str) -> None:
@@ -149,6 +155,23 @@ async def _build(session_id: str, spec, interest: str, placeholder_id: str) -> N
     log.debug("artifact IR: %s", json.dumps(ir, ensure_ascii=False))
     logs.count("artifact landed")
     title = ir.get("title") or "the simulation"
+
+    # Two messages, deliberately different in kind. The injection is FACT — it
+    # is what lets her answer "has it loaded yet?" truthfully a minute later,
+    # which is exactly the question she invented five answers to in an earlier
+    # session. The nudge below is the INSTRUCTION to interrupt herself and say
+    # it has arrived.
+    controls = ", ".join(
+        c.get("id", "") for c in (ir.get("controls") or []) if c.get("id")
+    )
+    sessions.inject(
+        session_id,
+        f"[BOARD UPDATED, context only — do not announce it or reply to this. "
+        f"The simulation “{title}” is now on the student's page as {block.id}"
+        + (f", with controls {controls}" if controls else "")
+        + ". It is genuinely there; if they ask later whether it loaded, the "
+        "answer is yes and you may say so without checking.]",
+    )
     sessions.nudge(
         session_id,
         f"[The interactive artifact you asked for is now on the student's page: "
@@ -252,11 +275,17 @@ way that interaction becomes part of this student's permanent record.
 """
 
 
-def build_artifact_agent() -> LlmAgent:
+def build_artifact_agent(mode: str | None = "single_turn") -> LlmAgent:
+    """mode='single_turn': as a sub-agent (kept for text-mode testing).
+    mode=None: valid as a root_agent, which is how commission_artifact runs it.
+
+    ADK type-checks the difference — google/adk/runners.py: "LlmAgent as root
+    agent must have mode='chat' or 'task'" — exactly as build_tutor_agent does.
+    """
     return LlmAgent(
         name="ArtifactAgent",
         model=config.reasoning_model(),
-        mode="single_turn",
+        mode=mode,
         description=(
             "Generates one interactive artifact (diagram, simulation, or "
             "quiz) for a specific pedagogical need and puts it on the board. "
@@ -266,3 +295,118 @@ def build_artifact_agent() -> LlmAgent:
         instruction=ARTIFACT_INSTRUCTION,
         tools=[create_artifact, get_dpm, get_teaching_memory, log_artifact_evidence],
     )
+
+
+# ------------------------------------------------- running it out of the way
+
+_runner = None
+_sessions_svc = None
+_known: set[str] = set()
+
+ARTIFACT_APP = "nityam-artifact"
+
+
+def _agent_runner():
+    """ArtifactAgent in its own Runner, built once.
+
+    Same construction as brain.runner() (app/agents/brain.py), for the same
+    reason: an agent reached this way runs as an ordinary invocation, so nothing
+    depends on nested-sub-agent machinery.
+    """
+    global _runner, _sessions_svc
+    if _runner is None:
+        from google.adk.apps import App
+        from google.adk.runners import Runner
+        from google.adk.sessions import InMemorySessionService
+
+        _sessions_svc = InMemorySessionService()
+        _runner = Runner(
+            app=App(name=ARTIFACT_APP, root_agent=build_artifact_agent(mode=None)),
+            session_service=_sessions_svc,
+        )
+        log.info("artifact runner built")
+    return _runner
+
+
+async def _consult(session_id: str, student_id: str, brief: str) -> None:
+    """Run ArtifactAgent to completion, off the tutor's critical path."""
+    from google.genai import types
+
+    _agent_runner()
+    key = f"{session_id}:artifact"
+    if key not in _known:
+        if not await _sessions_svc.get_session(
+            app_name=ARTIFACT_APP, user_id=student_id, session_id=key
+        ):
+            await _sessions_svc.create_session(
+                app_name=ARTIFACT_APP, user_id=student_id, session_id=key,
+                state={"session_id": session_id, "student_id": student_id},
+            )
+        _known.add(key)
+
+    try:
+        async for event in _agent_runner().run_async(
+            user_id=student_id,
+            session_id=key,
+            new_message=types.Content(role="user", parts=[types.Part(text=brief)]),
+        ):
+            for part in event.content.parts if event.content and event.content.parts else []:
+                if part.function_call:
+                    log.info("→ TOOL CALL %s calls %s", event.author,
+                             part.function_call.name)
+    except Exception as exc:  # noqa: BLE001 - a failed artifact must not end the lesson
+        log.exception("ArtifactAgent failed")
+        sessions.nudge(
+            session_id,
+            "[The simulation you asked for could not be built "
+            f"({type(exc).__name__}). Tell the student briefly and carry on "
+            "teaching without it. Do not try again.]",
+        )
+
+
+async def commission_artifact(brief: str, tool_context: ToolContext) -> dict:
+    """Commission one interactive artifact from ArtifactAgent. Returns IMMEDIATELY.
+
+    ArtifactAgent is a separate specialist with its own model: it reads your
+    brief, configures the artifact, and puts it on the student's page. None of
+    that happens while you wait. You get control back at once and you must keep
+    teaching — you will be told the moment it lands.
+
+    Args:
+        brief: What the artifact is for, in your own words — the pedagogical
+            move it makes, the concept ids it targets, the one thing the student
+            should walk away understanding, and the specific wrong belief it
+            should surface. Be concrete: "let them discover that range peaks at
+            45 degrees by exploring, not being told; they currently think
+            throwing harder is what matters; concepts
+            projectile.horizontal_range; theme cricket" beats "a projectile
+            simulation".
+
+    Returns:
+        dict with "status": "commissioned" — and what to do meanwhile.
+    """
+    session_id = tool_context.state.get("session_id") or "unknown"
+    student_id = tool_context.state.get("student_id") or "demo_student"
+
+    # create_task, not await: this is the whole point. ArtifactAgent needs two
+    # model round trips of its own — 7.1 seconds, measured — and as a
+    # mode='single_turn' sub-agent the tutor blocked on every one of them before
+    # generation had even begun. Now they overlap the tutor's own next round
+    # trip and the student's next utterance.
+    task = asyncio.get_running_loop().create_task(
+        _consult(session_id, student_id, brief)
+    )
+    sessions.track(session_id, task)
+
+    log.info("artifact commissioned for %s: %s", session_id, brief[:120])
+    logs.count("artifact commissioned")
+    return {
+        "status": "commissioned",
+        "eta_seconds": 30,
+        "next": (
+            "ArtifactAgent has the brief and is working. Do NOT wait and do NOT "
+            "go quiet: say one line that it is coming, then teach something in "
+            "this same turn — ask them to predict what it will show, work a "
+            "number, or set a checkpoint. You will be told the moment it lands."
+        ),
+    }

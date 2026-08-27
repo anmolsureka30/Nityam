@@ -29,6 +29,10 @@ SOURCE = {
 
 MAX_QUOTE = 400
 
+#: Grounding chunks are raw lecture transcript and run long. Six of them
+#: unbounded is several thousand tokens re-billed on every Live turn.
+MAX_CHUNK = 600
+
 
 def describe_gesture(packet: dict, ask: bool = False) -> str:
     """A swept ContextPacket, as a stage direction.
@@ -288,3 +292,91 @@ def apply_screen(state: SessionState, payload: dict) -> None:
     if isinstance(visible, list):
         state.screen.visibleBlockIds = [str(v) for v in visible][:60]
     state.screen.updatedAt = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+# --------------------------------------------------------- context injections
+#
+# These two produce the text that goes onto `sessions.context` — the voice
+# layer's private briefing. Nothing here is ever spoken; it exists so
+# VoiceAgent can answer "which formula was it?", "point at the sine term" and
+# "did that go on the board?" from fact, in about a second, instead of spending
+# a nine-second round trip asking the reasoning layer what it just did.
+
+
+def describe_board_delta(blocks: list, pointed: list[str] | None = None) -> str:
+    """What just landed on the board, compactly, with the real ids.
+
+    One injection per write_lesson call, not one per block: five separate
+    injections for one lesson would be five entries in the model's context
+    describing one event, and it would start talking about "the four things you
+    just showed me" as though they were four teaching moves.
+
+    Kept to ids, kind, a 60-character opening and the anchor spans. The full
+    text is on the student's screen — she does not need it re-read to her, she
+    needs to be able to *refer* to it.
+    """
+    from app.canvas import doc as D
+
+    if not blocks:
+        return ""
+    parts: list[str] = []
+    for block in blocks:
+        text = D.block_text(block).strip().replace("\n", " ")
+        if len(text) > 60:
+            text = text[:60].rstrip() + "…"
+        entry = f'{block.id} {block.kind} “{text}”'
+        anchors = D.block_anchors(block)
+        if anchors:
+            spans = "; ".join(f'{a.id} = “{a.span}”' for a in anchors)
+            entry += f" [{spans}]"
+        parts.append(entry)
+
+    line = "[BOARD UPDATED, and this is context only — do not announce it or " \
+           "reply to this. Now on the student's page: " + " · ".join(parts) + "."
+    if pointed:
+        line += f" Currently lit up: {', '.join(pointed)}."
+    return line + (
+        " You may now answer questions about these blocks yourself, quote them, "
+        "and point_at their anchors, without consulting your teaching layer.]"
+    )
+
+
+def describe_grounding_pack(plan, brief: str, chunks: list[dict]) -> str:
+    """The session's topic material, injected once before the first turn.
+
+    This is what makes a direct answer safe. VoiceAgent may reason from what is
+    in front of it and must not invent physics — so the more of the topic that
+    is in front of it, the more it can answer without delegating, and the
+    smaller the temptation to make something up.
+
+    Their own teacher's words, with citations, not generic textbook physics.
+    """
+    subject = plan.concept_name or plan.concept or "tonight's topic"
+    lines = [
+        f"[YOUR BRIEFING for this session — context only, do not read it out "
+        f"or reply to it.",
+        f"Topic: {subject}. Mode: {plan.mode}."
+        + (f" About {plan.minutes} minutes." if plan.minutes else ""),
+    ]
+    if brief:
+        lines.append(f"This student's record: {brief}")
+    if chunks:
+        lines.append(
+            "Their own class, quoted, which you may use and cite directly:"
+        )
+        for chunk in chunks:
+            where = chunk.get("location") or chunk.get("source_ref") or "their class"
+            text = " ".join((chunk.get("text") or "").split())
+            if len(text) > MAX_CHUNK:
+                text = text[:MAX_CHUNK].rstrip() + "…"
+            lines.append(f'  · ({where}) “{text}”')
+        lines.append(
+            "Those quotes are raw transcript and contain LaTeX like "
+            "\\frac and \\sin. NEVER read that out. Say it in words — "
+            "\"u squared sine two theta over g\" — or ask your teaching layer "
+            "to put it on the board."
+        )
+    lines.append(
+        "You may answer questions from this material directly and at once. "
+        "Anything it does not cover, delegate.]"
+    )
+    return "\n".join(lines)

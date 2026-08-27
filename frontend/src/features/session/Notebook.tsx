@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Label } from "../../components/ui";
 import type { EvidenceEvent } from "../../lib/artifact";
 import { projectile } from "../../lib/data";
@@ -7,6 +7,7 @@ import type { Anchor, ContextPacket, MarkTool, Notebook as NotebookDoc } from ".
 import AnnotationLayer, { type Stroke } from "./AnnotationLayer";
 import ArtifactBlock from "./ArtifactBlock";
 import ProjectileSim from "./ProjectileSim";
+import Lightbox, { type LightboxSource } from "./Lightbox";
 import TextbookFigure from "./TextbookFigure";
 import s from "./Notebook.module.css";
 
@@ -88,6 +89,12 @@ export default function Notebook({
   onEvidence: (event: { artifactId: string; event: string; detail?: string }) => void;
   onSimulation: (state: Record<string, number>) => void;
 }) {
+  /* One at a time, held here rather than inside the figure, so opening a second
+     figure replaces the first instead of stacking two viewers. */
+  const [zoomed, setZoomed] = useState<{ source: LightboxSource; caption?: string } | null>(
+    null,
+  );
+
   const renderBlock = (block: PageBlock) => {
     const struck = block.struck ? s.struck : "";
 
@@ -180,11 +187,46 @@ export default function Notebook({
               <Label>{block.source}</Label>
             </div>
             {/* Two ways in: the student clipped a region (an image), or the
-                tutor named a page (rendered here). */}
+                tutor named a page (rendered here). Either way it opens: a
+                textbook page at notebook size is unreadable, which made the
+                tutor's best move — "look at figure 3.9" — the one thing the
+                student could not actually do. */}
             {block.image ? (
-              <img className={s.figureImg} src={block.image} alt={block.body || "Figure from the textbook"} />
+              <button
+                type="button"
+                className={s.figureOpen}
+                onClick={() =>
+                  setZoomed({
+                    source: { kind: "image", src: block.image! },
+                    caption: block.source || block.body,
+                  })
+                }
+                title="Click to enlarge"
+                aria-label={`Enlarge ${block.body || "this figure"}`}
+              >
+                <img
+                  className={s.figureImg}
+                  src={block.image}
+                  alt={block.body || "Figure from the textbook"}
+                />
+                <span className={s.figureZoom} aria-hidden="true">⤢</span>
+              </button>
             ) : block.pdf && block.page ? (
-              <TextbookFigure pdf={block.pdf} page={block.page} />
+              <button
+                type="button"
+                className={s.figureOpen}
+                onClick={() =>
+                  setZoomed({
+                    source: { kind: "pdf", pdf: block.pdf!, page: block.page! },
+                    caption: block.source,
+                  })
+                }
+                title="Click to enlarge"
+                aria-label={`Enlarge ${block.source || `textbook page ${block.page}`}`}
+              >
+                <TextbookFigure pdf={block.pdf} page={block.page} />
+                <span className={s.figureZoom} aria-hidden="true">⤢</span>
+              </button>
             ) : null}
             {block.quote && <blockquote className={s.pulledQuote}>{block.quote}</blockquote>}
             {block.body && <p className={s.pulledBody}>{block.body}</p>}
@@ -255,6 +297,16 @@ export default function Notebook({
         onStroke={onStroke}
         onPacket={onPacket}
       />
+
+      {/* Last, and fixed-position, so it sits over the avatar and the controls
+          as well as the page. */}
+      {zoomed && (
+        <Lightbox
+          source={zoomed.source}
+          caption={zoomed.caption}
+          onClose={() => setZoomed(null)}
+        />
+      )}
     </div>
   );
 }

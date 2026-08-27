@@ -36,6 +36,9 @@ export interface LiveTutor {
    *  wait is 15-20s of real time, so the UI has to say so or the page reads as
    *  dead and the student concludes they were not heard. */
   thinking: boolean;
+  /** The holding line she gave when she delegated — what she is working on,
+   *  in her words. Empty when she is not thinking. */
+  bridge: string;
   mood: TutorMood;
   /** What she is saying, as it arrives. */
   caption: string;
@@ -75,6 +78,7 @@ export function useLiveSession(
   const [speakKey, setSpeakKey] = useState(0);
   const [voice, setVoice] = useState<MediaStream | null>(null);
   const [thinking, setThinking] = useState(false);
+  const [bridge, setBridge] = useState("");
   const [muted, setMuted] = useState(false);
   /* Read inside the connect callback, which closes over the first render.
      Assigned in an effect rather than during render: a render can be discarded,
@@ -156,15 +160,19 @@ export function useLiveSession(
       for (const part of event.content?.parts ?? []) {
         if (part.functionCall?.name === "ask_tutor") {
           setThinking(true);
-          const bridge = (part.functionCall.args as { bridge?: string } | undefined)
-            ?.bridge;
-          if (bridge?.trim()) {
+          const line = (part.functionCall.args as { bridge?: string } | undefined)
+            ?.bridge?.trim();
+          if (line) {
+            setBridge(line);
             newTurn();
-            turn.current.settled = bridge.trim() + " ";
+            turn.current.settled = line + " ";
             publish();
           }
         }
-        if (part.functionResponse?.name === "ask_tutor") setThinking(false);
+        if (part.functionResponse?.name === "ask_tutor") {
+          setThinking(false);
+          setBridge("");
+        }
       }
 
       if (event.interrupted) {
@@ -180,7 +188,10 @@ export function useLiveSession(
       if (event.interrupted || event.turnComplete) {
         // Belt and braces: a dropped functionResponse must not leave the UI
         // claiming she is still thinking forever.
-        if (event.turnComplete) setThinking(false);
+        if (event.turnComplete) {
+          setThinking(false);
+          setBridge("");
+        }
       }
     },
     [newTurn, publish, speaking],
@@ -366,6 +377,7 @@ export function useLiveSession(
       listening,
       muted,
       thinking,
+      bridge,
       mood,
       caption,
       speakKey,
@@ -379,7 +391,7 @@ export function useLiveSession(
       send,
       sendScreen,
     }),
-    [voice, connected, mode, error, listening, muted, thinking, mood, caption,
+    [voice, connected, mode, error, listening, muted, thinking, bridge, mood, caption,
      speakKey, heard, level, board, toggleMute, send, sendScreen],
   );
 }
