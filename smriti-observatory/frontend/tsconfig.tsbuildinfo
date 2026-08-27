@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/diffview.tsx","./src/components/eventtimeline.tsx","./src/components/sessiondrawer.tsx","./src/components/sidepanel.tsx","./src/components/tierpanel.tsx","./src/features/session/sessionview.tsx","./src/lib/tracelinks.ts","./src/lib/types.ts","./src/lib/ws.ts"],"version":"6.0.3"}
