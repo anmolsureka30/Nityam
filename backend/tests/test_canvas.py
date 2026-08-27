@@ -180,6 +180,32 @@ def main() -> int:
     except ValueError:
         check("a checkpoint with two right answers is rejected", True)
 
+    # ---------------------------------------------------- the textbook index
+    # "figure 3.14" — the single most natural way to ask — was the one phrasing
+    # that returned nothing. The matcher did
+    # `q.replace("fig.", "").replace("fig", "")`, which turns "figure 3.14" into
+    # "ure 3.14", and then compared it for EXACT equality, so any surrounding
+    # words missed too.
+    from app.textbook import search_textbook
+
+    def figure(query: str) -> list[dict]:
+        return [h for h in search_textbook(query)["hits"] if h["kind"] == "figure"]
+
+    for phrasing in ("3.14", "fig 3.14", "Fig. 3.14", "figure 3.14",
+                     "show me figure 3.14 please", "bring up Figure 3.14"):
+        found = figure(phrasing)
+        check(f"the book finds a figure asked for as {phrasing!r}",
+              len(found) == 1 and found[0]["page"] == 10,
+              str(found))
+
+    check("a figure that does not exist is not invented", not figure("figure 9.9"))
+    check("a section can be asked for by number too",
+          any(h["kind"] == "section" and h["page"] == 12
+              for h in search_textbook("section 3.9")["hits"]),
+          str(search_textbook("section 3.9")["hits"][:2]))
+    check("and a plain topic still searches text",
+          len(search_textbook("projectile")["hits"]) > 2)
+
     print()
     print(f"{FAILED} failed" if FAILED else "all passed")
     return 1 if FAILED else 0

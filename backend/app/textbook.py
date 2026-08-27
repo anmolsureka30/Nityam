@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 
 from google.adk.tools import ToolContext
@@ -53,13 +54,23 @@ def search_textbook(query: str) -> dict:
     if not q:
         return {"hits": [], "note": "give me something to look for"}
 
+    # A numbered reference anywhere in the query. The old code did
+    # `q.replace("fig.", "").replace("fig", "").strip() == fig["figure"]`, which
+    # turns "figure 3.14" into "ure 3.14" and matches nothing — so the single
+    # most natural way to ask for a figure was the one phrasing that failed. An
+    # exact match also meant "show me figure 3.14" missed. Pull the number out
+    # and compare that: "3.14", "fig 3.14", "figure 3.14", "Fig. 3.14",
+    # "section 3.9" and any sentence containing one all work.
+    numbered = re.search(r"\b(\d+\.\d+)\b", q)
+    number = numbered.group(1) if numbered else None
+
     hits: list[dict] = []
     for ch in _index():
         label = f"Ch {ch['number']} · {ch['title']}"
         if q in ch["title"].lower():
             hits.append({"kind": "chapter", "chapter": ch["file"], "title": label, "page": 1})
         for sec in ch["sections"]:
-            if q in sec["title"].lower() or q == sec["section"]:
+            if q in sec["title"].lower() or number == sec["section"]:
                 hits.append({
                     "kind": "section", "chapter": ch["file"], "page": sec["page"],
                     "title": f"{sec['section']} {sec['title'].title()}", "in": label,
@@ -72,7 +83,7 @@ def search_textbook(query: str) -> dict:
                     "in": label,
                 })
         for fig in ch["figures"]:
-            if q.replace("fig.", "").replace("fig", "").strip() == fig["figure"]:
+            if number == fig["figure"]:
                 hits.append({
                     "kind": "figure", "chapter": ch["file"], "page": fig["page"],
                     "title": f"Fig. {fig['figure']}", "in": label,

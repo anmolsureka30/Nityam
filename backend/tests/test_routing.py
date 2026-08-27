@@ -76,6 +76,16 @@ CASES: list[tuple[str, str, str]] = [
      "it has the anchor ids; point_at is local"),
 
     # ---- should go to the reasoning layer
+    # The textbook lives on TutorAgent, so the voice layer cannot see those
+    # tools at all — and for five turns of a real session it therefore told the
+    # student "I can't show you images from your textbook", "I don't have
+    # access", "my tools do not allow it", never once calling ask_tutor. The
+    # capability was there the whole time. Refusing something the system can do
+    # is the worst failure available to it.
+    (DELEGATE, "Can you bring up figure 3.14 from my NCERT textbook?",
+     "the textbook is real and one call away; refusing is the failure"),
+    (DELEGATE, "Show me an image from my NCERT textbook.",
+     "same, phrased the way a student actually asks"),
     (DELEGATE, "Derive the range formula for me from scratch, step by step.",
      "a derivation is not restating context"),
     (DELEGATE, "Now explain simple harmonic motion to me.",
