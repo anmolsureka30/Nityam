@@ -1,0 +1,55 @@
+/* The stick sits over the page but under her figure (z-index 30) and under the
+   speech bubble (28), so the near end disappears behind her shoulder — which is
+   what makes it read as held rather than floating. */
+.layer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Under the control bar (25) and her figure (30), over the page. A stick
+     drawn on top of the composer read as a UI element lying across it. */
+  z-index: 24;
+  pointer-events: none;
+  overflow: visible;
+  animation: stick-raise var(--settle, 260ms) cubic-bezier(0.2, 0.7, 0.25, 1) both;
+}
+
+/* Raising it: a short swing up from her side, not a fade. A stick that fades in
+   looks like a UI element; one that swings up looks like it was picked up. */
+@keyframes stick-raise {
+  from { opacity: 0; transform: rotate(2.2deg); }
+  to   { opacity: 1; transform: rotate(0deg); }
+}
+
+/* A pale page and a pale stick would vanish into each other, so there is a
+   soft dark stroke underneath doing the work a drop shadow would do. */
+.shadow {
+  stroke: rgba(18, 21, 28, 0.16);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+/* Wood, not brand: this is a physical object in her hand, and painting it
+   magenta would make it read as an interface affordance. The accent is spent on
+   the tip, where the meaning is. */
+.stick {
+  stroke: #8A6A46;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+/* The ferrule — a darker cap on the wood, not the brand colour. The accent
+   belongs on the word she is pointing at, which point_at already handles. */
+.tip {
+  fill: #6B4F32;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer { animation: none; opacity: 1; }
+}
+
+/* Below this she stands in front of the page rather than beside it, so a stick
+   crossing the notebook would cover the very words it is pointing at. */
+@media (max-width: 1240px) {
+  .layer { display: none; }
+}

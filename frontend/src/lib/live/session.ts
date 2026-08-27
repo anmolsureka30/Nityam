@@ -44,6 +44,15 @@ export class LiveSession {
 
   /** Mic level, for the meter. Read on a frame, not subscribed to. */
   level = 0;
+  /** HER level, read the same way. Used to pace the captions: transcription
+   *  arrives before any audio does (measured — the whole settled transcript can
+   *  land before the first PCM frame), so nothing about the text can tell you
+   *  how far through saying it she is. Her waveform can. */
+  private voiceAnalyser: AnalyserNode | null = null;
+  /* Typed as Float32Array<ArrayBuffer> rather than the default
+     Float32Array<ArrayBufferLike>: getFloatTimeDomainData will not accept a
+     view that might be backed by a SharedArrayBuffer. */
+  private voiceBuffer: Float32Array<ArrayBuffer> | null = null;
 
   private rateChecked = false;
 
@@ -161,7 +170,31 @@ export class LiveSession {
     this.playerNode.connect(tap);
     this.voiceStream = tap.stream;
 
+    /* A second tap, for measuring rather than for the avatar. The comment above
+       is still true — the rig wants a MediaStream — but pacing captions needs a
+       number, and an analyser is the cheap way to get one without decoding the
+       PCM twice. */
+    this.voiceAnalyser = this.playerContext.createAnalyser();
+    this.voiceAnalyser.fftSize = 512;
+    this.voiceBuffer = new Float32Array(
+      new ArrayBuffer(this.voiceAnalyser.fftSize * 4),
+    );
+    this.playerNode.connect(this.voiceAnalyser);
+
     this.playerNode.connect(this.playerContext.destination);
+  }
+
+  /** Is she making sound right now, and how much?
+   *
+   *  Sampled on demand rather than pushed, exactly like `level`: the caller
+   *  polls at whatever rate it needs and no render depends on the intermediate
+   *  values. */
+  get voiceLevel(): number {
+    const analyser = this.voiceAnalyser;
+    const buffer = this.voiceBuffer;
+    if (!analyser || !buffer) return 0;
+    analyser.getFloatTimeDomainData(buffer);
+    return rms(buffer);
   }
 
   /** Resume any context the autoplay policy left suspended.

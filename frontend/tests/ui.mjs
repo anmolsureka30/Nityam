@@ -64,7 +64,13 @@ const profile = mkdtempSync(resolve(tmpdir(), "nity-v-"));
 const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const chrome = spawn(CHROME,
   ["--headless=new", `--remote-debugging-port=${CDP}`, `--user-data-dir=${profile}`,
-   "--no-first-run", "--disable-gpu", "--hide-scrollbars", "--window-size=1440,1000",
+   "--no-first-run", "--disable-gpu", "--hide-scrollbars",
+   /* A microphone, granted without a prompt. Without these the page
+      gets NotAllowedError, SpeechBubble shows "I lost the connection —
+      microphone: Permission denied", and every assertion about her
+      captions was silently measuring that error string instead of
+      anything she said. */
+   "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--window-size=1440,1000",
    "about:blank"], { stdio: "ignore" });
 
 const reap = () => { chrome.kill("SIGKILL"); web.kill("SIGKILL"); srv.kill("SIGKILL"); };
@@ -178,6 +184,47 @@ check("with no leftover [[ ]] anchor markup",
       JSON.stringify(written.filter((b) => b.text.includes("[["))));
 check("she speaks as well as writes",
       await ev("const b=document.querySelector('[role=status]'); return !!b && b.innerText.length>10;"));
+
+// ────────────────────────────────────────────── she speaks in chunks, not walls
+/* The bubble used to hold the whole settled transcript. A three-sentence reply
+   is a paragraph, and a paragraph in a speech bubble is a transcript rather
+   than speech. It now shows one bubble-sized piece at a time, advanced at the
+   pace of her actual waveform.
+ 
+   WHAT THIS CHECKS is the WIRING: a chunk reaches the bubble, it is
+   bubble-sized, and it advances. It deliberately does not try to reproduce the
+   paragraph case, because mock mode cannot: it spawns concurrent speech tasks
+   whose settled transcriptions interleave, so a second question asked while she
+   is still greeting produces chunks out of order. The real Live API sends
+   `interrupted` instead. Forcing it here produced a flaky test.
+ 
+   THE CHUNKING ITSELF is covered properly by tests/chunks.mjs, against the
+   verbatim forty-six-word three-sentence reply taken out of backend/logs —
+   including that nothing she said is lost, and that the Devanagari danda ends a
+   sentence. That is where the substance is. */
+const bubbleWords = () => ev(`
+  const b = document.querySelector('[role=status]');
+  const t = (b?.innerText || "").trim();
+  return { text: t, words: t ? t.split(/\\s+/).length : 0 };
+`);
+
+const firstChunk = await bubbleWords();
+check("the bubble holds a chunk, not a paragraph",
+      firstChunk.words > 0 && firstChunk.words <= 12,
+      `${firstChunk.words} words: "${firstChunk.text.slice(0, 70)}"`);
+
+const seen = new Set([firstChunk.text]);
+for (let i = 0; i < 16; i++) {
+  await sleep(600);
+  const now = await bubbleWords();
+  if (now.text) seen.add(now.text);
+  if (seen.size > 1) break;
+}
+check("and it advances as she speaks", seen.size > 1,
+      `${seen.size} distinct: ${[...seen].map((t) => `"${t.slice(0, 32)}"`).join(" then ")}`);
+check("every chunk it showed was bubble-sized",
+      [...seen].every((t) => t.trim().split(/\s+/).filter(Boolean).length <= 12),
+      `longest ${Math.max(...[...seen].map((t) => t.trim().split(/\s+/).filter(Boolean).length))} words`);
 
 // ───────────────────────────────────────────────────────────── the grounding
 await ev(`[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Marker')).click(); return 1;`);

@@ -11,6 +11,7 @@ import Notebook from "./Notebook";
 import SessionControls from "./SessionControls";
 import SpeechBubble from "./SpeechBubble";
 import TextbookDrawer, { type Clip } from "./TextbookDrawer";
+import PointerStick from "./PointerStick";
 import TextbookPeek from "./TextbookPeek";
 import { useTextbookPlace } from "../../lib/textbookPlace";
 import TutorAvatar from "./TutorAvatar";
@@ -344,6 +345,14 @@ export default function SessionScreen() {
           speech bubble's slot, so the column reads: your book, what she is
           saying, her. */}
       <TextbookPeek place={place} onOpen={() => setBookOpen(true)} />
+
+      {/* She points at what she is talking about. Driven entirely by the
+          existing point_at signal — no new protocol, no new tool. */}
+      <PointerStick
+        hot={board.hot}
+        speaking={tutor.mood === "speaking"}
+        revision={board.revision}
+      />
 
       <TutorAvatar
         mood={tutor.mood}

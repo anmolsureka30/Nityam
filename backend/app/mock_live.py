@@ -31,9 +31,17 @@ SCRIPT = [
     ("quiz", "quiz_master",
      "Sure, let us test you. First question. A ball is thrown at thirty "
      "degrees. Is its range more or less than at forty five degrees?"),
+    # Three sentences, because that is what she actually returns. A live reply
+    # from the reference session ran to forty-six words across three sentences;
+    # every mock reply here was one short sentence, which is why nothing in the
+    # test suite could see that the speech bubble was holding a whole paragraph.
     ("range", "tutor",
-     "Range is maximum at forty five degrees, because sine of two theta "
-     "peaks there. What happens if you throw it straight up instead?"),
+     "Range is maximum at forty five degrees, because sine of two theta peaks "
+     "there. The vertical component decides how long the ball stays in the "
+     "air, while the horizontal component decides how far it travels in that "
+     "time. So at forty five degrees those two are balanced, and that is the "
+     "whole reason the angle wins. What happens if you throw it straight up "
+     "instead?"),
     ("height", "tutor",
      "Maximum height depends only on the vertical component of velocity, not "
      "the full speed. Can you tell me why the horizontal part does not matter?"),

@@ -18,6 +18,7 @@ import type { BoardAction, BoardState } from "../notebookReducer";
 import { boardReducer, emptyBoard } from "../notebookReducer";
 import type { TutorMood } from "../types";
 import { LiveSession } from "./session";
+import { spokenMs, toChunks } from "./chunks";
 import type { ClientMessage, ScreenState, ServerFrame } from "./protocol";
 
 export interface LiveTutor {
@@ -91,22 +92,63 @@ export function useLiveSession(
   const [level, setLevel] = useState(0);
 
   const sessionRef = useRef<LiveSession | null>(null);
-  /* Confirmed sentences this turn, and the fragment still being assembled.
-     Kept in a ref, not state: they update several times a second and no render
-     should depend on the intermediate values. */
-  const turn = useRef({ settled: "", fragment: "" });
+  /* What she is saying, as bubble-sized pieces, and how far through them she
+     is. Refs rather than state: the clock ticks ten times a second and no
+     render should depend on the intermediate values — only `caption` does, and
+     it is set explicitly.
+     
+     The bubble used to hold the whole settled transcript, which for a
+     three-sentence reply was a paragraph. See lib/live/chunks.ts. */
+  const turn = useRef({
+    chunks: [] as string[],
+    /** Index of the chunk currently in the bubble. */
+    at: 0,
+    /** Milliseconds of her ACTUALLY MAKING SOUND spent on the current chunk.
+     *  Not wall clock: transcription arrives before any audio does, and a plain
+     *  timer would race ahead through the pauses while the brain works and
+     *  flash the last chunk past before she said it. */
+    voiced: 0,
+    /** Has this turn finished being generated?
+     *
+     *  Several settled transcriptions inside ONE turn are one continuous
+     *  speech and should queue up behind each other. Across turns they are
+     *  not: if she is still draining her greeting when the next answer
+     *  arrives, appending puts the new answer behind text she is no longer
+     *  saying. Seen for real — the bubble was three sentences behind. */
+    closed: false,
+  });
   const screenSentAt = useRef(0);
   const screenPending = useRef<ScreenState | null>(null);
 
   const publish = useCallback(() => {
-    const { settled, fragment } = turn.current;
-    setCaption((settled + fragment).trim());
+    const { chunks, at } = turn.current;
+    /* Falling back to the LAST chunk matters: `at` is allowed to run one past
+       the end so that "has this drained?" can be answered, and without the
+       fallback the bubble would blank the instant she finished the final
+       sentence — which she has only just said and the student is still
+       reading. */
+    setCaption(chunks[at] ?? chunks[chunks.length - 1] ?? "");
   }, []);
 
   const newTurn = useCallback(() => {
-    turn.current = { settled: "", fragment: "" };
+    turn.current = { chunks: [], at: 0, voiced: 0, closed: false };
     setSpeakKey((k) => k + 1);
   }, []);
+
+  /** Queue what she just said. Replaces a drained queue, appends to a live one,
+   *  so several transcriptions inside one turn read as one continuous speech. */
+  const say = useCallback((text: string) => {
+    const next = toChunks(text);
+    if (!next.length) return;
+    const t = turn.current;
+    const drained = t.at >= t.chunks.length;
+    if (drained || t.closed) {
+      turn.current = { chunks: next, at: 0, voiced: 0, closed: false };
+    } else {
+      t.chunks = [...t.chunks, ...next];
+    }
+    publish();
+  }, [publish]);
 
   const onFrame = useCallback(
     (frame: ServerFrame) => {
@@ -132,19 +174,12 @@ export function useLiveSession(
       const out = event.outputTranscription?.text;
       if (out) {
         // A new turn begins the moment she speaks after being silent.
-        if (!speaking) {
-          newTurn();
-          setSpeaking(true);
-        }
-        if (event.partial) {
-          turn.current.fragment = out;
-        } else {
-          // Settled: this frame repeats the whole sentence the fragments were
-          // building, so replace rather than append, then start the next one.
-          turn.current.settled = (turn.current.settled + " " + out).trim() + " ";
-          turn.current.fragment = "";
-        }
-        publish();
+        if (!speaking) setSpeaking(true);
+        /* Partials are deliberately ignored. They arrive BEFORE any audio and
+           within a few hundred milliseconds of each other, so showing them
+           would build up a sentence and then visibly jump back to chunk one
+           when the settled version landed. Only settled text is queued. */
+        if (event.partial === false) say(out);
       }
 
       /* The reasoning layer is reached by a tool call, so its start and end are
@@ -165,8 +200,7 @@ export function useLiveSession(
           if (line) {
             setBridge(line);
             newTurn();
-            turn.current.settled = line + " ";
-            publish();
+            say(line);
           }
         }
         if (part.functionResponse?.name === "ask_tutor") {
@@ -176,14 +210,21 @@ export function useLiveSession(
       }
 
       if (event.interrupted) {
+        // Cut off: whatever was still queued is never going to be said.
         setSpeaking(false);
-        turn.current.fragment = "";
-        publish();
+        newTurn();
+        setCaption("");
       }
+      /* turnComplete does NOT clear the queue. It arrives while the audio is
+         still playing — she has finished being generated, not finished
+         speaking — and clearing here wiped the last two chunks off the bubble
+         mid-sentence. The queue drains on its own. */
       if (event.turnComplete) {
         setSpeaking(false);
-        turn.current.fragment = "";
-        publish();
+        // Marks the boundary without clearing: the queue keeps draining, but
+        // the NEXT thing she says replaces what is left rather than queueing
+        // behind it.
+        turn.current.closed = true;
       }
       if (event.interrupted || event.turnComplete) {
         // Belt and braces: a dropped functionResponse must not leave the UI
@@ -194,7 +235,7 @@ export function useLiveSession(
         }
       }
     },
-    [newTurn, publish, speaking],
+    [newTurn, publish, say, speaking],
   );
 
   /* Keep the frame handler current without reconnecting on every render: the
@@ -319,6 +360,32 @@ export function useLiveSession(
     }, 100);
     return () => window.clearInterval(timer);
   }, [listening]);
+
+  /* Advance the bubble at the pace she is actually speaking.
+  
+     Ticks always — not only while `speaking` — because turnComplete arrives
+     before the audio finishes and the last chunks are drained after it. The
+     clock only moves when her waveform is above the noise floor, so a pause in
+     her speech is a pause in the captions and the estimate cannot drift. */
+  const TICK = 100;
+  const VOICED = 0.008;
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const t = turn.current;
+      if (t.at >= t.chunks.length) return;
+      const loud = (sessionRef.current?.voiceLevel ?? 0) > VOICED;
+      if (!loud) return;
+      t.voiced += TICK;
+      if (t.voiced >= spokenMs(t.chunks[t.at])) {
+        t.at += 1;
+        t.voiced = 0;
+        // Publishes past the end too: `publish` falls back to the last chunk,
+        // so the bubble holds her closing line instead of going blank.
+        publish();
+      }
+    }, TICK);
+    return () => window.clearInterval(timer);
+  }, [publish]);
 
   const send = useCallback((message: ClientMessage) => {
     sessionRef.current?.send(message);

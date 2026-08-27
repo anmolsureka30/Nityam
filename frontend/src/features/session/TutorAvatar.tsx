@@ -84,7 +84,7 @@ export default function TutorAvatar({
   const speaking = mood === "speaking" || mood === "pleased";
 
   return (
-    <div className={s.dock}>
+    <div className={s.dock} data-avatar-dock="">
       <div className={s.stand}>
         <div className={s.canvasHost} ref={hostRef} />
         <span

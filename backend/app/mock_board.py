@@ -46,6 +46,17 @@ def _equation(session_id: str, tex: str, caption: str) -> None:
         ),
     )
 
+    # And point at the term, which the real path always does: every
+    # write_lesson in a live session comes back with `pointed_at` alongside its
+    # block ids. Mock mode was writing formulas nobody ever pointed at, so the
+    # whole point_at path — the hot anchor, and now her stick — could not be
+    # seen or tested without spending tokens on Gemini.
+    if anchors:
+        sessions.publish(
+            session_id,
+            D.PointAt(anchorIds=[anchors[0].id], reason="the term that decides it"),
+        )
+
 
 def _quiz(session_id: str) -> None:
     state = sessions.get(session_id)

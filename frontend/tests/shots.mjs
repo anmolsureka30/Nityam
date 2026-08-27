@@ -47,6 +47,12 @@ const CHROME = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/M
 const chrome = spawn(CHROME,
   ["--headless=new", `--remote-debugging-port=${CDP}`, `--user-data-dir=${profile}`,
    "--no-first-run", "--disable-gpu", "--hide-scrollbars",
+   /* A microphone, granted without a prompt. Without these the page
+      gets NotAllowedError, SpeechBubble shows "I lost the connection —
+      microphone: Permission denied", and every assertion about her
+      captions was silently measuring that error string instead of
+      anything she said. */
+   "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream",
    `--window-size=${W},${H}`, "--force-device-scale-factor=2", "about:blank"],
   { stdio: "ignore" });
 
@@ -138,8 +144,12 @@ await send("Input.dispatchKeyEvent", {
   type: "keyUp", key: "Enter", code: "Enter",
   windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
 });
-await sleep(4200);
+await sleep(1400);
+/* Mid-turn: she is speaking and an anchor is hot, which is when the stick is
+   up. Waiting for the turn to finish would miss it. */
 await shot("03-session-written");
+await sleep(3000);
+await shot("03b-session-settled");
 
 await ev(`
   const b = [...document.querySelectorAll('button')].find(b=>/View textbook/.test(b.textContent));
