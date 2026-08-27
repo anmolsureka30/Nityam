@@ -127,7 +127,11 @@ def test_session_context_fills_in_when_extractor_uses_it(redis_client):
     instrumentation.set_session_context(None)  # don't leak into other tests
 
 
-def test_no_publish_when_session_id_is_none(redis_client):
+def test_publishes_even_when_both_session_and_student_id_are_none(redis_client):
+    """search_grounding/search_grounding_semantic/put_grounding_chunk (Task 2)
+    never have either id at all — grounding_chunk records aren't per-session
+    or per-student. The whole point of the global (not per-session) channel
+    is that these still publish, not get silently dropped."""
     redis_client.delete("smriti:events:recent")
 
     @instrumentation.emit_memory_event(
@@ -139,7 +143,12 @@ def test_no_publish_when_session_id_is_none(redis_client):
 
     fake_search(None, ["x"])
 
-    assert redis_client.lrange("smriti:events:recent", 0, -1) == []
+    raw = redis_client.lrange("smriti:events:recent", 0, -1)
+    assert len(raw) == 1
+    event = instrumentation.MemoryEvent.model_validate_json(raw[0])
+    assert event.session_id is None
+    assert event.student_id is None
+    assert event.record_type == "grounding_chunk"
 
 
 def test_publish_failure_does_not_raise(monkeypatch, redis_client):
@@ -157,6 +166,19 @@ def test_publish_failure_does_not_raise(monkeypatch, redis_client):
         lambda: (_ for _ in ()).throw(ConnectionError("simulated outage")),
     )
     assert fake_fn() == "ok"  # must not raise
+
+
+def test_broken_extractor_does_not_raise(redis_client):
+    """Tasks 2-4 write ~13 extract_ids functions — a bug in one of them must
+    never propagate out and break the real memory write it's observing."""
+    @instrumentation.emit_memory_event(
+        tier="workflow", record_type="turn_buffer", operation="write",
+        extract_ids=lambda args, kwargs, result: (_ for _ in ()).throw(IndexError("bad extractor")),
+    )
+    def fake_fn():
+        return "ok"
+
+    assert fake_fn() == "ok"  # must not raise, despite the broken extractor
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -283,8 +305,12 @@ def _build_event(
 
 
 def _publish_sync(event: MemoryEvent) -> None:
-    if not event.session_id:
-        return
+    """No gate on session_id/student_id here — several long-term-tier
+    functions (search_grounding, search_grounding_semantic,
+    put_grounding_chunk) never have either at all, and the whole point of
+    the global (not per-session) channel is that those events are still
+    worth seeing, not silently dropped. See spec §5: "every event — scoped
+    or not — publishes.\""""
     try:
         client = _get_sync_client()
         body = event.model_dump_json()
@@ -296,8 +322,6 @@ def _publish_sync(event: MemoryEvent) -> None:
 
 
 async def _publish_async(event: MemoryEvent) -> None:
-    if not event.session_id:
-        return
     try:
         client = redis_async.Redis(
             host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True
@@ -330,22 +354,32 @@ def emit_memory_event(
             @functools.wraps(fn)
             async def async_wrapper(*args, **kwargs):
                 result = await fn(*args, **kwargs)
-                session_id, student_id = extract_ids(args, kwargs, result)
-                event = _build_event(
-                    tier, record_type, operation, fn.__name__, session_id, student_id, result
-                )
-                await _publish_async(event)
+                try:
+                    session_id, student_id = extract_ids(args, kwargs, result)
+                    event = _build_event(
+                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                    )
+                    await _publish_async(event)
+                except Exception:
+                    # A bug in a future extract_ids (Tasks 2-4 write ~13 of
+                    # them) must never propagate out of a real memory write
+                    # it's merely observing — same fire-and-forget guarantee
+                    # as _publish_sync/_publish_async's own try/except.
+                    pass
                 return result
             return async_wrapper
         else:
             @functools.wraps(fn)
             def sync_wrapper(*args, **kwargs):
                 result = fn(*args, **kwargs)
-                session_id, student_id = extract_ids(args, kwargs, result)
-                event = _build_event(
-                    tier, record_type, operation, fn.__name__, session_id, student_id, result
-                )
-                _publish_sync(event)
+                try:
+                    session_id, student_id = extract_ids(args, kwargs, result)
+                    event = _build_event(
+                        tier, record_type, operation, fn.__name__, session_id, student_id, result
+                    )
+                    _publish_sync(event)
+                except Exception:
+                    pass
                 return result
             return sync_wrapper
     return decorator
@@ -374,7 +408,7 @@ def _reset_memory_session_context():
 - [ ] **Step 5: Run to verify it passes**
 
 Run: `cd sub_modules_examples/tutor && uv run pytest tests/unit/memory/test_instrumentation.py -v`
-Expected: 6 passed (or skipped if Redis is unreachable — start it first: `brew services start redis` / `redis-server`)
+Expected: 7 passed (or skipped if Redis is unreachable — start it first: `brew services start redis` / `redis-server`)
 
 - [ ] **Step 6: Commit**
 
@@ -1308,7 +1342,7 @@ git commit -m "feat: wire close_session into production via POST /memory/session
 
 **Interfaces:**
 - Consumes: `memory_routes.perform_close_session` (Task 6), the `session:{id}:heartbeat` key (Task 5).
-- Produces: `app/app_utils/idle_watcher.py`'s `watch_idle_sessions(client: redis.asyncio.Redis) -> None` (an infinite loop — tested via a bounded variant, see below), and `run_one_expiry_cycle(pubsub) -> str | None` (processes exactly one pubsub message, returns the closed session id or `None` — this is what the test drives, so the test doesn't need to run or cancel an infinite loop).
+- Produces: `app/app_utils/idle_watcher.py`'s `watch_idle_sessions() -> None` (an infinite loop, no arguments — it builds its own Redis client internally; tested via a bounded variant, see below), and `run_one_expiry_cycle(pubsub, timeout) -> str | None` (waits up to `timeout` seconds total for one real expiry notification, returns the closed session id or `None` — this is what the test drives, so the test doesn't need to run or cancel an infinite loop).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1393,8 +1427,8 @@ local dev, not a hard dependency of the watch loop itself.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
+import time
 
 import redis.asyncio as redis
 
@@ -1404,23 +1438,45 @@ from app.app_utils.memory_routes import perform_close_session
 logger = logging.getLogger(__name__)
 
 
-async def run_one_expiry_cycle(pubsub: redis.client.PubSub, timeout: float = 5.0) -> str | None:
-    """Waits up to `timeout` seconds for one expiry notification. Returns the
-    session id it closed, or None if the message wasn't a session heartbeat
-    (or nothing arrived in time)."""
-    message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=timeout)
-    if message is None or message.get("type") != "pmessage":
-        return None
-    key = message["data"]
-    if not (key.startswith("session:") and key.endswith(":heartbeat")):
-        return None
-    session_id = key.split(":")[1]
-    try:
-        await perform_close_session(session_id)
-    except Exception:
-        logger.exception("idle-timeout close_session failed for session_id=%s", session_id)
-        return None
-    return session_id
+async def run_one_expiry_cycle(pubsub: redis.client.PubSub, timeout: float | None = 5.0) -> str | None:
+    """Waits up to `timeout` seconds (total) for one expiry notification.
+
+    redis-py's get_message() reads exactly one raw frame per call. Right
+    after psubscribe(), the first frame on the wire is always the PSUBSCRIBE
+    confirmation itself; with ignore_subscribe_messages=True that frame is
+    suppressed and the call returns None immediately — it does *not* keep
+    reading within the same call to find a real message, even though
+    `timeout` budget remains. A single get_message() call (a naive first
+    draft of this function did exactly that) therefore spuriously returns
+    None on the very first invocation after subscribing, regardless of
+    whether a real expiry notification was waiting right behind it on the
+    socket. This loops past those protocol-level confirmations, spending
+    only the remaining timeout budget on each subsequent read, so the
+    result reflects the first real message (or true timeout), not a
+    subscribe ack.
+
+    Returns the session id it closed, or None if the message wasn't a
+    session heartbeat key (or nothing arrived in time)."""
+    deadline = None if timeout is None else time.monotonic() + timeout
+    while True:
+        remaining = timeout if deadline is None else max(0.0, deadline - time.monotonic())
+        message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=remaining)
+        if message is None:
+            if deadline is not None and time.monotonic() >= deadline:
+                return None
+            continue
+        if message.get("type") != "pmessage":
+            continue
+        key = message["data"]
+        if not (key.startswith("session:") and key.endswith(":heartbeat")):
+            return None
+        session_id = key.split(":")[1]
+        try:
+            await perform_close_session(session_id)
+        except Exception:
+            logger.exception("idle-timeout close_session failed for session_id=%s", session_id)
+            return None
+        return session_id
 
 
 async def watch_idle_sessions() -> None:
@@ -1540,11 +1596,15 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "redis>=5.0",
     "pydantic>=2.0",
-    "app",
+    "tutor",
 ]
 
 [tool.uv.sources]
-app = { path = "../../sub_modules_examples/tutor", editable = true }
+# The path dependency name must match the `[project] name` declared in
+# sub_modules_examples/tutor/pyproject.toml ("tutor"), not the importable
+# top-level module it ships (`app`) — uv matches sources by distribution
+# name. The import in observatory/events.py is still `from app...`.
+tutor = { path = "../../sub_modules_examples/tutor", editable = true }
 
 [dependency-groups]
 dev = [
@@ -1689,7 +1749,11 @@ def test_diff_dpm_reports_new_weakness():
     changes = diff_dpm(old, new)
     assert len(changes) == 1
     assert changes[0].kind == "added"
-    assert "projectile.range" in changes[0].label
+    # No ".mastery" suffix here — that's the "changed" shape (see
+    # test_diff_dpm_reports_mastery_transition below). Conflating the two
+    # shapes was a real bug source elsewhere in this plan (Tasks 11/23).
+    assert changes[0].path == "weaknesses.projectile.range"
+    assert changes[0].label == "new weakness tracked: projectile.range (partial)"
 
 
 def test_diff_dpm_reports_mastery_transition():
@@ -1717,7 +1781,8 @@ def test_diff_dpm_treats_missing_old_as_empty():
     changes = diff_dpm(None, new)
     assert len(changes) == 1
     assert changes[0].kind == "added"
-    assert "responds well to worked examples" in changes[0].label
+    assert changes[0].path == "self_reflection"
+    assert changes[0].label == 'new self-reflection: "responds well to worked examples"'
 
 
 def test_diff_teaching_memory_reports_coverage_transition():
@@ -3731,7 +3796,7 @@ git commit -m "feat: add TierPanel and DiffView components"
 - Create: `smriti-observatory/frontend/src/lib/traceLinks.ts`
 
 **Interfaces:**
-- Produces: `cloudTraceUrl(traceId: string, gcpProject: string): string`, `adkWebUrl(tutorBaseUrl: string): string` (TS mirrors of `observatory/trace_links.py`); `<EventTimeline events={EnrichedEvent[]} gcpProject={string} tutorBaseUrl={string} />` with a Timeline ⟷ Trace toggle.
+- Produces: `cloudTraceUrl(traceId: string, gcpProject: string): string`, `adkWebUrl(tutorBaseUrl: string): string` (TS mirrors of `observatory/trace_links.py`); `<EventTimeline events={EnrichedEvent[]} gcpProject={string} />` with a Timeline ⟷ Trace toggle. (`adkWebUrl` is consumed directly by `SessionView.tsx` in Task 21, not by `EventTimeline` — `EventTimeline` only needs `gcpProject`, for `cloudTraceUrl`.)
 - Consumed by: Task 21.
 
 - [ ] **Step 1: Implement `traceLinks.ts`**

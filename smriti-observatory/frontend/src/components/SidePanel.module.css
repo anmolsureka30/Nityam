@@ -1,0 +1,45 @@
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-container);
+  border-left: 1px solid var(--outline-variant);
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.resizeHandler {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.tabBar {
+  display: flex;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.tab,
+.tabActive {
+  height: 48px;
+  padding: 0 16px;
+  background: none;
+  border: none;
+  color: var(--on-surface);
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+.tabActive {
+  border-bottom: 2px solid var(--primary);
+  color: var(--primary);
+}
+
+.tabContent {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}

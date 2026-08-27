@@ -1,0 +1,149 @@
+.panel {
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+}
+
+.toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--on-surface);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.toggle:hover {
+  background: var(--surface-container-high);
+}
+
+.hint {
+  margin-left: 4px;
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--outline);
+}
+
+.body {
+  padding: 4px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.loading,
+.hintBody {
+  margin: 4px 0;
+  font-size: 0.78rem;
+  color: var(--outline);
+  font-style: italic;
+}
+
+.agentCard,
+.agentCardActive {
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface-container);
+}
+
+.agentCardActive {
+  composes: agentCard;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.systemCardActive {
+  composes: agentCardActive;
+  border-style: dashed;
+}
+
+.agentHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agentIcon {
+  font-size: 0.9rem;
+}
+
+.agentLabel {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.systemNote {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--outline);
+  max-width: 46ch;
+}
+
+.toolRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 22px;
+}
+
+.toolChip,
+.toolChipActive {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+  font-size: 0.74rem;
+}
+
+.toolChipActive {
+  composes: toolChip;
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, var(--surface-container-low));
+}
+
+.toolIcon {
+  font-size: 0.8rem;
+}
+
+.toolLabel {
+  font-family: var(--font-mono);
+  color: var(--on-surface);
+}
+
+.tierDots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.tierDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.tierWorkflow {
+  background: var(--tier-workflow);
+}
+.tierEpisodic {
+  background: var(--tier-episodic);
+}
+.tierLongTerm {
+  background: var(--tier-long-term);
+}

@@ -1,0 +1,193 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+// Apply dark theme by default
+html {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: dark,
+      ),
+      typography: (
+        brand-family: 'Google Sans',
+        plain-family: 'Google Sans',
+      ),
+      density: (
+        scale: 0,
+      ),
+    )
+  );
+  color-scheme: dark;
+
+  // Blue theme overrides
+  --mat-sys-primary: #7cc4ff;
+  --mat-sys-on-primary: #003366;
+  --mat-sys-primary-container: #004b8d;
+  --mat-sys-on-primary-container: #d1e4ff;
+  --mat-sys-secondary: #b5c9e2;
+  --mat-sys-on-secondary: #203246;
+  --mat-sys-secondary-container: #3a485a;
+  --mat-sys-on-secondary-container: #d7e3f7;
+
+  // Neutral background overrides to remove tint
+  --mat-sys-background: #121212;
+  --mat-sys-surface: #121212;
+  --mat-sys-surface-container: #1e1e1e;
+  --mat-sys-surface-container-low: #1a1a1a;
+  --mat-sys-surface-container-high: #2a2a2a;
+  --mat-sys-surface-container-highest: #3a3a3a;
+}
+
+// Light theme override
+html.light-theme {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+      ),
+      typography: (
+        brand-family: 'Google Sans',
+        plain-family: 'Google Sans',
+      ),
+      density: (
+        scale: 0,
+      ),
+    )
+  );
+  color-scheme: light;
+
+  // Blue theme overrides
+  --mat-sys-primary: #005fb7;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #d1e4ff;
+  --mat-sys-on-primary-container: #001c37;
+  --mat-sys-secondary: #535f70;
+  --mat-sys-on-secondary: #ffffff;
+  --mat-sys-secondary-container: #d7e3f7;
+  --mat-sys-on-secondary-container: #101c2b;
+
+  // Neutral background overrides to remove tint
+  --mat-sys-background: #ffffff;
+  --mat-sys-surface: #ffffff;
+  --mat-sys-surface-container: #f5f5f5;
+  --mat-sys-surface-container-low: #fafafa;
+  --mat-sys-surface-container-high: #eeeeee;
+  --mat-sys-surface-container-highest: #e0e0e0;
+}
+
+// Dark theme explicit class (for consistency)
+html.dark-theme {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: dark,
+      ),
+      typography: (
+        brand-family: 'Google Sans',
+        plain-family: 'Google Sans',
+      ),
+      density: (
+        scale: 0,
+      ),
+    )
+  );
+  color-scheme: dark;
+
+  // Blue theme overrides
+  --mat-sys-primary: #7cc4ff;
+  --mat-sys-on-primary: #003366;
+  --mat-sys-primary-container: #004b8d;
+  --mat-sys-on-primary-container: #d1e4ff;
+  --mat-sys-secondary: #b5c9e2;
+  --mat-sys-on-secondary: #203246;
+  --mat-sys-secondary-container: #3a485a;
+  --mat-sys-on-secondary-container: #d7e3f7;
+
+  // Neutral background overrides to remove tint
+  --mat-sys-background: #121212;
+  --mat-sys-surface: #121212;
+  --mat-sys-surface-container: #1e1e1e;
+  --mat-sys-surface-container-low: #1a1a1a;
+  --mat-sys-surface-container-high: #2a2a2a;
+  --mat-sys-surface-container-highest: #3a3a3a;
+}
+
+body {
+  height: 100vh;
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+}
+
+markdown p {
+  margin-block-start: 0.5em;
+  margin-block-end: 0.5em;
+}
+
+markdown pre {
+  border-radius: 8px !important;
+}
+
+markdown code {
+  border-radius: 4px !important;
+}
+
+.json-tooltip-panel {
+  color: var(--mat-sys-on-surface) !important;
+  border: 1px solid var(--mat-sys-outline-variant) !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  max-width: 800px !important;
+  overflow: hidden !important;
+  background-color: var(--mat-sys-surface-container-high) !important;
+}
+
+
+.user-avatar-menu {
+  .mat-mdc-menu-content {
+    padding: 0;
+  }
+}
+
+.html-tooltip-panel {
+  .content-bubble {
+    max-width: 100% !important;
+  }
+
+  .message-text p {
+    white-space: pre-line;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Custom dialog for viewing images without white panel */
+.custom-image-dialog {
+  .mdc-dialog__surface {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+}
+
+.telemetry-consent-dialog-panel {
+  .mdc-dialog__surface {
+    background-color: var(--mat-sys-surface-container, #1e1e1e) !important;
+  }
+}

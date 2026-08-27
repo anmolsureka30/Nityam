@@ -5,16 +5,45 @@ tool_context.state first (free, in-process, unchanged), and additionally
 write through here so the buffer survives outside one process's memory.
 See project_documentation/memory_nityam_architecture/google_cloud_storage_integration.md
 §5.2 for why this is a mirror, not a session-service swap.
+
+Every function below is instrumented (docs/superpowers/specs/2026-08-27-smriti-observatory-design.md
+§5) — the decorator is a transparent pass-through, return values are unchanged.
 """
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 import redis.asyncio as redis
 
 from app import config
+from app.memory import instrumentation
 
 _SAFETY_TTL_SECONDS = 60 * 60 * 6  # 6h - close_session should flush well before this
+
+
+async def refresh_heartbeat(session_id: str, ttl_seconds: int) -> None:
+    client = _client()
+    await client.set(f"session:{session_id}:heartbeat", "1", ex=ttl_seconds)
+    await client.aclose()
+
+
+async def ensure_started_at(session_id: str) -> None:
+    """NX so the first call from a session wins; later calls are no-ops."""
+    client = _client()
+    await client.set(
+        f"session:{session_id}:started_at",
+        datetime.now(timezone.utc).isoformat(),
+        nx=True,
+    )
+    await client.aclose()
+
+
+async def get_started_at(session_id: str) -> datetime | None:
+    client = _client()
+    raw = await client.get(f"session:{session_id}:started_at")
+    await client.aclose()
+    return datetime.fromisoformat(raw) if raw else None
 
 
 def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
@@ -25,6 +54,15 @@ def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
     )
 
 
+def _ids_from_session_id_arg(args, kwargs, result):
+    session_id = kwargs.get("session_id", args[0] if len(args) > 0 else None)
+    return session_id, None
+
+
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="turn_buffer", operation="write",
+    extract_ids=_ids_from_session_id_arg,
+)
 async def append_turn(session_id: str, turn: dict) -> None:
     client = _client()
     key = f"session:{session_id}:turns"
@@ -33,6 +71,10 @@ async def append_turn(session_id: str, turn: dict) -> None:
     await client.aclose()
 
 
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="artifact_event", operation="write",
+    extract_ids=_ids_from_session_id_arg,
+)
 async def append_artifact_event(session_id: str, event: dict) -> None:
     client = _client()
     key = f"session:{session_id}:artifact_events"
@@ -41,6 +83,10 @@ async def append_artifact_event(session_id: str, event: dict) -> None:
     await client.aclose()
 
 
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="turn_buffer", operation="read",
+    extract_ids=_ids_from_session_id_arg,
+)
 async def get_turn_buffer(session_id: str) -> list[dict]:
     client = _client()
     raw = await client.lrange(f"session:{session_id}:turns", 0, -1)
@@ -48,6 +94,10 @@ async def get_turn_buffer(session_id: str) -> list[dict]:
     return [json.loads(r) for r in raw]
 
 
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="turn_buffer", operation="write",
+    extract_ids=_ids_from_session_id_arg,
+)
 async def clear_session(session_id: str) -> None:
     client = _client()
     await client.delete(f"session:{session_id}:turns", f"session:{session_id}:artifact_events")

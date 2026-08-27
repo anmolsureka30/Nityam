@@ -32,7 +32,7 @@ from app.agents.quiz_agent import build_quiz_agent
 from app.canvas.tools import BOARD_TOOLS
 from app.textbook import TEXTBOOK_TOOLS
 from app.memory import store
-from app.memory.tools import search_grounding
+from app.memory.tools import list_concepts, search_grounding
 
 # ADK runs every instruction through session-state template injection
 # (google/adk/utils/instructions_utils.py), so a literal `{g}` anywhere in the
@@ -121,6 +121,12 @@ Ask for it in the SAME message as the writing it supports, not in a message of
 its own. What comes back shapes how you explain it on the next turn — the wording
 you use, the example, what you emphasise — and that is worth far more than
 holding the board blank while you wait for it.
+
+Call `list_concepts` once near the start of a session, or whenever the topic
+shifts to something unfamiliar, and pass `search_grounding` concept ids EXACTLY
+as `list_concepts` returns them — never invent one from the conversation's own
+wording. The corpus's real ids come from ingestion naming, not how a tutor or
+student would naturally phrase the same topic.
 
 ## What this session is for
 
@@ -354,6 +360,7 @@ def build_tutor_agent(mode: str | None = None) -> LlmAgent:
         instruction=TUTOR_INSTRUCTION,
         tools=[
             search_grounding,
+            list_concepts,
             commission_artifact,
             *BOARD_TOOLS,
             *TEXTBOOK_TOOLS,

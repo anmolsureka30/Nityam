@@ -1,0 +1,65 @@
+/* Values read directly from the installed google-adk==2.7.1 package's
+   built Angular assets (google/adk/cli/browser/styles-*.css) — see
+   docs/superpowers/specs/2026-08-27-smriti-observatory-design.md §8.1.
+   Dark is the default, matching ADK web's own default. */
+
+:root {
+  --surface: #121212;
+  --surface-container-low: #1a1a1a;
+  --surface-container: #1e1e1e;
+  --surface-container-high: #2a2a2a;
+  --surface-container-highest: #3a3a3a;
+
+  --primary: #7cc4ff;
+  --on-primary: #003366;
+  --primary-container: #004b8d;
+  --on-primary-container: #d1e4ff;
+
+  --secondary: #b5c9e2;
+  --on-secondary: #203246;
+  --secondary-container: #3a485a;
+
+  --tertiary: #d5baff;
+  --tertiary-container: #5f00c0;
+
+  --error: #ffb4ab;
+  --error-container: #93000a;
+
+  --outline: #958e99;
+  --outline-variant: #49454e;
+  --on-surface: #e6e1e6;
+
+  --graph-canvas: #0e172a;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+
+  --font-ui: "Google Sans", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "Google Sans Mono", ui-monospace, monospace;
+
+  /* SMRITI tier accents — not part of ADK web, this project's own additions */
+  --tier-workflow: #7cc4ff;
+  --tier-episodic: #e8a33d;
+  --tier-long-term: #6bcf8a;
+}
+
+[data-theme="light"] {
+  --surface: #ffffff;
+  --surface-container-low: #fafafa;
+  --surface-container: #f5f5f5;
+  --surface-container-high: #eeeeee;
+  --surface-container-highest: #e0e0e0;
+
+  --primary: #005fb7;
+  --on-primary: #ffffff;
+  --primary-container: #d1e4ff;
+  --on-primary-container: #001c37;
+
+  --secondary: #535f70;
+  --error: #ba1a1a;
+  --outline: #7b757f;
+}

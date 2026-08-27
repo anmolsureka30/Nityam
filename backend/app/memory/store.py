@@ -57,10 +57,13 @@ get_session_log = _impl.get_session_log
 #: Firestore-only extras. `getattr` rather than a plain import so the sqlite
 #: path degrades instead of raising — callers must check for None.
 #:
-#: `store_firestore.py` is a copy of sub_modules_examples/tutor's, and it has
-#: already drifted once: that module gained token-overlap fuzzy matching in
-#: search_grounding while this copy still had the version without it. Re-copy
-#: after pulling changes to the tutor sub-module.
+#: `store_firestore.py` is a manually-synced copy of sub_modules_examples/
+#: tutor's app/memory/store.py — no automated sync, so a fix landed in one
+#: needs porting to the other by hand (confirmed drifted and re-synced twice
+#: now: token-overlap fuzzy matching in search_grounding, and a
+#: reflect()/close_session structured-output schema fix — see
+#: app/session_close.py's own docstring). Check both when touching
+#: memory-layer code.
 search_grounding_semantic = getattr(_impl, "search_grounding_semantic", None)
 list_concept_ids = getattr(_impl, "list_concept_ids", None)
 

@@ -1,0 +1,174 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+.drawer-header-wrapper {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  padding-left: 20px;
+}
+
+.drawer-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tabs-container {
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-label {
+  font-size: 14px;
+}
+.resize-handler {
+  width: 6px;
+  border-radius: 4px;
+  position: absolute;
+  display: block;
+  top: 20px;
+  bottom: 20px;
+  right: 0;
+  z-index: 100;
+  cursor: ew-resize;
+
+  &:hover {
+    background-color: var(--mat-sys-outline-variant);
+  }
+}
+
+.empty-state {
+  padding: 16px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+  font-style: italic;
+}
+
+mat-tab-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  ::ng-deep {
+    .mdc-tab {
+      padding: 0 12px;
+      min-width: 48px;
+    }
+  }
+}
+
+::ng-deep .mat-mdc-tab-body-wrapper {
+  flex: 1;
+  min-height: 0;
+
+  .mat-mdc-tab-body-content {
+    overflow-x: hidden;
+  }
+}
+
+.drawer-logo {
+  margin-left: 9px;
+  display: flex;
+  align-items: center;
+
+  img {
+    margin-right: 6px;
+  }
+
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.1px;
+}
+
+.drawer-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-toggle-icon {
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
+  color: var(--side-panel-mat-icon-color, #c4c7c5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.powered-by-adk {
+  font-size: 10px;
+  color: var(--side-panel-powered-by-adk-color);
+  text-align: right;
+  margin-top: -5px;
+}
+
+.adk-info-icon {
+  font-size: 14px;
+  color: var(--side-panel-mat-icon-color, #bdc1c6);
+  cursor: pointer;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.mode-toggle-container {
+  display: flex;
+  align-items: center;
+}
+
+.build-mode-button {
+  margin: 0 4px;
+}
+
+.app-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.loading-spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .resize-handler {
+    display: none !important;
+  }
+  .tab-label {
+    font-size: 12px !important;
+  }
+  ::ng-deep .mdc-tab {
+    padding: 0 8px !important;
+  }
+}

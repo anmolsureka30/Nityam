@@ -1,0 +1,26 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chip,
+.chipButton {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-highest);
+  color: var(--outline);
+  border: none;
+}
+
+.chipButton {
+  cursor: pointer;
+}
+
+.chipButton:hover {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}

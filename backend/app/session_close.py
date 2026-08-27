@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from google import genai
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from app import config
 from app.memory import ops, store
@@ -43,26 +43,87 @@ REFLECT_PROMPT = """You did not teach this session. Read it as an observer.
 Session log:
 {session_json}
 
-Propose operations against this student's memory. Use ONLY these op names:
+Propose operations against this student's memory. Use ONLY these op names,
+and ONLY these exact field values -- any value outside these sets is
+rejected and the whole operation is dropped:
+
   set_mastery(concept_id, mastery, strength, evidence)
+    mastery must be exactly one of: unknown, misconceived, partial, known, durable
+    strength must be exactly one of: weak, strong
+
   open_doubt(concept_id, doubt, correct_understanding, evidence)
+
   close_doubt(concept_id)   -- only if the log shows a SPACED re-check succeeding,
                                never from one correct answer in this same session
+
   update_coverage(concept_id, elements_used, taught_at, status)
+    taught_at must be exactly this session's id: "{session_id}"
+    status must be exactly one of: in_progress, covered
+
   append_self_reflection(note, evidence)
 
-Every evidence value must be a "{{session_id}}#turn" reference to a real turn
-number in the session log above. Do not invent turns that aren't there.
+Every evidence value must cite a real turn number from the session log
+above, written literally as "{session_id}#" followed by the turn number,
+e.g. "{session_id}#3". Do not invent turns that aren't there.
 """
+
+
+class _ReflectOpWire(BaseModel):
+    """The shape actually handed to Gemini's structured output.
+
+    `ReflectOp.args` is `dict[str, Any]` — a JSON schema for that has no
+    field names for the model to fill in, and live testing (in the
+    sub_modules_examples/tutor sibling of this file) confirmed Gemini
+    reliably returns `args: {}` for every operation as a result (silently
+    dropped by apply_operations' TypeError guard, so close_session looked
+    like it worked but never wrote anything). This flat, fully-typed
+    struct gives every field a concrete schema; _to_reflect_op() below
+    picks out only the fields that matter for each op's `op` value.
+    """
+    op: str
+    concept_id: str | None = None
+    mastery: str | None = None
+    strength: str | None = None
+    doubt: str | None = None
+    correct_understanding: str | None = None
+    elements_used: list[str] = Field(default_factory=list)
+    taught_at: str | None = None
+    status: str | None = None
+    note: str | None = None
+    evidence: list[str] = Field(default_factory=list)
+
+
+class _ReflectResultWire(BaseModel):
+    operations: list[_ReflectOpWire]
+    summary: str
+
+
+_OP_FIELDS = {
+    "set_mastery": ("concept_id", "mastery", "strength", "evidence"),
+    "open_doubt": ("concept_id", "doubt", "correct_understanding", "evidence"),
+    "close_doubt": ("concept_id",),
+    "update_coverage": ("concept_id", "elements_used", "taught_at", "status"),
+    "append_self_reflection": ("note", "evidence"),
+}
+
+
+def _to_reflect_op(wire: _ReflectOpWire) -> ReflectOp:
+    fields = _OP_FIELDS.get(wire.op, ())
+    args = {f: getattr(wire, f) for f in fields if getattr(wire, f) is not None}
+    return ReflectOp(op=wire.op, args=args)
 
 
 def reflect(client: genai.Client, log: SessionLog) -> ReflectResult:
     response = client.models.generate_content(
         model=config.REASONING_MODEL,
-        contents=REFLECT_PROMPT.format(session_json=log.model_dump_json(indent=2)),
-        config={"response_mime_type": "application/json", "response_schema": ReflectResult},
+        contents=REFLECT_PROMPT.format(session_json=log.model_dump_json(indent=2), session_id=log.session_id),
+        config={"response_mime_type": "application/json", "response_schema": _ReflectResultWire},
     )
-    return ReflectResult.model_validate_json(response.text)
+    wire = _ReflectResultWire.model_validate_json(response.text)
+    return ReflectResult(
+        summary=wire.summary,
+        operations=[_to_reflect_op(op) for op in wire.operations],
+    )
 
 
 def apply_operations(profile: DPMProfile, memory: TeachingMemory, result: ReflectResult) -> tuple[DPMProfile, TeachingMemory]:

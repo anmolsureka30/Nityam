@@ -1,0 +1,75 @@
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.student,
+.tutor {
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  border-left: 3px solid transparent;
+  transition: background-color 0.3s ease;
+}
+
+:global(.evidence-jump-highlight) {
+  background: color-mix(in srgb, var(--primary) 35%, transparent) !important;
+}
+
+.student {
+  background: var(--surface-container);
+  border-left-color: var(--tier-workflow);
+}
+
+.tutor {
+  background: var(--surface-container-high);
+  border-left-color: var(--tertiary);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.turnNumber {
+  color: var(--outline);
+}
+
+.role {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  color: var(--on-surface);
+}
+
+.concept {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-container-highest);
+  color: var(--secondary);
+}
+
+.artifact {
+  color: var(--outline);
+}
+
+.text {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--on-surface);
+}
+
+.empty {
+  color: var(--outline);
+  font-size: 0.85rem;
+  font-style: italic;
+}

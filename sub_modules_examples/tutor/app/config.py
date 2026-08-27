@@ -39,3 +39,7 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 """Workflow-tier write-through mirror (memory_layer.md §5). Local Redis for
 now; real Memorystore is a deployment-time decision, not a code change —
 see google_cloud_storage_integration.md §5.4."""
+SESSION_IDLE_TIMEOUT_SECONDS = int(os.environ.get("SESSION_IDLE_TIMEOUT_SECONDS", str(30 * 60)))
+"""How long a session can go without a log_turn/log_artifact_evidence call
+before the idle-timeout watcher (Task 7) auto-closes it. 30 minutes is a
+starting value, not derived from a product requirement — tune via env var."""

@@ -1,0 +1,97 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--outline);
+}
+
+.modeChip {
+  display: inline-block;
+  width: fit-content;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--tertiary-container);
+  color: var(--tertiary);
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  font-size: 0.8rem;
+}
+
+.conceptId {
+  font-family: var(--font-mono);
+  color: var(--on-surface);
+  flex: 1;
+}
+
+.elements {
+  font-size: 0.7rem;
+  color: var(--outline);
+}
+
+.doubtList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.doubtCard {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+}
+
+.doubtHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.doubtText {
+  margin: 2px 0;
+  font-size: 0.78rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+}
+
+.empty {
+  color: var(--outline);
+  font-size: 0.8rem;
+  font-style: italic;
+  margin: 0;
+}

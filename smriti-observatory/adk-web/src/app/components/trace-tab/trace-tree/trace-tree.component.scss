@@ -1,0 +1,132 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@use '../../trace-shared';
+
+.trace-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.trace-bar-container {
+  flex: 1;
+  min-width: 0;
+}
+
+.short-trace-bar-duration {
+  position: absolute;
+  color: var(--trace-tree-short-trace-bar-duration-color);
+  padding-right: 6px;
+}
+
+.trace-row {
+  align-items: center;
+  cursor: pointer;
+  scroll-margin-top: 40px;
+
+  &:hover {
+    background-color: var(--mat-sys-surface-variant, rgba(0, 0, 0, 0.04));
+  }
+}
+
+.trace-row.selected {
+  background-color: var(--mat-sys-secondary-container, rgba(0, 0, 0, 0.08));
+}
+
+.trace-row-left {
+  display: flex;
+  min-width: 250px;
+  width: 20%;
+  max-width: 350px;
+}
+
+.invocation-id-container {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+  padding: 8px 12px;
+  border-radius: 12px 12px 0 0;
+  background-color: var(--mat-sys-surface);
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  position: sticky;
+  top: -20px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--mat-sys-surface-variant);
+  }
+
+  &.selected {
+    background-color: var(--mat-sys-secondary-container, rgba(0, 0, 0, 0.08));
+  }
+
+  > span:first-child {
+    opacity: 0.8;
+    margin-right: 6px;
+    text-transform: uppercase;
+  }
+}
+
+.invocation-id {
+  font-family: 'Google Sans Mono', 'Roboto Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--mat-sys-on-surface);
+}
+
+.total-latency {
+  margin-left: auto;
+  background: transparent;
+  color: var(--mat-sys-on-surface);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.trace-row-left span,
+.trace-row-left div {
+  color: var(--trace-tree-trace-row-left-span-div-color);
+}
+
+.trace-row-left .is-event-row {
+  color: var(--trace-tree-trace-row-left-is-event-row-color);
+}
+
+.event-tooltip-container {
+  max-width: 800px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 8px;
+  background: var(--mat-sys-surface-container-low, #202124);
+  color: var(--mat-sys-on-surface, #e8eaed);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--mat-sys-outline-variant, rgba(255, 255, 255, 0.1));
+
+  ::ng-deep app-content-bubble {
+    max-height: 160px;
+    overflow-y: auto;
+    display: block;
+  }
+}

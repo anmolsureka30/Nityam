@@ -7,9 +7,17 @@ apply -> persist) is under test."""
 from datetime import datetime, timezone
 
 import app.session_close as session_close
-from app.memory import store
+from app.memory import instrumentation, store
 from app.memory.schemas import DPMProfile, TeachingMemory
-from app.session_close import ReflectOp, ReflectResult, apply_operations, build_session_log, close_session
+from app.session_close import (
+    ReflectOp,
+    ReflectResult,
+    _ReflectOpWire,
+    _to_reflect_op,
+    apply_operations,
+    build_session_log,
+    close_session,
+)
 
 
 def test_build_session_log_is_deterministic():
@@ -24,6 +32,36 @@ def test_build_session_log_is_deterministic():
     assert len(log.turns) == 2
     assert log.turns[1].concept_id == "projectile.range"
     assert log.ended_at is not None
+
+
+def test_to_reflect_op_extracts_only_the_fields_that_op_uses():
+    """The wire schema (what Gemini's structured output actually fills in)
+    is flat with every field on every op — _to_reflect_op must pick out
+    only the fields relevant to `op` so downstream ops.* calls don't choke
+    on unexpected keyword args."""
+    wire = _ReflectOpWire(
+        op="set_mastery", concept_id="projectile.range", mastery="known",
+        strength="strong", evidence=["s1#2"],
+        # fields belonging to other ops, populated because the wire schema
+        # has no way to omit them — must not leak into set_mastery's args.
+        doubt="unrelated", note="unrelated", status="covered",
+    )
+    result = _to_reflect_op(wire)
+    assert result.op == "set_mastery"
+    assert result.args == {
+        "concept_id": "projectile.range", "mastery": "known",
+        "strength": "strong", "evidence": ["s1#2"],
+    }
+
+
+def test_to_reflect_op_omits_unset_fields_entirely():
+    """A field the model left unset (None) must be absent from args, not
+    passed through as a literal None — set_mastery's evidence is required,
+    so a missing key (not evidence=None) is what makes apply_operations'
+    TypeError guard correctly drop this as a malformed op."""
+    wire = _ReflectOpWire(op="close_doubt", concept_id="projectile.range")
+    result = _to_reflect_op(wire)
+    assert result.args == {"concept_id": "projectile.range"}
 
 
 def test_apply_operations_runs_known_ops_and_skips_unknown():
@@ -149,3 +187,35 @@ def test_close_session_runs_build_persist_reflect_apply_persist_in_order(firesto
         conn.collection("session_logs").document("test_s1").delete()
         conn.collection("dpm_profiles").document("test_demo_student").delete()
         conn.collection("teaching_memories").document("test_demo_student").delete()
+
+
+def test_close_session_scopes_long_term_writes_to_session_context(firestore_db, monkeypatch, redis_client):
+    """The whole point of Task 4: put_dpm/put_teaching_memory don't receive
+    a session_id argument, so close_session must set the context var itself
+    before calling them."""
+    redis_client.delete("smriti:events:recent")
+    stub_result = ReflectResult(
+        summary="", operations=[ReflectOp(op="set_mastery", args={
+            "concept_id": "projectile.range", "mastery": "partial",
+            "strength": "weak", "evidence": ["s1#2"],
+        })],
+    )
+    monkeypatch.setattr(session_close, "reflect", lambda client, log: stub_result)
+
+    try:
+        close_session(
+            firestore_db, "test_s_ctx_1", "test_demo_student_ctx", datetime.now(timezone.utc),
+            [{"turn": 1, "role": "student", "text": "x", "concept_id": None, "artifact_id": None}],
+            client=None,
+        )
+        events = [
+            instrumentation.MemoryEvent.model_validate_json(raw)
+            for raw in redis_client.lrange("smriti:events:recent", 0, -1)
+        ]
+        dpm_writes = [e for e in events if e.record_type == "dpm_profile" and e.operation == "write"]
+        assert len(dpm_writes) == 1
+        assert dpm_writes[0].session_id == "test_s_ctx_1"
+    finally:
+        firestore_db.collection("session_logs").document("test_s_ctx_1").delete()
+        firestore_db.collection("dpm_profiles").document("test_demo_student_ctx").delete()
+        firestore_db.collection("teaching_memories").document("test_demo_student_ctx").delete()

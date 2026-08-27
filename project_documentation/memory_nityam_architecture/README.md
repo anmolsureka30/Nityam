@@ -23,6 +23,49 @@ student personas and the real `TutorAgent` — not just unit-tested. `memory_lay
 (now the sixth document) has the results: the core mechanics held up end to end, and one real,
 significant gap was found in how `search_grounding` matches concept ids, not yet fixed.
 
+**v2.2 note (2026-08-27):** the `search_grounding` gap from v2.1 is now fixed — see
+`memory_layer_eval_report.md` §2 for the full writeup (a proactive `list_concepts()` tool plus a
+reactive Jaccard token-overlap fuzzy-match fallback).
+
+A second, previously-undocumented bug was found and fixed the same day, by a different route:
+building live memory-state visualization (SMRITI Observatory's ADK-web integration, below) drove
+real conversations through `close_session` and inspected the actual Firestore writes, rather than
+relying on the eval harness's own pass/fail signal. `session_close.py`'s `reflect()` handed Gemini
+a `response_schema` whose `operations[].args` field was typed `dict[str, Any]` — a JSON schema
+with no field names for the model to fill in. Confirmed live: Gemini reliably returned `args: {}`
+for every operation, silently dropped by `apply_operations`'s malformed-op guard.
+`close_session` raised nothing and looked like it worked; no long-term memory was ever actually
+written. Fixed with a flat, fully-typed wire schema translated back to the internal
+`ReflectOp(op, args)` shape after parsing, and an explicit enumeration of the allowed
+`mastery`/`strength`/`status` values in `REFLECT_PROMPT` (the model was also inventing
+out-of-enum values like `"proficient"`, dropped by the same guard). Landed in both
+`sub_modules_examples/tutor/app/session_close.py` and its manually-synced copy at
+`backend/app/session_close.py`.
+
+Why the eval's own deterministic checks (D4, D6 — `memory_layer_eval_report.md`) didn't catch
+this: D4 only checks that a Firestore document exists with the right `student_id` after close,
+which is true even for an unchanged or empty profile; D6 checks citation-evidence integrity but
+explicitly short-circuits to a pass when there's no evidence to check at all — exactly the state
+an empty-ops `reflect()` call produces. Both checks should be strengthened to also assert that
+`reflect()` proposed and applied at least one operation where the session log gives it grounds to
+— not done yet, flagged here rather than guessed at.
+
+Partial live confirmation the fix works, real quota permitting: a full 5-persona `run_eval.py`
+run was attempted after the fix landed and hit `429 RESOURCE_EXHAUSTED` on the Vertex AI Express
+Mode key partway through (this session had already made a large number of real Gemini calls
+building/testing the SMRITI Observatory integration) — first on persona 1, then again on persona
+2 after a retry. Persona 1 (Arjun, 3 sessions) completed in full on the second attempt before the
+process died, and its real post-close Firestore state was inspected directly before cleanup:
+multiple weaknesses with real evidence citations, two self-reflection notes, five curriculum
+coverage entries, and one open doubt — genuinely rich, non-empty output, confirming the fix
+produces real writes in the actual eval harness, not just in isolated testing. **A full clean
+5-persona run (49/49-style headline numbers) has not been reconfirmed post-fix** — that's the
+next thing to run once quota allows, not yet done.
+
+Also new: **`smriti-observatory/`** (repo root) — a maintained fork of ADK web with the memory
+layer's Working/Episodic/Long-Term state, and per-trace memory operations, built directly into
+its side panel — see its own `README.md`.
+
 ---
 
 ## Reading order

@@ -1,0 +1,32 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--outline);
+}
+
+.metaItem strong {
+  color: var(--on-surface);
+}
+
+.summary {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  font-size: 0.8rem;
+  color: var(--on-surface);
+  font-style: italic;
+}
+
+.empty {
+  color: var(--outline);
+  font-size: 0.85rem;
+  font-style: italic;
+}
