@@ -11,39 +11,47 @@ results.
 **Revision note:** this is a rewrite of the original report. The original left two things
 unresolved — `search_grounding`'s exact-match fragility, and a completely non-functional
 LLM-judge layer — and substituted manual transcript review for automated scoring as a result.
-Both are now root-caused, fixed, and verified live across three further full eval runs. A third
+Both are now root-caused, fixed, and verified live across four further full eval runs. A third
 finding — a genuine, real gap in personalization/memory-causality substantiveness — was surfaced
 by the now-working judges, one fix was attempted and reverted after it traded away citation
-faithfulness, and it remains open. §2 and §3 below are new; §4 replaces the old manual-review
-section with real automated-judge evidence; §5 is new.
+faithfulness, and it remains open — reconfirmed as still open by a final run made after the
+revert. §2 and §3 below are new; §4 replaces the old manual-review section with real
+automated-judge evidence; §5 is new.
 
 **Headline finding:** the memory layer's core mechanics work correctly, verified end to end
 against real, live, multi-persona, multi-session conversations — Firestore persistence, Redis
 write-through, session-close reflection, citation-evidence integrity, cross-session recall,
 misconception lifecycle tracking, and student-to-student isolation all held up, now confirmed
-**49/49 deterministic checks passed, identically across three consecutive full runs** (up from
-47/49 in the original investigation). The LLM-as-judge layer (L1-L4) is now fully functional —
-root cause found and fixed, confirmed working across the same three runs. With real automated
-scores in hand, the eval surfaced a genuine, still-open finding: citation faithfulness (L3) is
-consistently strong, but personalization (L2) and memory-causality (L1) are weak — and one
+**49/49 deterministic checks passed, identically across all four Phase-6 full eval runs**,
+including the two runs made specifically to confirm the fixes are stable on the current,
+reverted-to-baseline code (up from 47/49 in the original investigation). The LLM-as-judge layer
+(L1-L4) is now fully functional — root cause found and fixed, confirmed working across all four
+runs, the last of which completed with zero retries and zero rate-limit errors. With real
+automated scores in hand, the eval surfaced a genuine, still-open finding: citation faithfulness
+(L3) is consistently strong, but personalization (L2) and memory-causality (L1) are weak — and one
 attempt to fix personalization via instruction tuning made L3 worse without reliably fixing L2,
-so it was reverted. That tradeoff, and the decision behind it, is documented in full in §5.
+so it was reverted, and the final confirmation run shows the underlying L1/L2 gap is still there
+even on the safe, reverted baseline. That tradeoff, and the decision behind it, is documented in
+full in §5.
 
 ---
 
 ## 1. What was run
 
-Nine full eval runs against real cloud resources across the whole investigation: six in the
-original pass (documented in the prior version of this report), three more in this one — all
+Ten full eval runs against real cloud resources across the whole investigation: six in the
+original pass (documented in the prior version of this report), four more in this one — all
 against the same five personas (Arjun, Priya, Rohan, Ananya, Vikram — see the design spec §3 for
 what each targets), 2-3 sessions each, `close_session` driven explicitly between sessions
-(standing in for the live trigger that doesn't exist yet — design spec §1). This report's
-reference run is `results_2026-08-27T06-15-28.734552+00-00.json`, in
-`tests/eval/memory_eval/report/` — the first run made after both fixes below landed, and the one
-whose instruction set matches the code as it stands today (§5 explains why the other two Phase-6
-runs, made under a since-reverted instruction change, aren't kept as separate JSON artifacts).
-Every persona's scenario completed successfully in every run; the memory-layer mechanics were
-never the source of a crash across dozens of real conversations.
+(standing in for the live trigger that doesn't exist yet — design spec §1). Of the four Phase-6
+runs, two are kept as reference JSON artifacts because their instruction set matches the code as
+it stands today (both fixes applied, no personalization instruction change):
+`results_2026-08-27T06-15-28.734552+00-00.json` (the first run made after both fixes landed) and
+`results_2026-08-27T07-20-54.452603+00-00.json` (the final run of the whole investigation, made
+after the Rule-5 personalization experiment was reverted). The other two Phase-6 runs, made under
+the since-reverted Rule-5 instruction change, aren't kept as separate JSON artifacts — their exact
+scores and rationale are quoted directly in §5. Every persona's scenario completed successfully in
+every run; the memory-layer mechanics were never the source of a crash across dozens of real
+conversations.
 
 ## 2. Fix #1: `search_grounding`'s exact-match gap
 
@@ -97,10 +105,14 @@ correctness bug; an empty result is a visible gap the model can react to).
 
 `test_search_grounding_fuzzy_fallback_matches_close_guess` reproduces the exact real failure case
 above end to end against live Firestore. Beyond unit tests, the fix was verified at the system
-level: **49/49 deterministic checks passed, identically, across all three Phase-6 full eval
+level: **49/49 deterministic checks passed, identically, across all four Phase-6 full eval
 runs** — up from 47/49 (with the two failures both being real instances of this exact gap) before
-the fix. No `search_grounding` call across 15+ multi-session conversations, three full runs,
-returned an avoidable empty result after the fix landed.
+the fix. That includes the two runs made specifically to confirm robustness on the current,
+reverted-to-baseline code (`06-15-28` and the final run, `07-20-54`) and the two runs made mid-way
+through the personalization-instruction experiment (§5), which touched only `TUTOR_INSTRUCTION`,
+not `search_grounding` or its callers — so their unaffected 49/49 result is corroborating evidence,
+not a separate test of the same thing. No `search_grounding` call across 15+ multi-session
+conversations, four full runs, returned an avoidable empty result after the fix landed.
 
 ## 3. Fix #2: the LLM-judge infrastructure
 
@@ -146,62 +158,78 @@ constructing a new `Client()` per call.
 ### 3.4 Verification
 
 Confirmed first with a cheap synthetic-data smoke test (a real L2 score returned, not an
-exception), then confirmed at full scale: **all three Phase-6 eval runs completed with every
+exception), then confirmed at full scale: **all four Phase-6 eval runs completed with every
 judge call returning a real, parsed verdict** — 14/14 judge calls per run succeeded
-mechanically (produced a score or pairwise verdict) across all three runs; none hit `JUDGE CALL
+mechanically (produced a score or pairwise verdict) across all four runs; none hit `JUDGE CALL
 FAILED`. (14 = 5 personas × up to 3 applicable judges each, gated by `run_all_judges`'s
 per-check applicability rules — see §4.1.) One genuine `429 RESOURCE_EXHAUSTED` was hit once
 during this investigation, unrelated to this bug — real Vertex Express Mode quota exhaustion from
-cumulative call volume across the session, resolved by waiting ~4 minutes and retrying.
+cumulative call volume across the session, resolved by waiting ~4 minutes and retrying. The final
+run of the whole investigation (`07-20-54`, made after the personalization revert, specifically to
+serve as this report's closing data point regardless of outcome) completed cleanly with no rate
+limiting and no retries needed at all — the fix holds under both conditions observed across this
+investigation: a busy session near quota, and a clean one.
 
 ## 4. LLM-as-judge results, now real
 
 With the infrastructure fixed, the judges ran as designed — see `judges.py`'s module docstring
-and the design spec for the full methodology. Reference run:
-`results_2026-08-27T06-15-28.734552+00-00.json`. **7/14 judge checks passed.**
+and the design spec for the full methodology. Two runs share the current code's exact instruction
+set and are presented together below to show the pattern is reproducible, not a one-off: the first
+post-fix run (`06-15-28`) and the final run of the whole investigation (`07-20-54`, made after the
+personalization revert). Both scored **7/14 judge checks passed** — same count, and the same
+qualitative pattern across every check.
 
-### 4.1 L3 — citation faithfulness: strong, 5/5 passed
+### 4.1 L3 — citation faithfulness: strong, consistently 5/5
 
-Every persona scored 5/5 ("fully faithful to the retrieved source text") except Ananya, who still
-passed at 3/5 (baseline run) — this is the property `memory_layer.md` explicitly calls "the one
-that separates a learner model from a horoscope," and it held up under real automated scrutiny,
-not just manual spot-checking. Sample rationale (Rohan): *"All three tutor responses are
-completely faithful to the provided source texts. Every formula, kinematic explanation, and
-physical application... [is] grounded in what was actually retrieved."*
+Every persona scored 5/5 ("fully faithful to the retrieved source text") in both runs, with one
+exception: Ananya scored 3/5 in the first run (still passing) and 5/5 in the final run — this is
+the property `memory_layer.md` explicitly calls "the one that separates a learner model from a
+horoscope," and it held up under real automated scrutiny, not just manual spot-checking, across
+both runs. Sample rationale (Rohan, final run): *"All tutor responses accurately reflect the
+concepts, equations, and physical reasoning described in their respective retrieved source texts
+without introducing any contradictory claims or unsupported claims."*
 
-### 4.2 L2 — personalization: weak, 2/5 passed
+### 4.2 L2 — personalization: weak, 2/5 in both runs for the same three personas
 
-Arjun, Priya, and Rohan all scored **2/5** ("adaptation ignored the student's stated traits, in
-particular interests") in this reference run. Representative rationale (Rohan): *"The tutor
-maintains a clear, moderate pace with well-structured explanations and appropriate check-ins.
-However, the tutor completely ignores the student's stated interests (cricket)..."* Ananya scored
-3/5 (passed — matched her stated fast pace well) and Vikram scored 5/5 (passed, but had no stated
-interests to test against, so this is a weaker pass). The pattern across all three Phase-6 runs:
-**pace-matching consistently works; weaving a student's stated interests into examples
-consistently does not**, unless the student volunteers the interest explicitly in that turn.
+Priya and Rohan scored **2/5** in *both* runs — the exact same failure mode both times.
+Representative rationale (Rohan, final run): *"The tutor maintained an appropriate moderate pace
+with clear, structured derivations and conceptual connections across both sessions. However, the
+tutor completely failed to incorporate the student's [stated interests]..."* Ananya also scored
+2/5 in the final run (down from a 3/5 pass in the first run — *"kept an efficient, structured
+pace... but completely ignored the student's stated interests in painting and art"*). Vikram
+scored 5/5 in both runs (passed, but has no stated interests to test against, so this is
+structurally a weaker pass). Arjun is the one persona that varied: 2/5 (fail) in the first run,
+3/5 (pass) in the final run — both with the identical, unchanged instruction set, so this is
+genuine run-to-run variance in what the model actually produces, not a code difference. The
+consistent pattern across both runs and across the whole Phase-6 investigation: **pace-matching
+reliably works; weaving a student's stated interests into examples reliably does not**, unless the
+student volunteers the interest explicitly in that turn.
 
-### 4.3 L1 — memory causality: 0/4, the eval's sharpest finding
+### 4.3 L1 — memory causality: 0/4 in both runs, the eval's sharpest and most reproducible finding
 
 All four applicable pairwise comparisons (Arjun, Priya, Rohan, Ananya — Vikram has no session 2
-to compare, so no L1 check applies) picked `"tie"` or `"no_memory"` — **zero were judged to show
-concrete, specific evidence that the memory-loaded response used the student's history in a way
-the no-memory baseline couldn't have produced.** Representative rationale (Priya): *"Response A
-does not show any concrete evidence of using prior session history. Both responses give nearly
-identical standard explanations of vector resolution without referencing prior sessions."** This
-is the sharpest, most concrete evidence the eval has produced anywhere: the tutor's opening reply
-to a new session, even with real prior history loaded, tends to look near-identical to how it
-would open with a brand-new student. This is a distinct problem from L2 — a response can pace-
-match a stated trait (L2's strongest signal) without actually *referencing* what happened last
-session (L1's test) or personalizing to *interests* (L2's weakest signal).
+to compare, so no L1 check applies), in *both* confirmation runs, picked `"tie"` or `"no_memory"`
+— **zero, across eight total comparisons, were judged to show concrete, specific evidence that the
+memory-loaded response used the student's history in a way the no-memory baseline couldn't have
+produced.** Representative rationale (Priya, final run): *"Both responses provide nearly identical
+standard explanations of resolving velocity vectors into horizontal and vertical components.
+Response A shows no concrete evidence or specific references to past..."* This is the sharpest,
+most concrete, and now most reproducible evidence the eval has produced anywhere: the tutor's
+opening reply to a new session, even with real prior history loaded, tends to look near-identical
+to how it would open with a brand-new student, and this held identically across two independent
+runs. This is a distinct problem from L2 — a response can pace-match a stated trait (L2's
+strongest signal) without actually *referencing* what happened last session (L1's test) or
+personalizing to *interests* (L2's weakest signal).
 
-### 4.4 L4 — doubt handling: not applicable in this run
+### 4.4 L4 — doubt handling: not applicable in either confirmation run
 
-No persona in the reference run had an open doubt at the point `run_all_judges` checked, so L4 was
-skipped for all five (see `run_all_judges`'s `has_doubts` gate in `judges.py`) — not a failure,
-simply not triggered this run. The prior report's manual review (Priya's misconception
-lifecycle — caught, resurfaced, correctly spaced-rechecked) remains the best direct evidence for
-this mechanism and is worth re-reading as corroboration, even though no automated L4 score exists
-for this specific run.
+No persona in either confirmation run had an open doubt at the point `run_all_judges` checked, so
+L4 was skipped for all five in both runs (see `run_all_judges`'s `has_doubts` gate in
+`judges.py`) — not a failure, simply not triggered. The prior report's manual review (Priya's
+misconception lifecycle — caught, resurfaced, correctly spaced-rechecked) remains the best direct
+evidence for this mechanism and is worth re-reading as corroboration, even though no automated L4
+score exists from either confirmation run. See §6 item 4 for a proposed fix (a persona/session
+arrangement that reliably produces an open doubt at the check point).
 
 ## 5. The personalization instruction-tuning attempt, and why it was reverted
 
@@ -250,6 +278,14 @@ explicit citation-boundary constraint paired with the personalization ask, rathe
 a specific prior-session fact by name early in a new session's opening turn, which no attempt here
 targeted.
 
+**Confirmed by the final run.** The investigation's closing eval run (`07-20-54`, §4) was made
+after the revert, on the plain 4-rule baseline, specifically to serve as the final data point
+regardless of outcome. It reconfirms both halves of this section: the regression is gone (L3 is
+back to 5/5 across every persona, matching the pre-Rule-5 baseline, not the 1/5-2/5 seen mid-
+experiment) and the underlying gap it was meant to fix is still there (Priya and Rohan's L2 is
+still 2/5, L1 is still 0/4). Reverting fixed the regression it introduced; it was never expected to
+fix the gap that motivated the attempt in the first place, and it didn't.
+
 ## 6. Open items carried forward
 
 1. **Personalization (L2) and memory-causality (L1) substantiveness (§4.2, §4.3, §5)** — the
@@ -274,6 +310,10 @@ targeted.
   `tests/eval/memory_eval/judges.py` (`_get_client` singleton)
 - New/updated tests: `tests/unit/memory/test_store.py`, `tests/unit/memory/test_tools.py`,
   `tests/unit/agents/test_tutor_agent.py`
-- Reference run's full report (all transcripts, tool-call args, every check's detail):
+- The two confirmation runs' full reports (all transcripts, tool-call args, every check's
+  detail):
   `sub_modules_examples/tutor/tests/eval/memory_eval/report/results_2026-08-27T06-15-28.734552+00-00.json`
+  (first post-fix run) and
+  `sub_modules_examples/tutor/tests/eval/memory_eval/report/results_2026-08-27T07-20-54.452603+00-00.json`
+  (final run of the investigation, post-revert)
 - Rerun: `cd sub_modules_examples/tutor && uv run python -m tests.eval.memory_eval.run_eval`
