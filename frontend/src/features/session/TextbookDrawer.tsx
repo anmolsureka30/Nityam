@@ -46,7 +46,7 @@ const SCALE = 2;
  * between "the student pulled in an image" and "the student pulled in Fig 3.14,
  * the one showing the components of the velocity". */
 export default function TextbookDrawer({
-  onClose, onClip, initialChapter,
+  onClose, onClip, initialChapter, initialPage, onPlace,
 }: {
   onClose: () => void;
   /** All the regions selected, sent together. A figure and the paragraph that
@@ -55,11 +55,16 @@ export default function TextbookDrawer({
   onClip: (clips: Clip[]) => void;
   /** Which chapter to open on — the concept being taught picks it. */
   initialChapter?: string;
+  /** Which page, so closing the drawer and opening it again does not send the
+   *  student back to page 1 of chapter 1. A real book stays where you left it. */
+  initialPage?: number;
+  /** Reported on every turn of the page, so the place survives the drawer. */
+  onPlace?: (place: { chapter: string; page: number }) => void;
 }) {
   const [chapter, setChapter] = useState<Chapter>(
     CHAPTERS.find((c) => c.file === initialChapter) ?? CHAPTERS[0],
   );
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(Math.max(1, initialPage ?? 1));
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /* A list, not a slot. Selecting a second region used to discard the first,
@@ -68,6 +73,14 @@ export default function TextbookDrawer({
   const [live, setLive] = useState<Box | null>(null);
   /** The rendered page's backing-store size, for placing the boxes. */
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+
+  /* Reported upward rather than lifted into the parent: the drawer owns which
+     page is showing while it is open, and the parent only needs to know where
+     it ended up. Lifting it would re-render the whole session on every page
+     turn. */
+  useEffect(() => {
+    onPlace?.({ chapter: chapter.file, page });
+  }, [chapter.file, page, onPlace]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const docRef = useRef<pdfjs.PDFDocumentProxy | null>(null);

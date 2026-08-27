@@ -115,6 +115,16 @@ ws.addEventListener("message", ({ data }) => {
 
 let failed = 0;
 
+/* The avatar's canvas, explicitly. There are several canvases on a session
+   screen now — the avatar, the textbook preview, a mounted artifact — and
+   `querySelector('canvas')` returns whichever is first in the DOM. That made
+   "the avatar animates while speaking" sample a still page thumbnail and fail
+   for a reason that had nothing to do with the avatar. */
+const AVATAR_CANVAS = `(document.querySelector('.nty-avatar canvas')
+  || [...document.querySelectorAll('canvas')].find(c => !c.closest('button'))
+  || document.querySelector('canvas'))`;
+
+
 const ask = async (text) => {
   await ev(`document.querySelector('input[aria-label="Ask Nityam"]').focus(); return 1;`);
   await send("Input.insertText", { text });
@@ -241,6 +251,77 @@ if (quiz) {
   check("and she records the answer on the board",
         recorded.some((b) => b.kind === "callout"),
         JSON.stringify(recorded.map((b) => b.kind)));
+}
+
+// ─────────────────────────────────────────── the book open on the desk
+/* The book used to be a thing you had to remember existed, behind a header
+   button, while the rail beside the tutor sat empty. It is now open next to
+   her at the page you left it on. */
+const peek = await ev(`
+  const b = [...document.querySelectorAll('button')]
+    .find(x => /Open textbook/.test(x.getAttribute('aria-label') || ''));
+  if (!b) return null;
+  const r = b.getBoundingClientRect();
+  const av = ${AVATAR_CANVAS};
+  const a = av ? av.getBoundingClientRect() : null;
+  const page = b.querySelector('canvas');
+  return {
+    x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2),
+    label: (b.getAttribute('aria-label') || '').slice(0, 70),
+    text: b.textContent.replace(/\\s+/g, ' ').trim().slice(0, 70),
+    rendered: page ? page.width > 20 && page.height > 20 : false,
+    aboveAvatar: a ? Math.round(r.bottom) <= Math.round(a.top) : null,
+  };
+`);
+check("the textbook sits open in the tutor's rail", !!peek, JSON.stringify(peek));
+if (peek) {
+  check("above her, not on top of her", peek.aboveAvatar === true,
+        `peek bottom vs avatar top: ${peek.aboveAvatar}`);
+  check("showing a real rendered page", peek.rendered === true);
+  check("and saying which page it is open at", /p\.\d+/.test(peek.text), peek.text);
+
+  // Clicking the preview opens the drawer — no header button needed.
+  await drag("mousePressed", peek.x, peek.y);
+  await drag("mouseReleased", peek.x, peek.y);
+  await sleep(3200);
+  check("clicking it opens the textbook",
+        await ev(`return !!document.querySelector('[role=dialog] canvas');`));
+
+  /* A real book stays where you left it. Turn to a later page, close, and the
+     preview must be showing that page — closing used to send the student back
+     to page 1 of chapter 1 every time. */
+  const turned = await ev(`
+    const next = [...document.querySelectorAll('[role=dialog] button')]
+      .find(b => /next|→|›/i.test(b.getAttribute('aria-label') || b.textContent));
+    if (!next) return null;
+    next.click(); await new Promise(r => setTimeout(r, 900));
+    next.click(); await new Promise(r => setTimeout(r, 900));
+    const label = [...document.querySelectorAll('[role=dialog] *')]
+      .map(e => e.textContent).find(t => /^\\s*p(age)?\\.?\\s*\\d+/i.test(t || ''));
+    return label ? label.trim().slice(0, 20) : "turned";
+  `);
+  check("its pages turn", !!turned, String(turned));
+
+  await ev(`
+    const c = [...document.querySelectorAll('[role=dialog] button')]
+      .find(b => /close/i.test(b.getAttribute('aria-label') || ''));
+    c?.click(); return 1;
+  `);
+  await sleep(2600);
+  const remembered = await ev(`
+    const b = [...document.querySelectorAll('button')]
+      .find(x => /Open textbook/.test(x.getAttribute('aria-label') || ''));
+    const m = (b?.textContent || '').match(/p\\.(\\d+)/);
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem('nityam.textbook.place')); } catch {}
+    return { shown: m ? Number(m[1]) : null, stored };
+  `);
+  check("and it stays open where the student left it",
+        remembered.shown !== null && remembered.shown > 1,
+        `preview shows p.${remembered.shown}, stored ${JSON.stringify(remembered.stored)}`);
+  check("remembered across reloads, not just this screen",
+        remembered.stored && remembered.stored.page === remembered.shown,
+        JSON.stringify(remembered.stored));
 }
 
 // ──────────────────────────────────────────── the textbook, and its doubling
@@ -428,7 +509,7 @@ if (canvasBox) {
 
 // ───────────────────────────────────────────────────────── the avatar, drawn
 const painted = await ev(`
-  const c = document.querySelector('.nty-avatar canvas') || document.querySelector('canvas');
+  const c = ${AVATAR_CANVAS};
   if (!c) return { found: false };
   const g = c.getContext('2d');
   const d = g.getImageData(0, 0, c.width, c.height).data;
@@ -446,7 +527,7 @@ check("its background is transparent", painted.found && painted.coverage < 0.9,
    Sample the lower third of the face across a second and check the pixels
    change — a frozen rig and a talking one look identical in a single frame. */
 const sampleMouth = `
-  const c = document.querySelector('canvas');
+  const c = ${AVATAR_CANVAS};
   const g = c.getContext('2d');
   const d = g.getImageData(Math.round(c.width*0.32), Math.round(c.height*0.42),
                            Math.round(c.width*0.36), Math.round(c.height*0.22)).data;
@@ -479,7 +560,7 @@ const layout = await ev(`
   if (!sc || !sheet) return { ok: false };
 
   const page = sheet.getBoundingClientRect();
-  const av = document.querySelector('canvas').getBoundingClientRect();
+  const av = ${AVATAR_CANVAS}.getBoundingClientRect();
   const sideBySide = av.left >= page.right - 2;
 
   // scroll-behavior is smooth, so assigning scrollTop animates; force it.

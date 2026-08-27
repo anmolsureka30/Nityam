@@ -11,6 +11,8 @@ import Notebook from "./Notebook";
 import SessionControls from "./SessionControls";
 import SpeechBubble from "./SpeechBubble";
 import TextbookDrawer, { type Clip } from "./TextbookDrawer";
+import TextbookPeek from "./TextbookPeek";
+import { useTextbookPlace } from "../../lib/textbookPlace";
 import TutorAvatar from "./TutorAvatar";
 import s from "./SessionScreen.module.css";
 
@@ -63,6 +65,21 @@ export default function SessionScreen() {
   const [tool, setTool] = useState<MarkTool | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [bookOpen, setBookOpen] = useState(false);
+  const [place, goToPlace] = useTextbookPlace();
+
+  /* The book follows the tutor. When she puts a textbook page on the board, the
+     preview turns to it — so "look at figure 3.9" leaves the student's own copy
+     open at the same page, which is what would happen on a desk. */
+  useEffect(() => {
+    const pages = board.doc.pages.flatMap((pg) => pg.blocks);
+    for (let i = pages.length - 1; i >= 0; i--) {
+      const block = pages[i] as { kind?: string; pdf?: string; page?: number };
+      if (block.kind === "pulled" && block.pdf && block.page) {
+        goToPlace({ chapter: block.pdf, page: block.page });
+        return;
+      }
+    }
+  }, [board.doc, goToPlace]);
 
   /* Mastery is still local: the tutor writes it at session close, which is
      after this screen is gone. STUB — see backend/INTEGRATION.md. */
@@ -312,6 +329,11 @@ export default function SessionScreen() {
         level={tutor.level}
         onToggle={tutor.toggleMute}
       />
+      {/* The book, open on the desk beside her. Top of her rail, above the
+          speech bubble's slot, so the column reads: your book, what she is
+          saying, her. */}
+      <TextbookPeek place={place} onOpen={() => setBookOpen(true)} />
+
       <TutorAvatar
         mood={tutor.mood}
         caption={tutor.caption}
@@ -332,6 +354,9 @@ export default function SessionScreen() {
 
       {bookOpen && (
         <TextbookDrawer
+          initialChapter={place.chapter}
+          initialPage={place.page}
+          onPlace={goToPlace}
           onClose={() => setBookOpen(false)}
           onClip={(clips: Clip[]) => {
             /* One message for the whole selection: a figure and the paragraph
