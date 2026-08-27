@@ -9,34 +9,45 @@ Ordered by what breaks first when you deploy.
 
 ---
 
-## 1. The learner model is SQLite on local disk — **blocks deployment**
+## 1. The learner model — now a switch, defaulting to SQLite
 
-`app/memory/store.py:12`
+`app/memory/store.py` picks a backend from `NITYAM_STORE`:
 
-```python
-DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "memory.db"
+| value | module | needs |
+|---|---|---|
+| `sqlite` *(default)* | `store_sqlite.py` — a file at `backend/data/memory.db` | nothing |
+| `firestore` | `store_firestore.py` — ported from `sub_modules_examples/tutor` | a GCP project + application-default credentials |
+
+Both expose the same functions; 11 of 13 signatures are identical past the
+handle, and the two that differ (`connect`, `put_grounding_chunk`) differ only
+by optional arguments no call site passes. So the seed script, the ADK tool
+functions and `session_close.py` run unchanged on either, and `/health` reports
+which one is live.
+
+**To go live:**
+
+```bash
+gcloud auth application-default login
+export NITYAM_STORE=firestore
+export GOOGLE_CLOUD_PROJECT=nityam-506707
+export FIRESTORE_DATABASE=smriti          # a named database, not (default)
+.venv/bin/python -m scripts.seed_demo_data
 ```
 
-Cloud Run containers are ephemeral and horizontally scaled, so this file
-evaporates on restart and is not shared between instances. Everything the tutor
-knows about a student lives here: `dpm_profile`, `teaching_memory`,
-`session_log`, `grounding_chunk`.
+**Not yet verified against a real Firestore** — this machine has no GCP
+credentials, so what is proven is that the module imports, the switch selects
+it, and the signatures line up. The first run against a real project is the
+thing still to do.
 
-**To swap:** `app/memory/store.py` is the only module that touches SQL — 9
-functions, all taking `conn` as their first argument, all going through
-`app/memory/tools.py`. Point `connect()` at Cloud SQL (Postgres, which
-`sub_modules_examples/shruti` already speaks via asyncpg) and rewrite the 9
-bodies. Nothing above `store.py` changes: the tool functions, the schemas, and
-`session_close.py` all stay.
+Firestore also brings `search_grounding_semantic`, a vector search the SQLite
+path does not have; `store.search_grounding_semantic` is `None` on sqlite so
+callers degrade to concept-id search rather than raising. Note the open caveat
+carried over from the port: Shruti's embedder emits 3072-dim vectors and
+Firestore's vector index caps at 2048, so chunks are searchable by concept id
+today and semantically only once a smaller companion embedding exists.
 
-The four record types are pinned by Pydantic in `app/memory/schemas.py` and are
-the contract — they mirror `memory_layer.md` §2 exactly. Do not reshape them to
-suit a store.
-
-> **Firestore note.** `dpm_profile` and `teaching_memory` are one document per
-> student and fit Firestore naturally. `grounding_chunk` is queried by
-> `concept_id` across many rows and is Shruti's output — that one wants Postgres
-> or the knowledge graph itself, not a document store.
+`short_term.py` (Redis / Memorystore) came across with it and is the natural
+home for the turn buffer in §4 below, but nothing calls it yet.
 
 ## 2. ADK sessions are in memory
 
@@ -154,8 +165,7 @@ artifact serves every student — that is why `artifact_id` excludes the theme.
 | `projectile` | the fallback simulation kernel | only used when an artifact block arrives with no IR |
 | `summary` | the summary screen | `session_close.py`'s output |
 | `teacherClass`, `atRisk`, `teacherInsight` | all three teacher screens | aggregate query across students |
-| `textbookPage` | the textbook drawer | real PDF, per-word boxes via PDF.js |
-| `notebook`, `checkpoint`, `studentFinding` | **nothing any more** — safe to delete | — |
+| `notebook`, `checkpoint`, `studentFinding`, `textbookPage` | **nothing any more** — safe to delete | — |
 
 `PLAN` in `SessionScreen.tsx` is also hardcoded; the agent should emit it from
 the chosen intensity.

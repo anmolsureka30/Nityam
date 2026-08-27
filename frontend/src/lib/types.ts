@@ -113,6 +113,12 @@ export type NotebookBlock =
       body: string;
       quote?: string;
       figure?: boolean;
+      /** A region the student clipped out of the PDF, already rasterised. */
+      image?: string;
+      /** Or a chapter + page for the browser to render live, when the tutor
+       *  asked for a figure rather than the student clipping one. */
+      pdf?: string;
+      page?: number;
     })
   | (BlockCommon & { kind: "next"; label: string; title: string; text: string });
 

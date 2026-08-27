@@ -1,0 +1,854 @@
+[
+  {
+    "file": "keph103",
+    "number": 3,
+    "title": "Motion in a Plane",
+    "kernels": [
+      "kinematics2d",
+      "circular2d"
+    ],
+    "pages": 22,
+    "sections": [
+      {
+        "section": "3.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "3.2",
+        "title": "SCALARS AND VECTORS",
+        "page": 1
+      },
+      {
+        "section": "3.3",
+        "title": "MULTIPLICATION OF VECTORS BY REAL NUMBERS",
+        "page": 3
+      },
+      {
+        "section": "3.4",
+        "title": "ADDITION AND SUBTRACTION",
+        "page": 3
+      },
+      {
+        "section": "3.5",
+        "title": "RESOLUTION OF VECTORS",
+        "page": 5
+      },
+      {
+        "section": "3.6",
+        "title": "VECTOR ADDITION",
+        "page": 7
+      },
+      {
+        "section": "3.7",
+        "title": "MOTION IN A PLANE",
+        "page": 8
+      },
+      {
+        "section": "3.8",
+        "title": "MOTION IN A PLANE WITH CONSTANT ACCELERATION",
+        "page": 11
+      },
+      {
+        "section": "3.9",
+        "title": "PROJECTILE MOTION",
+        "page": 12
+      },
+      {
+        "section": "3.10",
+        "title": "UNIFORM CIRCULAR MOTION",
+        "page": 14
+      }
+    ],
+    "pageText": [
+      {
+        "page": 1,
+        "words": "above- acceleration added addition algebra analytical aspect associated basically between certain chapter circular class classify combining completely concepts constant daily-life defining describe detail developed difference dimension dimensions direction directional directions discuss displacement distance divided easily enable equations event examples exercises extended familiar first found graphical happened hapter introduction language learn magnitude mentioned method motion multiplication multiplied multiply multiplying necessary needed number numbers object order ordinary otion physical physics plane points ponder position possible projectile proper quantities quantity reprint resolution result rules scalar scalars shall significance signs simple single situations space special specified straight subtract subtracted subtraction summary taken temperature three treat uniform vector vectors velocity"
+      },
+      {
+        "page": 2,
+        "words": "absolute acceleration actual addition aluminium another application applications arrow between breadth called chapter check choose coincide coincides convenient corresponding courses denoted density depend describe difference different difficult direction discussing displacement displacing divide easily either emphasised equality equivalently final fixed force general giving however important indicated initial itself joining journey leaves length lengths letter light localised location locations magnitude magnitudes marked minimum motion moves moving multiply number numbers obeys object often ordinary origin parallel parallelogram particular paths perimeter physical physics placed plane point points position positions previous produce quantities quantity rectangle represent represented represents reprint respective respectively scalar scalars sense shift shows sides similarly solid specified straight study subtraction symbol temperatures triangle unchanged undertaken uniform units until vector vectors velocity volume while written"
+      },
+      {
+        "page": 3,
+        "words": "added addition after another associative changed coincide coincides constant could definition describe different dimension dimensions direction directions displacement duration equivalently factor gives graphical graphically having illustrating itself length lengths magnitude mentioned method motion multiplication multiplied multiply multiplying negative number numbers opposite parallel parallelogram physical place plane positive procedure product proportional representing represents reprint resultant scalar section segments shall shift subtraction though times triangle twice unequal vector vectors velocity whose"
+      },
+      {
+        "page": 4,
+        "words": "added adding addition another arranged associative bring called cannot coincide comes common commutative comparison complete define defined diagonal difference directed direction directions displacement equivalent final first graphical head-to-tail illustrated initial intersection known lines magnitude magnitudes meaning method methods moves multiply number obeys object obtain obtained opposite origin parallel parallelogram physical physics plane point position positions properties represented reprint result resultant results sides specified subtracting subtraction suppose tails terms three triangle vector vectors yield"
+      },
+      {
+        "page": 5,
+        "words": "addition after angle another answer blowing brought common component different direction directions equivalent expressed falling intersect magnitude makes method motion multiplying non-colinear non-zero number numbers obtained origin parallel parallelogram plane problem represented reprint resolution resolved resolving resultant should sometime specified speed starts straight tails terms through towards triangle umbrella vector vectors velocity vertical vertically waiting winds write"
+      },
+      {
+        "page": 6,
+        "words": "angle called chapter clear component components convenient coordinate dealing denoted depending dimension dimensions direction discuss distinguish express expressed follows general itself lines magnitude makes method motion multiply negative numbers obtained parallel particular perpendicular physics plane points positive printed quantities rectangular represented reprint require resolve resolved respectively result scalar simple specified specify system terms three trigonometry vector vectors written z-axes"
+      },
+      {
+        "page": 7,
+        "words": "accuracy adding addition although analytical angle angles arrange associative between combining commutative component components considered convenient coplanar corresponding dimensions direction easier expressed extended general graphical helps limited lines lying magnitude magnitudes method motion number pairs plane position procedure regroup reprint resolve resolved respective respectively resultant sometimes space subtraction tedious terms three vector vectors visualising z-axes"
+      },
+      {
+        "page": 8,
+        "words": "addition angle answer apply combining cosine cosines current describe dimensions direction directions equation geometry gives known magnitude making method motion motorboat normal north obtain obtained parallelogram physics plane problem racing region represent representing represents reprint resultant section shall similarly sines south specified towards vector vectors velocity water"
+      },
+      {
+        "page": 9,
+        "words": "after approaches average component components coordinates corresponding curve directed direction displacement displacements easily figures frame instantaneous interval limiting located meaning motion moves object origin parallel particle plane position positions process ratio reference represent represents reprint simply suppose tangent thick times understood vector velocity write"
+      },
+      {
+        "page": 10,
+        "words": "acceleration addition after angle approaches average becomes change changes component components consequently coordinates decreases decreasing defining definition direction divided equations express expressed expressions figures finally functions graph graphically instantaneous interval known limit limiting magnitude makes motion moving object obtained physics plane point points position positions process represents reprint respectively showing tangent tangential terms three triangle understand values vector vectors velocity x-axis"
+      },
+      {
+        "page": 11,
+        "words": "acceleration always angle answer average becomes between changes coefficients components constant definition dimension dimensional dimensions direction displacement either follow however instants interval intervals limit magnitude method metres motion moving multiplied object opposite particle plane position proper reprint seconds straight suppose terms three units vectors velocities velocity"
+      },
+      {
+        "page": 12,
+        "words": "acceleration acting action after analysing angle answer application assume baseball being called choice component components condition constant convenient coordinate cricket derivative developed dialogue dimensions directed direction directions discussion downward easily effect equation first flight football force galileo gives gravity great holds horizontal ideas immediate important independency independently initial instant interpretation launched makes might motion motions moves negligible object objects occurring one-dimensional origin particle perpendicular physical physics plane position previous produces projected projectile reprint resistance result satisfies section sections separate shall similar simultaneous simultaneously situations speed starts stated suppose systems thought three thrown treated two-dimensions under useful velocity verified vertical vertically without world written"
+      },
+      {
+        "page": 13,
+        "words": "analysis angle becomes between calculated called changes choice component components constant constants coordinates denoted direction directions distance during eliminating equation expected expressions flight followed frame gives graphically height horizontal initial instants known maximum motion mutually notice object obtain obtained origin parabola parabolic parameters passes perpendicular plane point position projected projectile projection putting range reach reached reference remains reprint resulted shape simplification speed substituting symmetry terms throughout total travelled velocity vertical"
+      },
+      {
+        "page": 14,
+        "words": "above acceleration amounts angle angles answer calculate called changing choose circle circular cliff components constant continuously cricket direction distance during elevations equation equations exceed flight follows galileo gives ground height hiker horizontal horizontally independently initial instant launched level magnitude maximum motion moving neglecting object origin physics point positive projectile projection prove radius range ranges reach refers reprint resistance respectively return returns sciences short shows speed stands stated statement stone suppose taken throughout thrower thrown throws travelled treated undergoes uniform upward values velocity vertically"
+      },
+      {
+        "page": 15,
+        "words": "acceleration addition again always angle approximately average base-length becomes between bisects centre centripetal circle circular consequently decreases definition directed direction formed hence instantaneous interval limit magnitude motion object obtained perpendicular place plane point position quantities ratio reprint shows side-length similar small smaller taken tangent towards triangle triangles uniform vector vectors velocities velocity"
+      },
+      {
+        "page": 16,
+        "words": "acceleration always analysis angle angular another answer called centre centre-seeking centripetal change changes christiaan circle circular comes completes constant continuously define describing directed direction displacement distance during dutch earlier every express first frequency greek groove however huygens insect known letter linear magnitude means motion moved moves moving newton number object omega period physics point pointing probably proposed published radius reprint revolution revolutions scientist second speed steadily taken tangent terms thorough through towards trapped travelled turns uniform vector velocity years"
+      },
+      {
+        "page": 17,
+        "words": "acceleration added addition algebra analytical angle associated associative average commutative component components conveniently coordinate defined depending direction displacement distance examples expressed graphically head-to-tail limiting lying magnitude magnitudes makes method motion multiplied negative number numbers obeys object opposite parallelogram plane point position positive properties quantities reprint resolved respectively right-handed rules scalar special specify speed subtraction summary system temperature tends times undergoes vector vectors velocity whether whose"
+      },
+      {
+        "page": 18,
+        "words": "acceleration after always angle assume attains average being called changes coincide component constant coordinate curve dimensional directions flight height initial limiting making maximum motion motions moving notation object origin parabolic perpendicular physics plane plotted point position projected projectile representing reprint separate simultaneous superposition system tangent treated vector velocity written"
+      },
+      {
+        "page": 19,
+        "words": "acceleration always angular called centre change circle circular constant direction distance during follows frequency height horizontal initial magnitude motion object passes period plane position projectile range reach related reprint revolution speed taken towards travelled uniform velocity"
+      },
+      {
+        "page": 20,
+        "words": "above acceleration actual adding algebraic alone always angular apply average below between carefully cases centre change changing charge choice circular coefficient common component conditions constant course cover current defined density depending depends determined dimensions direction displacement distinguish divided during either electric energy equations establish exercises false field following force frame frequency friction general geometrically gravitational gravity greater implies impulse independent inequalities initial interval involve kinematic length linear lying magnetic magnitude meaningful moles moment momentum motion moving multiplying never number object operations otherwise parabola particle physical physics plane point points ponder position potential power pressure quantities quantity reasons reference relative reprint resolve resultant scalar scalars shape speed state statement straight subjected taken temperature three total towards trajectory traversed under uniform vector vectors velocities velocity volume whether"
+      },
+      {
+        "page": 21,
+        "words": "above actual after angle apply arriving average cabman ceiling centre circuitous circular circumference collinear compare correct covered cricketer cycles cyclist diametrically different dishonest displacement distance eighth equality equals every following follows girls greater ground hitting horizontal hotel length located magnitude magnitudes maximum motion motorist never opposite passenger paths plane point radius reach reaches reprint returns round sixth skate skating specify speed start starting starts statements station straight takes third three throw thrown total track turns vector velocity wishes without"
+      },
+      {
+        "page": 22,
+        "words": "above acceleration aircraft always angle another arbitrary average averaged below carefully centre centripetal circle circular coefficients compare components conserved constant coordinate cycle different dimensionless direction directions examples executes false flying following graphical gravity ground height horizontal interval magnitude makes method metres motion moves negative never observation observers orientations origin particle physics plane point position positions process proper quantity radius reasons relations reprint respectively revolutions scalar seconds space speed stands starts state statement steady stone string subtended tangent towards uniform units values vector vectors velocity whirled"
+      }
+    ],
+    "figures": [
+      {
+        "figure": "3.1",
+        "page": 2
+      },
+      {
+        "figure": "3.2",
+        "page": 3
+      },
+      {
+        "figure": "3.3",
+        "page": 3
+      },
+      {
+        "figure": "3.4",
+        "page": 3
+      },
+      {
+        "figure": "3.5",
+        "page": 4
+      },
+      {
+        "figure": "3.6",
+        "page": 4
+      },
+      {
+        "figure": "3.7",
+        "page": 5
+      },
+      {
+        "figure": "3.8",
+        "page": 5
+      },
+      {
+        "figure": "3.9",
+        "page": 6
+      },
+      {
+        "figure": "3.10",
+        "page": 8
+      },
+      {
+        "figure": "3.11",
+        "page": 8
+      },
+      {
+        "figure": "3.12",
+        "page": 9
+      },
+      {
+        "figure": "3.13",
+        "page": 9
+      },
+      {
+        "figure": "3.14",
+        "page": 10
+      },
+      {
+        "figure": "3.15",
+        "page": 10
+      },
+      {
+        "figure": "3.16",
+        "page": 12
+      },
+      {
+        "figure": "3.17",
+        "page": 13
+      },
+      {
+        "figure": "3.18",
+        "page": 14
+      },
+      {
+        "figure": "3.19",
+        "page": 21
+      },
+      {
+        "figure": "3.20",
+        "page": 21
+      }
+    ]
+  },
+  {
+    "file": "keph104",
+    "number": 4,
+    "title": "Laws of Motion",
+    "kernels": [
+      "incline2d"
+    ],
+    "pages": 22,
+    "sections": [
+      {
+        "section": "4.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "4.3",
+        "title": "THE LAW OF INERTIA",
+        "page": 2
+      },
+      {
+        "section": "4.7",
+        "title": "CONSERVATION OF MOMENTUM",
+        "page": 9
+      },
+      {
+        "section": "4.8",
+        "title": "EQUILIBRIUM OF A PARTICLE",
+        "page": 10
+      },
+      {
+        "section": "4.9",
+        "title": "COMMON FORCES IN MECHANICS",
+        "page": 11
+      },
+      {
+        "section": "4.10",
+        "title": "CIRCULAR MOTION",
+        "page": 15
+      },
+      {
+        "section": "4.11",
+        "title": "SOLVING PROBLEMS IN MECHANICS",
+        "page": 16
+      }
+    ],
+    "pageText": [
+      {
+        "page": 1,
+        "words": "accelerates acceleration addition against agencies agency alone always answer anyone applying aristotle asked attract based basic bodies branches breeze building causes chapter circular clearly common concept concern conservation constant contact describe direction distance downward earth equilibrium examples exercises exert experience external fallacy first flowing football force forces governs gravitational guess hands hapter heavy horizontal inclined inertia introduction likewise magnet magnetic mechanics momentum motion moves moving necessary needed needs newton non-uniform object objects otion particle plane points ponder preceding problems provide quantitatively question released reprint required requires retard river rolling rowing second short shows skater solving someone space speed stationary stone straight stream strong summary swing third throw uniform uniformly upward upwards velocity whereas without"
+      },
+      {
+        "page": 2,
+        "words": "above absent accelerate acceleration according acting agencies always another answer anyone appears apply argument aristotelian aristotle arrow attached basic behind birth bodies cancels ceases century child climbs coded comes common concern concluded conclusion constant constantly corollary correct counter course decreased developed diate direction distance doing double elaborate eventually experience experiment explains external fallacy final flawed floor fluids flying force forces foundation framework friction frictional frictionless galileo going greater greek height horizontal however ideal idealised ideas imagine inclined indeed inertia inferred infinite initial interme- intuitively involves keeps known knows leading limiting little longer mechanics modern motion moving natural nature nearly necessary needed needs neither never newtonian non-electric object objects observations opposes opposing overcome phrased physics plane planes playing posed possible practical present purpose pushing question reach released releases repeated reprint required retard retardation rolls science second seventeenth shall should signalled simple situation slope small smooth solids something still string studied terrestrial themselves thinker those toy-car travel travels understand uniform universe velocity viscous while words world wrong"
+      },
+      {
+        "page": 3,
+        "words": "abhighat acceleration accomplished according acting after almost ancient anticipated application apply arise aristotelian aristotle arrived assume atmosphere between bhaskara bhraman built calculus called cases cause change clearly closest comes compelled compels concept conclude considerable constant constituent contact continue continues continuous correctly current definite dethroned developed difference different differential displacement distance downward ecounter elaborate elastic eliminated eluded encountered equivalent every examples expressed extended external falling finite first fluidity focus followed force forces formu- foundation friction frictional galileo gravity greatest horizontal however ideas impact imply including incorrect indian indicated inertia insight instant instantaneous interstellar introduced isaac kinds known lated length linear maintain means measured measurement mechanics modern motion moving needed never newton nodan notion object objects opposed opposing otherwise parallel particle particles patan perhaps persistent plane point position potter practice pressure property remain reprint resistance restoration results revolutionary rockets rotational sailing sanskara science scientists shape simple simply single-handedly situations small space spaceship spandan starting state straight strikes string summarise summarised system tatkaliki tendency terms theory thinkers those thought three times totally translational transmission transmitted turned under understood uniform units unless vaisesika velocity vessel vibrational vibrations water wheel while whole"
+      },
+      {
+        "page": 4,
+        "words": "above accelerate accelerates accelerating acceleration accidentally according accounted acting after again allow allows answer assume astronaut attraction backward begin between bring cancel cannot conceivable conclude constant contained continues correct deformable different displacement downward driver during earth either encountered enough equals every everywhere evident exert exerts experience experiences external first floor force forces fortunately forward friction frictional fully generally gravitational gravity happen happens horizontal however implies incorrect inertia infer instant inter internal known learn linear magnitude means mentioned might moderate motion moves moving muscular nearby negligible normal object objects observe observed often opposite outside particular parts phenomena physics pick-up picking property quite reasoning relative remain remains reprint restoring rigid section self-adjusting separated similar simply situation situations small smooth sound space spaceship speed standing stars start starting starts state statement stationary stellar stops straight strictly subject sudden suddenly suppose surface surprising table terrestrial thing thrown touch unaccelerated under uniform upward various velocity viscous weight while whole"
+      },
+      {
+        "page": 5,
+        "words": "acceleration acquires acting allowing allows almost another applied astronaut backward basic before bodies bring brought building bullet casualty catch catches catching cause causes certain change clear clearly coming common conclusion confirm considering cricket cricketer crucial damage defined denoted depends determines different draws dropped during easier easily effect evidently experiences external fired first fixed following force general great greater ground hands heavier heavy hence horizontal however human hurts importance important indicate initially instantly interval keeps light light-weight lighter loaded longer masses moderate momentum motion moving needed needs newton noticed novice observations opposing parameter parked person picks pierce preceding product provide quantity reason refers relates relevant reprint requires resulting seasoned second short shorter similarly simple situation small smaller spaceship speed stone stones stops suppose taken tissue together tries truck variable vector vehicle velocity weight"
+      },
+      {
+        "page": 6,
+        "words": "acceleration according action always angle applied becomes cause causes change changes changing character choose circle co-efficient component consistent constant corresponds define defined denoted derivative differential direction directly equations equivalent equivalently evident examples exert experience expressed first fixed follows force greater horizontal implies important initial interval known liberty limit magnitude makes means momentum motion necessary needed needs newton observations obviously parallel physics place plane points product proportional proportionality provided qualitative radius reprint respect rotated rotating second shows simplicity smaller speed stage stone string suggests suppose takes taking three through under uniform vector vectors velocity while written"
+      },
+      {
+        "page": 7,
+        "words": "accelerated acceleration acting actual after answer applicable applies ascertain assumed average block bounces bullet called carries centre certain change chapter component constant contact coordinate described describes detail determined difficult direction distance dropped duration encounter enough enters equation examples exerted external finite force forces generally gravitational gravity heavy history horizontal however impulse included indicates instant internal large local location means measurable memory moment momentum motion moving neglected normal often particle particles point position precisely producing product projectile quantity refers related relation remains reprint resistance resistive retardation retarding reverse rigid second separately shall short single situations sometimes space speed stands stone stopped study system total train turns unchanged under uniform velocity vertical whole wooden"
+      },
+      {
+        "page": 8,
+        "words": "abound acceleration according acting action agency always answer arises assume batsman beautiful become before between bodies bowler calculated called cancel category cause cause- change changing claim clear coiled comes common compressed concept conceptually confusing considering contact crisp determine different difficult direction distinction downwards earth effect error every examples except exert exerts expressed external finite follows force forces further gives gravity hardly history however imparted implied important impression impulse impulsive initial instant interaction internal language large linear massive mechanics misconceptions momentum motion mutual natural nature negligible never newton newtonian nothing notice obvious occur occurs opposite ordinary origin pairs particles particularly perhaps physical physics points press produce provides pulls question reaction readily reason reasoning regard relates relation relevant reprint science second seems short simple singly small sometimes speed spring stating stone straight system terms third usage whole without wording wrong"
+      },
+      {
+        "page": 9,
+        "words": "above according after angles answer applicable ascertained balls before between billiard bullet cancel cannot cases cause change changes chapter choose clearly collision common component consequence conservation conserved different direction enables equals external familiar final fired firing force forces identical imparted important impulse impulses inclined individual initial initially instinctive interval isolated known magnitude magnitudes might momentum motion mutual negative newton normal opposite pairs particles positive problem ratio recoil reflected remains reprint rigid second small specified speed strike system taken third total trick unchanged vector while without wrong x-direction"
+      },
+      {
+        "page": 10,
+        "words": "according action angle apart application applied arrows bodies ceiling chapter closed collide collision collisions common components concurrent condition conservation conserved contact directed direction directions either elastic energy equals equation equilibrium external final first force forces generalised horizontal implies important inelastic initial interacting interval isolated kinetic length makes means mechanics momenta momentum motion n-sided neglect notice number obtained opposite parallelogram particle particles physics point polygon refers represented reprint requires respectively result resultant rotational second sense shall shows sides situation suspended system taken third three torque total translational triangle under uniform vector vertical whether words"
+      },
+      {
+        "page": 11,
+        "words": "above action answer appear applied arise arises assumed assumption besides bodies bouyant called celestial charged clearly common component components compressed compression concern connected considering constant contact context course customary denotes depend diagram diagrams different displaced displacement displacements distance domains earth electrical elongation encounter equilibrium every examples experiences extended external figures fluid fluids force forces free-body friction fundamental fundamentally generated gives governs gravitational gravity hinges horizontal immersed inextensible intervening kinds known learnt length magnetic massless mechanics medium mentioned motion mutual nature negative negligible non-contact normal object opposite parallel pervasive point proportional reaction relevant reprint resistance resting restoring resultant rigid satisfying separately several simplicity small solid solids spring state string strong suggests supports surfaces surprising system table tension tensions third three throughout types under unstretched upward usually vanish vertical viscous weight without written"
+      },
+      {
+        "page": 12,
+        "words": "above absent acceleration according actually applied approximately arising begins begun between bodies called cancelled certain characteristic charged clearly coefficient collisions comes complex constant constituents contact decreases denoted depending depends detailed determined different direction distinguish elasticity electric electrical electrons empirical empirically enough eventually exceeds exist experi- experience experimentally experiments external force forces found fric- friction frictional fundamental further gravitational gravity handling hence horizontal horizontally however impacts impending increases independent itself keeping kinetic known later level limit limiting macroscopic magnetic maximum means mechanics mentally mentioned microscopic molecular moment motion moving nature nearly normal nuclei opposed opposes opposite origin parallel physics place problems properties proportionality reaction relations relative remaining remains removed reprint resulting return satisfies scale second similar simply slide sliding small stands started static status subject subscript suppose surface surfaces table talking those traced treated types ultimately uncharged under useful usually varies various velocity written"
+      },
+      {
+        "page": 13,
+        "words": "accelerating acceleration achieves acting actual angle answer approximately becomes begins between block bodies calculations cause clearly co-efficient coefficient compartment component conceivable contact definition depends determine direction directions downwards equilibrium experiences floor force forces friction frictional gradually horizontal impending inclined increases independent inertia initial keeping kinetic little lying maximum mechanics motion neglect normal opposed opposes opposing parallel plane position practical provides relative remain reprint resolving rests resultant self-adjusting slide small static stationary string surface surfaces system tension train trolley until useful vertically weight"
+      },
+      {
+        "page": 14,
+        "words": "accelerate acceleration again another answer applied apply applying automobiles bearings being between block brakes complex component compressed constant contact continue critically cushion daily deformed different discovery dissipates dissipation during effect effective equation equations every external finite force friction happen history horizontal however human ideal important impossible inextensible instant kinetic little lubricants machine machines magnitude maintained major milestone momentarily motion moving necessary needed negative nevertheless occur often opposes orders ordinary origin parallel parts physics placed plane point power practical practice principle provides pully quickly reason reduced reducing regard relative reprint resistance results rolling second should similarly situation situations sliding slippery slipping small smaller smooth solid something somewhat sphere static stopping string suffer surface surfaces thereby though trolley tyres undesirable velocity weight wheel without"
+      },
+      {
+        "page": 15,
+        "words": "acceleration according application around banked become between called centre centripetal chapter circle circular component components contact contribution definition directed direction equation force forces forwards friction frictional gravitational hence horizontal impending independent interesting level maximum motion moving namely normal obtain opposes planet possible provided provides providing radius reaction reduce reprint required result rotated second shows speed static stone string surface taking tension three towards tyres uniform vertical weight"
+      },
+      {
+        "page": 16,
+        "words": "action agencies alone angle answer apply assembly avoid banked besides between bodies cause centripetal chapter choose chosen circular co-efficient coefficient comparing component condition contribute cyclist different driving enough environment equation exerting experiences followed force forces foundation friction frictional gravity greater handle horizontal include involve large learnt level little maximum mechanics merely motion moving necessary needed normal obeyed obtain often optimum parked parts permissible physics possible problem problems provide provided race- race-car racetrack radius reaction reducing remaining remember reprint sharp should single slipping slips slope small solve solving speed speeding static substituting sufficient system takes taking tells three trying typical tyres unbanked under useful usually variety wheels while without"
+      },
+      {
+        "page": 17,
+        "words": "above accelerates acceleration action action-reaction after agencies another answer applying assembly attraction before between block bodies choice choose consideration convenient cylinder determined diagram directed direction directions doing downward downwards earth either employ environment examples exerted first floor follow following force forces free-body gravitational gravity handle horizontal identify illustrates imply include information internal known length links magnitudes mechanics method motion necessary newton normal pairs parts placed problem procedure reaction remaining reprint rests schematically second separate should showing shows solved steadily steps string supports system systematically tension third together treated typical under unknowns upwards various vertically without wooden yields"
+      },
+      {
+        "page": 18,
+        "words": "acceleration action action- action-reaction addition allows already always applicable applied appreciable aristotle arrived assume between block bodies certain change chapters clearly compelled consistent consists constant constitute continues counter cultivate cylinder define depend determines diagrams directed direction drawing during equals equation every everybody exercises external extrapolated first floor force forces free-body friction galileo gravity great happen history implies important impulse impulsive inclined inertia instant itself large local measurable mechanics momentum motion mutual necessary never newton normal notion number objects observations opposing opposite otherwise pairs particle particles physics place planes point position practice problems produce product proportional proportionality provided reaction remember rephrased reprint second short simple solving state straight subsequent summary system takes terms thing third total uniform units unless upwards useful vector velocity weight while whole wrong"
+      },
+      {
+        "page": 19,
+        "words": "accelerated acceleration action actual after agencies always angle another approximate besides between bodies called cancelled cannot carried cause-effect characteristic co-efficient common component conservation conserved constants contact continues depending determined different direction earlier effect effects every experimentally external following follows force forces found friction frictional gravity height history horizontal however impending independent instant internal isolated kinetic location material maximum moment momentarily momentum motion mutual nature necessarily neglected normal occur opposes opposite pairs parallel particles parts points ponder reaches reaction regarded relation relative released reprint satisfy second should simple simultaneous situation stands stated static stone surface surfaces surrounding system tangent terms third thrown total train upward vertical weight"
+      },
+      {
+        "page": 20,
+        "words": "accelerate accelerated accelerating acceleration acting action after always angle animate another answers applying being between bodies buoyancy calculations cannot cause centripetal change circular clarity coming concept conceptual confused connection constant contexts different direction distinction downward dropped during electric electrical electron encountered equality equation equilibrium equivalent every exercises external falling familiar feeling fields floating floor force forces friction gravitational ground high-speed highest horizontal human ignore impending inanimate inward language limit lying magnetic magnitude material maximum meaning mechanics merry-go-around momentarily motion moving mutual neglect normal numerical object objective objects ordinary outward parts pebble phrase physics point precede provides pushed radial reaction reduced regarded relative reprint requires resistance rough running second self-adjusting should simplicity simply simultaneous skillfully space speed stand static stationary stone subject subjective table tension terms third throughout thrown thrust train unlike upward upwards velocity vertically viscous water weight window without"
+      },
+      {
+        "page": 21,
+        "words": "accelerates acceleration acted acting alternative applied average blast blasted bodies brings calculate ceiling centre changes child choose circle connected constant correct directed direction downwards driver dropped extreme failed force forces freely graph gravity ground horizontal hurtled impulse initial initially instant length lift-off light magnitude masses mechanism middle motion moves moving neglect north one-dimensional oscillation particle perpendicular person position position-time positions predict reading readings remains reprint resistance respectively retarding rocket scale shows small smooth south speed standing stands starts stone string subject surface table tension three-wheeler thrust towards trajectory truck unchanged under uniform uniformly upwards vehicle velocity weighing"
+      },
+      {
+        "page": 22,
+        "words": "acceleration after angle around backwards balls batsman beyond billiard breaks cannot catch changing circle collide connected correctly cricketer deflects depends describes directions disintegrates easier empty exercise explain fired flies following forward frame frictionless hands holding horizontal horse imparted impulse increased inextensible initial instant laboratory light magnitude masses maximum moves moving mower muzzle nuclei nucleus opposite outwards particle passengers permissible physics plane products pulley radially radius rebound recoil reference released reprint round seats shell smaller space speed speeding stone stops string suddenly tangent tangentially tension thrown trajectory while whirled whose without withstand"
+      }
+    ],
+    "figures": [
+      {
+        "figure": "4.1",
+        "page": 2
+      },
+      {
+        "figure": "4.2",
+        "page": 4
+      },
+      {
+        "figure": "4.3",
+        "page": 5
+      },
+      {
+        "figure": "4.4",
+        "page": 6
+      },
+      {
+        "figure": "4.5",
+        "page": 7
+      },
+      {
+        "figure": "4.6",
+        "page": 9
+      },
+      {
+        "figure": "4.7",
+        "page": 10
+      },
+      {
+        "figure": "4.8",
+        "page": 10
+      },
+      {
+        "figure": "4.9",
+        "page": 11
+      },
+      {
+        "figure": "4.10",
+        "page": 12
+      },
+      {
+        "figure": "4.11",
+        "page": 13
+      },
+      {
+        "figure": "4.12",
+        "page": 13
+      },
+      {
+        "figure": "4.13",
+        "page": 14
+      },
+      {
+        "figure": "4.14",
+        "page": 15
+      },
+      {
+        "figure": "4.15",
+        "page": 17
+      },
+      {
+        "figure": "4.16",
+        "page": 21
+      }
+    ]
+  },
+  {
+    "file": "keph206",
+    "number": 13,
+    "title": "Oscillations",
+    "kernels": [
+      "shm1d"
+    ],
+    "pages": 19,
+    "sections": [
+      {
+        "section": "13.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "13.2",
+        "title": "PERIODIC AND OSCILLATORY MOTIONS",
+        "page": 2
+      },
+      {
+        "section": "13.3",
+        "title": "SIMPLE HARMONIC MOTION",
+        "page": 4
+      },
+      {
+        "section": "13.4",
+        "title": "SIMPLE HARMONIC MOTION AND UNIFORM CIRCULAR MOTION",
+        "page": 6
+      },
+      {
+        "section": "13.5",
+        "title": "VELOCITY AND ACCELERATION IN SIMPLE HARMONIC MOTION",
+        "page": 8
+      },
+      {
+        "section": "13.6",
+        "title": "FORCE LAW FOR SIMPLE HARMONIC MOTION",
+        "page": 9
+      },
+      {
+        "section": "13.7",
+        "title": "ENERGY IN SIMPLE HARMONIC MOTION",
+        "page": 10
+      }
+    ],
+    "pageText": [
+      {
+        "page": 1,
+        "words": "abound acceleration across after already alternately amplitude atoms average basic being cases certain chapter childhood circular clock concepts cradle daily description developed diaphragms different displacement drums energy engine enjoyed equilibrium examples executes exercises force forth frequency fundamental general going guitar hapter harmonic hirteen instruments interval introduction kinds learnt membranes molecules motion motions moves musical nature negative non-repetitive object orbital oscillates oscillatory particular pendulum period periodic phase phenomena physical physics piston planet planets pleasing points ponder position positions positive possible power produce projectile propagation proportional rectilinear repeated repetitive reprint required requires river rocking scillations section similar simple sitar solar solid sound sounds speaker steam strings study summary supply swing swinging system systems telephone temperature termed tossing understanding uniform various velocity vibrate vibrating vibrations violin voltage"
+      },
+      {
+        "page": 2,
+        "words": "above after agency arises between bodies bottom bouncing branch bring called causes chapter child circular climbs collection collective comes constituents coupled curved damped damping denote difference different directed directly discuss displaced displacement dissipative downward electromagnetic equation equilibrium eventually every examples external falls force forced forever frequency friction further giving graph ground harmonic height however identically include initial insect inside instrument interval intervals itself large later little manifest material means medium motion motions musical newton number often oscillating oscillation oscillations oscillators oscillatory parabola parts perform period periodic phenomena phenomenon physics pictured placed point position positions practice process proportional regular remain remains repeated repeats reprint second section sections seems seismic shall shows significant simple simplest small smallest something somewhere string study suppose symbol themselves towards tries undergoing upward values versus vibration vibrations water waves while"
+      },
+      {
+        "page": 3,
+        "words": "abbreviated across after always angle angular answer appears argument attached average between block calculate called capacitor change changing chapter choice circuit comet consideration context contexts convenience convenient crystal defined described different discoverer displacement distance earth either electric equilibrium every examples experiments expressed fields fixed found frequency frictionless function functions general generally gives halley heart heinrich hertz human increased integer integral kinds light magnetic mathematical matter measure measured mercury microseconds minute motion moves multiple necessarily negative number occur orbital origin oscillating oscillation oscillations particle pendulum period periodic physical planet point position positive pressure propagation property quantity quartz radians radio reciprocal rectilinear referred refers regarded relation remains repetitions represented reprint rigid rudolph scale second seconds section sense simple simplest sound special spring starting steel surface symbol terms times under units values variable variables variations vector vertical vibrations voltage waves years"
+      },
+      {
+        "page": 4,
+        "words": "after angular answer baptiste being between cannot coefficients combination constant constants continuous correct cosine decreases different discrete displacement diverges executing expressed first following forth fourier french frequency function functions further gives graph great harmonic importance increases increasing interval joseph least limits linear mathematician monotonically motion multiple never non-periodic noted obviously origin oscillating oscillatory particle period periodic periods physical physics plots positions positive proved quantities remarkable repeats represent represents reprint result shows simple sinusoidal smallest suitable superposition taking tends terms three values varies versus vibrating written x-axis"
+      },
+      {
+        "page": 5,
+        "words": "after amplitude amplitudes amplitutde angle angular argument between called characterize choose constant continuous cosine curves determined different discrete displacement extremes finally fixed frequency function generality harmonic initial itself known location magnitude matter maximum meaning motion motions names obtained oscillations particle period phase plase plots position positive quantities quantity related remain repeats reprint respectively simple simplicity speed standard state summarised symbols taken taking time-dependent understand values varies velocity while without"
+      },
+      {
+        "page": 6,
+        "words": "alternatively angle angular answer anticlockwise appear argument attention called changes circle circular connection constant cosine could cover curve describes diameter different direction edge-on equilibrium execute experiment first fixed fixing following follows frequency front function functions further harmonic having helps horizontal initial instead itself makes mathematically midpoint motion motions moving normal observe observing occurring oscillation oscillations particle perform period periodic periods perpendicular phase physics plane plots point position positive process projection radians radius repeats represent represents reprint rotation second section sense shadow sideways simple simply situation speed string suppose times twice uniform uniformly vector viewed viewing visualise"
+      },
+      {
+        "page": 7,
+        "words": "acting after always amplitude angle answer anticlockwise argument below between centimetre centripetal circle circular connection conversion covers defined defining degree depicts diameter different differing dimensionless direction displacement equation executes explicitly figures force function harmonic hereafter indicated initial linear makes means mention mentioned metre motion motions moves multiples natural necessary needed numerical obtain often oscillations particle period phase position positive projection quantity radian radians radius ratio reference referred reprint respectively revolution rotating sense should shows similar simple sometimes spite stated submultiples taken through trigonometric understood uniform uniformly units vector whenever without x-axis"
+      },
+      {
+        "page": 8,
+        "words": "acceleration after again amplitude angle angular argument centre centripetal circle circular clear clockwise comparing course covers differentiating directed direction directly displacement equation executing geometrical geometry gives harmonic important initial instant instantaneous located magnitude makes method motion negative obtain obtained obtaining opposite particle period phase physics point positive projection property proportional radius reference represents reprint respect sense shows similarly simple speed tangent times towards undergoing uniform velocity whatever without writing"
+      },
+      {
+        "page": 9,
+        "words": "acceleration according acting additional always angular answer attached between block calculate called calling centre constant contain corresponding defined differ difference different differentiate directed discussion displaced displacement either equation equilibrium equivalent executes expression fixed force frequency gives going harmonic hence identical integrating likewise linear linearly maxima motion newton non-linear oscillates oscillating oscillations oscillator oscillators particle period phase plots position proportional quantities reprint required respect restoring second simple simplicity sinusoidally small sometimes speed spring springs summarise supports terms times towards under undergoing units varies velocity world write"
+      },
+      {
+        "page": 10,
+        "words": "acting answer associated being between chapter compressed concept conservative defined directed displaced displacement displacements distance elongated energies energy equilibrium executed executing exerted extreme force forces function harmonic hence immaterial kinetic length maximum motion oscillations particle period periodic physics position positions possible potential proportional reprint right section simple situation small spring towards trying under values velocity"
+      },
+      {
+        "page": 11,
+        "words": "after always angular answer between block brackets calculate choice conservative constant course dependence displacement distance during energies energy equilibrium executes expected expression extremes familiar fastened follows force frequency frictionless function harmonic identity increases independent kinetic limits linear mechanical motion observe oscillations oscillator particle period position positive potential proportional pulled remains repeat reprint simple speed spring square surface system total trigonometric twice under undermined unity vice-versa whose"
+      },
+      {
+        "page": 12,
+        "words": "acting angle approximately beats block centripetal chandelier church conformity conservation diagram displace displacement displacements distance energies energy executes fixed force forces free-body galileo harmonic hence inextensible length massless maximum measured motion observed oscillate oscillates oscillating pendulum period periodic periods physics piece plane position principle provides pulse radial reprint restoring rigid seconds shall showing shows simple small stone string suitable support suspend swinging system tangential tension thread through torque total tying unstretchable velocity vertical"
+      },
+      {
+        "page": 13,
+        "words": "acceleration angle angular answer approximated arises assume centre circle component convenient degrees displacement entirely equation equivalent except expressed force formula function gives gravity harmonic hence identical inertia large latter length listed massless mathematically moment motion nearly negative newton oscillations pendulum period perpendicular point proved provided radial radians reduce relation reprint resolved restoring rotational seconds simple simplify simply small string support system table tangental tangential tends ticks torque uniform variable well-known while written"
+      },
+      {
+        "page": 14,
+        "words": "acceleration acting always amplitude angles angular approximately called centre change circle circular complete constant cycle diameter directed displacement during energy equilibrium executing exhibits force frequency friction functions harmonic having hertz hooke influence itself kinetic latter linear measured mechanical motion number occurs oscillating oscillation oscillations oscillator oscillatory particle pendulum period periodic periodlic phase physics position potential present projection proportional quantity reequired related remains repeats reprint respectively restoring second simple small summary swinging system though through towards under uniform velocity viewed"
+      },
+      {
+        "page": 15,
+        "words": "above after always amplitude amplitudes angular appropriate approximately arbitrary arise circle circular combination completely conditions constant contrast damped damping depend determine determined differ dimensions directions displacement either energy equivalent every expressed expressible following force forms frequency governed gravitation harmonic however infinite initial integer integral intervals inverse-square itself kepler latter least linear motion motions multiple necessarily necessary number orbits oscillations particle pendulum period periodic periods perpendicular phase phases planetary point points ponder position radius repeats reprint simple small strictly subject sufficient terms third three under uniformly velocity"
+      },
+      {
+        "page": 16,
+        "words": "above arrow bearing centre column completing curved depicts direction displaced earth equilibrium examples exercises following freely general harmonic hydrogen inside linear lower magnet mercury molecule motion nearly oscillating particle period periodic physics plots point polyatomic position released represent reprint return river rotating rotation simple slightly smooth suspended swimmer u-tube vibrations"
+      },
+      {
+        "page": 17,
+        "words": "above acceleration amplitude angle angular apart attached balance between choose conditions constant cosine describe described determine direction displaced displacement distance executing following force frequency function functions going harmonic having horizontal initial instead involve length linear maximum mid-point motion mounted non-periodic oscillates oscillations particle period periodic phase points position positive pulled reads relationships released represent reprint scale sideways signs simple speed spring suspended table towards velocity weight"
+      },
+      {
+        "page": 18,
+        "words": "amplitude angular anti-clockwise anticlockwise applied attached cases circle circular clamped clockwise compressed constant correspond corresponding differ direction either every exercise extension figures fixed following force frequency function functions harmonic indicate indicated initial masses maximum moment motions obtain oscillating oscillation particle period phase physics position positive projection radius reference released reprint revolution revolving right rigidly rotating rotation sense shows simple simplicity speed spring start stopwatch stretched stretches unstreched vector"
+      },
+      {
+        "page": 19,
+        "words": "acceleration amplitude angular atmosphere between circular column columns connected containing cylinder cylindrical damping density depressed difference direction earth equilibrium executes floats frequency gravity harmonic harmonically having height ignore length liquid locomotive maintained makes maximum mercury motion moves moving oscillates oscillations pendulum period piece piston position pressure radial radius released removed reprint simple slightly small speed stroke suction surface suspended track twice u-tube uniform viscosity"
+      }
+    ],
+    "figures": [
+      {
+        "figure": "13.1",
+        "page": 2
+      },
+      {
+        "figure": "13.2",
+        "page": 3
+      },
+      {
+        "figure": "13.3",
+        "page": 4
+      },
+      {
+        "figure": "13.4",
+        "page": 4
+      },
+      {
+        "figure": "13.5",
+        "page": 4
+      },
+      {
+        "figure": "13.6",
+        "page": 5
+      },
+      {
+        "figure": "13.7",
+        "page": 5
+      },
+      {
+        "figure": "13.8",
+        "page": 6
+      },
+      {
+        "figure": "13.9",
+        "page": 6
+      },
+      {
+        "figure": "13.10",
+        "page": 6
+      },
+      {
+        "figure": "13.11",
+        "page": 8
+      },
+      {
+        "figure": "13.12",
+        "page": 8
+      },
+      {
+        "figure": "13.13",
+        "page": 9
+      },
+      {
+        "figure": "13.14",
+        "page": 9
+      },
+      {
+        "figure": "13.15",
+        "page": 10
+      },
+      {
+        "figure": "13.16",
+        "page": 11
+      },
+      {
+        "figure": "13.17",
+        "page": 12
+      },
+      {
+        "figure": "13.18",
+        "page": 16
+      },
+      {
+        "figure": "13.19",
+        "page": 17
+      },
+      {
+        "figure": "13.20",
+        "page": 18
+      },
+      {
+        "figure": "13.21",
+        "page": 18
+      },
+      {
+        "figure": "18.18",
+        "page": 16
+      }
+    ]
+  },
+  {
+    "file": "keph207",
+    "number": 14,
+    "title": "Waves",
+    "kernels": [
+      "superposition1d"
+    ],
+    "pages": 22,
+    "sections": [
+      {
+        "section": "14.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "14.2",
+        "title": "TRANSVERSE AND LONGITUDINAL WAVES",
+        "page": 3
+      },
+      {
+        "section": "14.3",
+        "title": "DISPLACEMENT RELATION IN A PROGRESSIVE WAVE",
+        "page": 4
+      },
+      {
+        "section": "14.4",
+        "title": "THE SPEED OF A TRAVELLING WAVE",
+        "page": 7
+      },
+      {
+        "section": "14.5",
+        "title": "THE PRINCIPLE OF SUPERPOSITION OF WAVES",
+        "page": 10
+      },
+      {
+        "section": "14.6",
+        "title": "REFLECTION OF WAVES",
+        "page": 11
+      },
+      {
+        "section": "14.7",
+        "title": "BEATS",
+        "page": 16
+      }
+    ],
+    "pageText": [
+      {
+        "page": 1,
+        "words": "actual affects amounts another beats cable called centre chapter circle circles collection communication communications confined constituents continue converted created depend detect detection different displacement disturbance disturbances disturbed dropping elastic electric electromagnetic energy essentially exam- exercises feeling first forces generate gives happens hapter hearing information introduction involves isolation kinds little longitudinal material matter means medium microphone motion moves moving objects obvious often optical oscillating ourteen outward pattern patterns pebble pebbles physical pieces place point points ponder previous principle produced production progressive propagate propagates provides rapidly rather reflection relation remain reprint shows signal similarly sound speak speech speed still studied study summary superposition surface system through transfer transmission transmitted transport transverse travelling water waves whole without"
+      },
+      {
+        "page": 2,
+        "words": "abstract adjoining aesthetic already analysis another applications arise associated atoms attached basic being bodily bogie bogies cannot causes century change chapter christiaan class coiled collection comparatively compressed compresses compression conceptually connected connection consequently constituent constituents coupled coupling creating dates density depend description detection devices different displaced disturbance disturbed early elastic electro-magnetic electromagnetic electron electrons emitted employed engine entire equilibrium examples executes expands extension familiar famous first followed force found generating gives happened harmonic hooke hundreds huygens illustrate increasing induces influence inter-stellar intimately involve isaac later learn length light literature making masses material matter mechanical media medium microscopes modern molecules motion moves nature necessarily neutrons newton order original oscillations packed particles passes pendulum physics position possible practical practically pressure propagate propagates propagation properties proportional protons pulled quantity quantum radiowaves railway rarefaction rarefied reaches region released reprint require restoring reverse robert satellite scientific scientists second seismic seventeenth several shall signal similar simple situation small so-called sound space speed spring springs stars station stationary steps stretched string strings studies study suddenly surrounding technology thereby third though through times together train transmitted travel travels undergoes understanding vacuum water waves whose without x-rays years"
+      },
+      {
+        "page": 3,
+        "words": "agent another arguments arranged atoms attention before between chapter characteristic compared condensations constituents continuous crystalline density describes direction discuss displacing disturbance either element elements equilibrium exactly external familiar filled fixed forces forward generate generated gives going group harmonic higher ignored instant involves keeping lattice leads length location longitudinal lower mechanical medium motion moving normal oscillate oscillates oscillations oscillatory others pairs parallel particular passes periodic perpendicular physics picture piston points position propagation properties pulse push-pull rarefactions reaches reflection region reprint restoring resulting sections shape shows similar single sinusoidal situation solid solids sound space spring springs stretched string subsequent sudden surrounding think through transverse travelling travels various volume waves whole x-direction"
+      },
+      {
+        "page": 4,
+        "words": "above already amplitude another answer argument below bottom capillary centimetre clearly combination complicated compressive confined confused considered considering constituent constituents constitutes containing convenience corresponding cosine crystal cylinder denoted density describe described description different diminishing direction displacement displacing disturbance elastic element equation equations equilibrium equivalently every examples extend fairly fixed fluids force former forth found function functions generally generated gravity hundred instant involves kinds length level likewise linear liquid location longitudinal lowest material mathematical means media medium meters metres motion motorboat moves moving normal noted ocean oscillations particle particles piston position pressure produced produces progressive propagate propagated propagates propagating propagation quartz ranging relation represents reprint restoring ripples sailing several shall shape shearing short should sideways simply sinusoidal solids sound speed spring state steel strain stream stress surface sustain tends tension those transverse travel travelling typically ultrasonic undergoes understand vibrating water wavelength wavelengths waves while whole without"
+      },
+      {
+        "page": 5,
+        "words": "amplitude angle angular appearing argument attention between called certain choice clearly completed constant constituent constituents crest cross define determines different differing direction displacement distance dropping during equation equilibrium execute finally fixed frequency function further generality gives harmonic hence increase increases initial instant interpret intervals location manner maximum meaning medium motion moved moves names negative number origin oscillates oscillation particle particular periodically phase physical physics plots point position positions positive possible progresses progressing quantities quantity represents reprint shape shows similarly simple sinusoidal sinusoidally solid standard suitable symbols taking times travelling travels trough values varies various without x-axis"
+      },
+      {
+        "page": 6,
+        "words": "above accommodated after again always amplitude angle angular between called certain change choose complete consecutive constant could crests denoted describes difference direction discussion displacement displacements distance dropped element every except fixed frequency function having hertz instant length location longitudinal meaning measured medium merely metre minimum monitor motion number obtained oscillates oscillation oscillations parallel passes period phase points position propagation quantities radian reference repeats replaced represents reprint second shape shows simplicity sinusoidal string takes taking times total transverse travelling troughs units usually wavelength waves written"
+      },
+      {
+        "page": 7,
+        "words": "amplitude angular answer attention calculate change changes characterised comparing constant constants constituent convenient crest density described determine determined determines differ direction displacement distance elastic entire equation fixed frequency general gives harmonic inertial instants internal interval linear mechanical media medium modulus motion moves noted number numerical oscillation otherwise particular pattern period phase physics point position positive progression progressive propagation properties relate relating relation remain remains reprint required right shape shear shift shifts should shows small speed string strings taking through travelling travels units vanishingly wavelength waves whole young"
+      },
+      {
+        "page": 8,
+        "words": "across alone already always analysis answer arising assumed backward change chapter combine compressional compressions constant constituents course defined density depend depends derivation derived determined determines different dimension dimensional dimensionless dimensions direction directly disturbance disturbed divided earlier elastic elements exact expected expressions external fixes force former formula forward frequency generated higher important independent inertial inspection inversely itself later latter length linear longitudinal mechanical media medium modulus motion namely never newton obtain oscillate outside overall parameters pascal physical point pressure produces propagation properties property provided quantities quantity rarefactions related relates relevant remarked reprint restoring reveals scope setup shall shows simple small sound source specific speed speeds steel strain stress stretched string studies support tension terms transverse travel turms under undetermined units volume volumetric wavelength waves whose yield"
+      },
+      {
+        "page": 9,
+        "words": "analysis answer approximation before being boltzmann change chapter compress considered constant corresponding densities density derivation difficult dimension dimensional elasticity estimate exact expansion faster first follows formula gases general generally gives happens hence higher ideal increase isothermal kelvin known lateral linear liquids litres longitudinal material media medium modulus molecules negligible newton number occupies physical physics pressure quantities reason referred related relation relevant reprint shows solid solids sound speed standard strain substituting table temperature travel under undetermined unity values volume waves yields young"
+      },
+      {
+        "page": 10,
+        "words": "according adiabatic after agrees algebraic arrive assumption basic cancelled compared constant constituents continue correct correction cross crossed curve different directions displacement displacements disturbances dramatic during effect either estimate exactly examine experimental formula functions gives graph graphs happens having heats however ideal identities individual isothermal known laplace little maintain mathematically measured medium modification modulus moves moving negative newton opposite others overlap overlapping pattern pointed positive present pressure principle processes propagation pulse pulses ratio referred region relation reprint result resultant retain satisfies section shape shapes shows simultaneously situation smaller sound specific speed suffer superposition table temperature throughout times towards travelling turns variations waveform waves wrong"
+      },
+      {
+        "page": 11,
+        "words": "according amplitude amplitudes angle angular arising assume basic between boundary cases completely considered constituent constructive depends described destructive differ difference direction displacement disturbance everywhere familiar frequency function functions further happens harmonic however identical identity initial intereference interference largest medium meets number phase phenomenon physics positive possible principle propagating pulse refers reflected reflection reprint resultant rigid shows significant simplicity so-called speed stretched string subtract superposition thing times travelling trigonometric unbounded wavelength waves"
+      },
+      {
+        "page": 12,
+        "words": "above absorption according amplitude arrive arrives assuming based being between boundaries boundary called change clearly closed column completely complicated conclusion condition considered differ different differs direction displacement dissipation disturbance dynamically either elastic energy exerts familiar fixed force freely generating incident interface mathematically maximum media medium meeting modes moving negative newton normal obliquely opposite organ pattern patterns phase phenomenon place point positive possible principle pulse reasoning reflected reflection refracted refraction reprint resultant rigid second shape shows situation situations snell standing stationary steady stretched string suffers summarise superposition takes third times transmitted travel travelling twice until usual wavelength waves x-axis"
+      },
+      {
+        "page": 13,
+        "words": "amplitude amplitudes angular antinodes appear arbitrary arising between boundary called cannot characterised combination conditions constrain contrast described determine difference different differing directions displacement earlier element elements familiar feature first fixed frequencies frequency harmonic hence identity implies important largest location locations modes motion moving natural neither nodes normal opposite oscillate oscillates oscillation oscillations pattern period phase physics point-to-point points positions possible remain remarked reprint resulting right separately shows significant standing stationary stretched string superposition system terms times travelling trigonometric varies vibrates vibration wavelengths waves whole"
+      },
+      {
+        "page": 14,
+        "words": "again already amplitude antinodes applied based between boundary bowed called clearly closed column condition conditions consecutive constrained corresponding determined determines different distance either excited first fixed frequencies frequency fundamental generally harmonic harmonics implies instruments label largest length lowest medium modes musical natural nodes normal obtained oscillation others plucked positions possible principle prominent properties related relation reprint requires satisfied second shows sitar speed stationary stretched string strongly successive superposition symbol system taking third various vibrate vibration vibrations violin wavelengths waves"
+      },
+      {
+        "page": 15,
+        "words": "above already amplitude answer antinode boundary change changes chapter circular circumference clamped clearly close closed column columns complex condition contact corresponds determined dimensions displacement easily estimation external fifth filled first forced frequencies frequency fundamental generates gives glass harmonic harmonics higher however illustrates involves largest least length maximum membrane minimum modes multiples natural normal observed oscillations partially physics point possible pressure problem propagation relation reprint resonance resonate resonates restricted rigidly satisfied second shows sound source speed strings system systems tabla taking third undergo underlying vibrates water wavelengths while"
+      },
+      {
+        "page": 16,
+        "words": "amplitude amplitudes angular arising artists assume assuming audibly average beats choice close closed column constant convenience corresponds depicted detect difference displacement distinct eleventh familiar first follows fourth frequencies frequency fundamental gives greater harmonic harmonics heard however identity instruments intensity interesting interference interpret largest limit location longitudinal mathematically means modes moment nearly ninth normal numbered observed often oscillating phase phenomenon possible present principle referring replaced reprint resonance resultant sensitive seventh similar slightly something sound source standing suitable superposition symbol takes transverse trigonometric tuning unlike until wanes waning waves waxes waxing while words written"
+      },
+      {
+        "page": 17,
+        "words": "amplitude answer archaeologists basic beats built called carved categorised century claim classical cluster combination country decrease density depend dynasty elasticity figures first found frequencies frequency further generates gentle giving greater hampi harmonic human illustrates increase increased increases india indian instru- kanyakumari ments music musical nellaiappar nelliappar notes often original pandyan parallel phenomenon physics picture piece pillar pillars playing portraying produce ragas reprint resultant resulted rulers second seldom several shape should shows shruti single sitar slightly southern stone string strings successive superposition swaras tamil tapped temple temples tension themselves third thiruvananthapuram thoongal those three tunes types unique variety vibrations waves world"
+      },
+      {
+        "page": 18,
+        "words": "amplitude angle angular another antinodes between complete consecutive constant defined density direction displacement distance element exist fluid frequency gases governed having linear liquids longitudinal material mechanical media medium metallic modulus moves newton nodes number oscillate oscillation particles period perpendicular phase point points positive progressive propagating propagation properties related relation reprint sinusoidal solids sound speed stationary stretched string summary takes tension through transverse travel twice wavelength waves"
+      },
+      {
+        "page": 19,
+        "words": "above according adding algebraic amplitude amplitudes antinodes arise beats between boundary called cancelling certain change characterised closed column columns comparable consecutive constant constructive destructive differ different direction directions displacement displacements element exactly exhibit first fixed frequencies frequency fundamental harmonic having identical incident integral interference known length locations lowest maximum medium modes moving multiple nodes normal opposite oscillation phase physics place principle produces reflected reflection relation represented reprint resonant result reversal rigid second separation simultaneously single sinusoidal slightly standing stretched string superposed superposition system takes travelling traverse vibrates waves without"
+      },
+      {
+        "page": 20,
+        "words": "amplitude amplitudes between compressions coupling density depend depends different disturbance dropped elastic elasticity energy equals exercises explain forces former formula frequency gases harmonic heard height humidity increases independent instant involves latter layers length liquids longitudinal matter mechanical media medium modulus motion neighbouring nodes observer oscillating particles parts phase phases place point points ponder possible pressure progressive propagate properties rarefactions reach relative reprint shear should solids sound source speed splash splashes stationary steel stone stretched string struck takes temperature tension through tower transfer transferred transverse under velocity water waves whole"
+      },
+      {
+        "page": 21,
+        "words": "amplitude another answer appear aspects between calculate clamped combination converse crests described differ difference dimension direction directions displacement distance emits examine exercise following frequency function functions graphs harmonic hospital initial interpret learnt least length locate meets motion operating opposite origin oscillatory phase physics point points positive possibly propagation reflected represent represented reprint right scanner separated shapes sound speed stationary string successive superposition surface tissue transmitted transverse travelling tumours ultrasonic versus water wavelength waves"
+      },
+      {
+        "page": 22,
+        "words": "amplitude answers antinode ascertain beats below between clamped closed density described determine directions dispersive displacement distances distinguish distorted during effects elastic estimate excited exercise experiment explain fixed found frequency functions fundamental gases harmonic length linear longitudinal medium metre-long middle movable nature neglected notes obstacles original oscillate phase piston playing point points pressure produce propagate propagation pulse reduce reduced represent reprint resonance resonantly rigid shape shows sitar sizes slightly solids sound source speed state stationary steel stretched string strings support supports temperature tension transverse travelling tuning versa vibrates vibrations violin waves without"
+      }
+    ],
+    "figures": [
+      {
+        "figure": "14.1",
+        "page": 2
+      },
+      {
+        "figure": "14.2",
+        "page": 3
+      },
+      {
+        "figure": "14.3",
+        "page": 3
+      },
+      {
+        "figure": "14.4",
+        "page": 3
+      },
+      {
+        "figure": "14.5",
+        "page": 5
+      },
+      {
+        "figure": "14.6",
+        "page": 5
+      },
+      {
+        "figure": "14.7",
+        "page": 6
+      },
+      {
+        "figure": "14.8",
+        "page": 7
+      },
+      {
+        "figure": "14.9",
+        "page": 10
+      },
+      {
+        "figure": "14.10",
+        "page": 11
+      },
+      {
+        "figure": "14.11",
+        "page": 12
+      },
+      {
+        "figure": "14.12",
+        "page": 13
+      },
+      {
+        "figure": "14.13",
+        "page": 14
+      },
+      {
+        "figure": "14.14",
+        "page": 15
+      },
+      {
+        "figure": "14.15",
+        "page": 15
+      },
+      {
+        "figure": "14.16",
+        "page": 17
+      }
+    ]
+  }
+]

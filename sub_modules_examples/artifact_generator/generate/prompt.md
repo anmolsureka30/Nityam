@@ -18,12 +18,50 @@ that a deterministic runtime interprets to build an interactive artifact.
 5. **`derived` has no expression language in v0.1.** Each value is a plain ref
    like `"kernel.range"`. If you need a quantity, it must come out of the kernel.
 
-## Available kernel
+## Available kernels
 
-### `kinematics2d` — 2D projectile motion, no drag
-- **input ports:** `speed` (m/s), `angle` (**degrees**), `gravity` (m/s²), `y0` (m)
+Pick the ONE whose physics the lesson is actually about. You may only choose
+from this registry; you never write a kernel.
+
+For kernels whose natural picture is a graph against time (`shm1d`,
+`superposition1d`) the path's `x` **is time in seconds** and `y` is the
+quantity — so `scene2d.x_label` should say "time (s)".
+
+### `kinematics2d` — 2D projectile motion, no drag *(Ch 4)*
+- **ports:** `speed` (m/s), `angle` (**degrees**), `gravity` (m/s²), `y0` (m)
 - **outputs:** `ux`, `uy`, `range`, `max_height`, `time_of_flight`,
   `path` (array of `{t,x,y,vx,vy}`), `launch_point` (`{x,y}`)
+- **worth discovering:** range peaks at 45°; complementary angles land together.
+
+### `circular2d` — uniform circular motion *(Ch 4)*
+- **ports:** `radius` (m), `speed` (m/s)
+- **outputs:** `omega`, `period`, `frequency`, `centripetal_accel`, `path`, `launch_point`
+- **worth discovering:** the speed never changes and the velocity always does.
+  Use a `vector_set` on `point.vx`/`point.vy` to show the direction turning.
+- **misconception to target:** that the acceleration points outward.
+
+### `incline2d` — a block on a rough incline *(Ch 5)*
+- **ports:** `angle` (**degrees**), `mu`, `mass` (kg), `gravity` (m/s²)
+- **outputs:** `along_slope`, `normal_force`, `friction_max`, `slides` (1 or 0),
+  `acceleration`, `critical_angle` (degrees), `path`, `launch_point`
+- **worth discovering:** it only moves past `critical_angle = atan(mu)`, and the
+  mass cancels out of that entirely.
+- **misconception to target:** that a heavier block slides sooner.
+
+### `shm1d` — mass on a spring *(Ch 14, Oscillations)*
+- **ports:** `amplitude` (m), `mass` (kg), `k` (N/m), `phase` (degrees)
+- **outputs:** `omega`, `period`, `frequency`, `max_speed`, `max_accel`,
+  `total_energy`, `path` (displacement against time), `launch_point`
+- **worth discovering:** the period does not depend on the amplitude. Give them
+  an amplitude slider and a period readout and let them fail to change it.
+
+### `superposition1d` — two waves added *(Ch 15, Waves)*
+- **ports:** `amplitude` (m), `f1` (Hz), `f2` (Hz), `duration` (s)
+- **outputs:** `beat_frequency`, `beat_period`, `max_amplitude`,
+  `path` (the sum), `path_a`, `path_b` (the two components), `launch_point`
+- **worth discovering:** close frequencies produce beats at their difference.
+  Draw all three paths — the sum on top of its two components.
+- **misconception to target:** that waves collide and cancel permanently.
 
 ## Write for the student, not for yourself
 

@@ -14,7 +14,7 @@ const TOOLS: { id: MarkTool; glyph: string; label: string }[] = [
 
 export default function SessionControls({
   tool, onTool, onClear, hasMarks, packet, packetSummary, onAskAboutMark,
-  onSend, onEnd, heard, thinking,
+  onSend, onEnd, thinking,
 }: {
   tool: MarkTool | null;
   onTool: (t: MarkTool | null) => void;
@@ -25,9 +25,6 @@ export default function SessionControls({
   onAskAboutMark: () => void;
   onSend: (text: string) => void;
   onEnd: () => void;
-  /** The last thing she heard. Shown verbatim: it is the only unambiguous
-   *  answer to "is this thing even listening to me". */
-  heard: string;
   /** She has delegated and is waiting. That wait is real — 15-20 seconds — so
    *  it has to be visible or the page reads as broken. */
   thinking: boolean;
@@ -36,19 +33,16 @@ export default function SessionControls({
 
   return (
     <>
-      {(heard || thinking) && (
+      {/* Her own transcript of the student used to live here as proof the mic
+          worked. The mic is live and visibly metered now, so echoing every
+          sentence back was just a second subtitle track. What is still worth
+          saying is that she has gone away to think. */}
+      {thinking && (
         <div className={s.heard}>
-          {thinking ? (
-            <span className={s.thinking}>
-              <i /><i /><i />
-              <span className={s.thinkingText}>Working that out…</span>
-            </span>
-          ) : (
-            <>
-              <Label>You said</Label>
-              <p className={s.heardText}>{heard}</p>
-            </>
-          )}
+          <span className={s.thinking}>
+            <i /><i /><i />
+            <span className={s.thinkingText}>Working that out…</span>
+          </span>
         </div>
       )}
 

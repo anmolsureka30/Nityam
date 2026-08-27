@@ -128,14 +128,6 @@
   animation: n-fade 0.2s ease both;
 }
 
-.heardText {
-  margin: 5px 0 0;
-  font-family: var(--prose);
-  font-size: 15.5px;
-  line-height: 1.5;
-  color: var(--ink);
-  text-wrap: pretty;
-}
 
 
 .thinking { display: inline-flex; align-items: center; gap: 7px; }

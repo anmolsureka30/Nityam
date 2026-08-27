@@ -102,6 +102,15 @@ class Pulled(_Block):
     body: str
     quote: str | None = None
     figure: bool = False
+    """A clipped region of the textbook, as a data URL. Set when the student
+    lassoed a diagram out of the PDF and it was rasterised in the browser."""
+    image: str | None = None
+    """Or: the chapter and page to render live, when the TUTOR asked for a
+    figure rather than the student clipping one. The browser already has
+    PDF.js and the file, so it renders the region itself — no server-side
+    rasteriser, and no megabyte of base64 on the wire."""
+    pdf: str | None = None
+    page: int | None = None
 
 
 class NextUp(_Block):

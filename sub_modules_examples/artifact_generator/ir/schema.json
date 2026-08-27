@@ -25,9 +25,7 @@
     },
     "kernel": {
       "description": "Which hand-written deterministic engine computes the model. The IR may only choose from the registry.",
-      "enum": [
-        "kinematics2d"
-      ]
+      "enum": ["kinematics2d", "shm1d", "circular2d", "incline2d", "superposition1d"]
     },
     "intent": {
       "description": "What this artifact is pedagogically FOR. Read by the validator and the probe engine, not just documentation.",

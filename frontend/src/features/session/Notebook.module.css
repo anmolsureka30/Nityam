@@ -176,3 +176,19 @@
   text-decoration-color: var(--danger);
   text-decoration-thickness: 1.5px;
 }
+
+/* A figure clipped out of the textbook. Rendered at 2× in the drawer, so it
+   stays sharp here; capped so a full-page grab cannot push the lesson off
+   screen. */
+.figureImg {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  max-height: 420px;
+  object-fit: contain;
+  object-position: left;
+  margin: 10px 0 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: #fff;
+}

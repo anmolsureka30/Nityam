@@ -7,16 +7,8 @@ import type { Anchor, ContextPacket, MarkTool, Notebook as NotebookDoc } from ".
 import AnnotationLayer, { type Stroke } from "./AnnotationLayer";
 import ArtifactBlock from "./ArtifactBlock";
 import ProjectileSim from "./ProjectileSim";
+import TextbookFigure from "./TextbookFigure";
 import s from "./Notebook.module.css";
-
-export interface PulledNote {
-  id: string;
-  label: string;
-  source: string;
-  body: string;
-  quote?: string;
-  figure?: boolean;
-}
 
 /** Splits a paragraph so each anchored term becomes a pointable element.
  *
@@ -77,7 +69,7 @@ function Anchored({
 }
 
 export default function Notebook({
-  doc, hostRef, tool, strokes, onStroke, onPacket, pulled, hot,
+  doc, hostRef, tool, strokes, onStroke, onPacket, hot,
   waiting, interest, onEvidence, onSimulation,
 }: {
   doc: NotebookDoc;
@@ -86,7 +78,6 @@ export default function Notebook({
   strokes: Stroke[];
   onStroke: (s: Stroke) => void;
   onPacket: (p: ContextPacket) => void;
-  pulled: PulledNote[];
   /** anchorId -> expiry timestamp. Two-way pointing: the student marks a term,
    *  and the tutor lights up the same term. */
   hot: Record<string, number>;
@@ -182,7 +173,23 @@ export default function Notebook({
         );
 
       case "pulled":
-        return null; // pulled notes are appended live, below
+        return (
+          <div key={block.id} data-block={block.id} data-kind="pulled" className={`${s.pulled} ${struck}`}>
+            <div className={s.pulledHead}>
+              <Label>{block.label}</Label>
+              <Label>{block.source}</Label>
+            </div>
+            {/* Two ways in: the student clipped a region (an image), or the
+                tutor named a page (rendered here). */}
+            {block.image ? (
+              <img className={s.figureImg} src={block.image} alt={block.body || "Figure from the textbook"} />
+            ) : block.pdf && block.page ? (
+              <TextbookFigure pdf={block.pdf} page={block.page} />
+            ) : null}
+            {block.quote && <blockquote className={s.pulledQuote}>{block.quote}</blockquote>}
+            {block.body && <p className={s.pulledBody}>{block.body}</p>}
+          </div>
+        );
 
       case "next":
         return (
@@ -237,23 +244,6 @@ export default function Notebook({
               </p>
             )}
 
-            {/* Anything the student pulled in from the textbook lands here,
-                after the tutor's own writing, so authorship stays legible. */}
-            {pulled.map((note) => (
-              <div className={s.pulled} key={note.id} data-block={note.id} data-kind="pulled">
-                <div className={s.pulledHead}>
-                  <Label>{note.label}</Label>
-                  <Label>{note.source}</Label>
-                </div>
-                {note.figure && (
-                  <div className={s.figure}>
-                    <Label>Cropped where you highlighted</Label>
-                  </div>
-                )}
-                {note.quote && <blockquote className={s.pulledQuote}>{note.quote}</blockquote>}
-                <p className={s.pulledBody}>{note.body}</p>
-              </div>
-            ))}
           </article>
         );
       })}
