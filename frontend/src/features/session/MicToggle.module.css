@@ -1,0 +1,69 @@
+/* Bottom-right, just left of the avatar's shoulder: close enough to read as
+   part of her, clear of her frame so it never covers her face. */
+.mic {
+  position: fixed;
+  right: calc(var(--avatar-w, 254px) + 12px);
+  bottom: 26px;
+  z-index: 31;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 17px 0 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 6px 22px rgba(22, 26, 34, 0.10);
+  color: var(--ink-mid);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.label { line-height: 1; }
+
+.dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--ink-dim);
+}
+
+/* Live: filled, and the dot breathes with what the mic is actually picking up. */
+.live {
+  background: var(--good);
+  border-color: var(--good);
+  color: #fff;
+}
+.live .dot {
+  background: #fff;
+  transform: scale(calc(1 + 0.9 * var(--level, 0)));
+  transition: transform 0.12s linear;
+}
+
+/* Muted is a state worth seeing across the room, not a subtle one. */
+.muted {
+  background: var(--paper);
+  border-color: var(--line);
+  color: var(--ink-dim);
+}
+.muted .dot {
+  background: transparent;
+  border: 1.5px solid var(--ink-dim);
+}
+
+/* Unmuted but no stream: permission was refused or there is no device. Saying
+   "Listening" here would be a lie, and it is the lie that wastes an hour. */
+.blocked {
+  background: var(--paper);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.blocked .dot { background: var(--danger); }
+
+@media (max-width: 900px) {
+  .mic { right: 12px; bottom: calc(var(--avatar-h, 190px) + 12px); }
+}

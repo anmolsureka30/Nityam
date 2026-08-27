@@ -157,3 +157,10 @@
   .bubble::before, .bubble::after { display: none; }
   .cloud { right: 66px; bottom: 190px; }
 }
+
+/* A dead socket must not look like a thoughtful pause. */
+.bubbleError {
+  border-color: var(--accent-tint);
+  background: var(--accent-wash);
+}
+.bubbleError .text { color: var(--accent-deep); }

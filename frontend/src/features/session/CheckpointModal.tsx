@@ -11,7 +11,13 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
  * safer than skipping, or the signal is worthless. */
 export default function CheckpointModal({
   checkpoint, onDone,
-}: { checkpoint: Checkpoint; onDone: (correct: boolean) => void }) {
+}: {
+  checkpoint: Checkpoint;
+  /** The chosen option travels with the verdict: the tutor answers about the
+   *  specific wrong answer, so "correct: false" alone is not enough for it to
+   *  say anything useful. */
+  onDone: (correct: boolean, optionId: string, optionText: string) => void;
+}) {
   const [chosen, setChosen] = useState<string | null>(null);
   const picked = checkpoint.options.find((o) => o.id === chosen) ?? null;
   const answered = picked !== null;
@@ -74,7 +80,7 @@ export default function CheckpointModal({
           <Button
             variant="primary"
             disabled={!answered}
-            onClick={() => onDone(correct)}
+            onClick={() => picked && onDone(correct, picked.id, picked.text)}
           >
             {correct ? "Keep going" : answered ? "Show me why" : "Pick one"}
           </Button>

@@ -1,21 +1,28 @@
-import { useEffect, useRef, useState } from "react";
-import type { TutorState } from "../../lib/types";
+import { useState } from "react";
 import s from "./SpeechBubble.module.css";
 
-export default function SpeechBubble({ tutor }: { tutor: TutorState }) {
+export default function SpeechBubble({
+  caption,
+  error,
+  agent,
+}: {
+  caption: string;
+  /** Connection or stream failures surface here rather than in the console:
+   *  a silent tutor with a dead socket looks identical to one that is thinking. */
+  error?: string | null;
+  agent?: string;
+}) {
   const [minimised, setMinimised] = useState(false);
   /* Minimising is a preference, not a dismissal: she keeps talking and we keep
-     her collapsed, but the cloud has to admit that something new was said. */
-  const [unread, setUnread] = useState(false);
-  const spoken = useRef(tutor.caption);
+     her collapsed, but the cloud has to admit that something new was said.
+     Derived from the last line the student actually saw, rather than a flag set
+     from an effect — one less piece of state to get out of step, and no
+     cascading render on every sentence she speaks. */
+  const [seen, setSeen] = useState(caption);
+  const unread = minimised && caption !== seen;
 
-  useEffect(() => {
-    if (!tutor.caption || tutor.caption === spoken.current) return;
-    spoken.current = tutor.caption;
-    if (minimised) setUnread(true);
-  }, [tutor.caption, minimised]);
-
-  if (!tutor.caption) return null;
+  const text = error ? `I lost the connection — ${error}` : caption;
+  if (!text) return null;
 
   if (minimised) {
     return (
@@ -24,7 +31,7 @@ export default function SpeechBubble({ tutor }: { tutor: TutorState }) {
         className={`${s.cloud} ${unread ? s.cloudNew : ""}`}
         onClick={() => {
           setMinimised(false);
-          setUnread(false);
+          setSeen(caption);
         }}
         aria-expanded={false}
         aria-label={unread ? "Show what she just said" : "Show her last words"}
@@ -38,25 +45,27 @@ export default function SpeechBubble({ tutor }: { tutor: TutorState }) {
   }
 
   return (
-    <div className={s.bubble}>
+    <div className={`${s.bubble} ${error ? s.bubbleError : ""}`}>
       <div className={s.head}>
         <button
           type="button"
           className={s.min}
-          onClick={() => setMinimised(true)}
+          onClick={() => {
+            setSeen(caption);
+            setMinimised(true);
+          }}
           aria-expanded={true}
           aria-label="Minimise her words"
           title="Minimise"
         >
           <span aria-hidden="true">−</span>
         </button>
-        {tutor.agent === "quiz_master" && <span className={s.agent}>Quiz master</span>}
+        {agent && agent !== "tutor" && <span className={s.agent}>{agent}</span>}
       </div>
       {/* The live region covers only what she said — a screen reader announcing
           the minimise glyph before every sentence is worse than no button. */}
       <div role="status" aria-live="polite">
-        <p className={s.text}>{tutor.caption}</p>
-        {tutor.masteryNote && <span className={s.note}>{tutor.masteryNote}</span>}
+        <p className={s.text}>{text}</p>
       </div>
     </div>
   );

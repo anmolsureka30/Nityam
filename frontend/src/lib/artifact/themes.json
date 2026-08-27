@@ -1,0 +1,30 @@
+{
+  "_comment": "Theme is resolved at RENDER time, never at generation time. The same artifact_id serves every student; only these tokens change. Note that a theme tints the WORLD (sky, story, icon) and never the DATA - trajectory and vector colours are fixed, CVD-validated, and identical for every student.",
+  "cricket": {
+    "label": "Cricket",
+    "protagonist": "Arjun",
+    "object": "the cricket ball",
+    "projectile_icon": "🔴",
+    "ground_label": "pitch",
+    "launch_verb": "Bat",
+    "tint": "rgba(235,104,52,0.10)"
+  },
+  "spiderman": {
+    "label": "Spider-Man",
+    "protagonist": "Spider-Man",
+    "object": "the web",
+    "projectile_icon": "🕸️",
+    "ground_label": "street",
+    "launch_verb": "Web",
+    "tint": "rgba(42,120,214,0.11)"
+  },
+  "plain": {
+    "label": "Plain physics",
+    "protagonist": "The projectile",
+    "object": "the projectile",
+    "projectile_icon": "⚫",
+    "ground_label": "ground",
+    "launch_verb": "Launch",
+    "tint": "rgba(27,175,122,0.09)"
+  }
+}

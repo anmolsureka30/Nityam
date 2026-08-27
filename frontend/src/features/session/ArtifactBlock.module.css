@@ -1,0 +1,16 @@
+/* The artifact sits in the notebook's flow like any other block: no card, no
+   border of its own. Its own stylesheet draws whatever framing it wants inside
+   the shadow root, and a second frame around that reads as a widget in a page
+   rather than part of the page. */
+.frame {
+  display: block;
+  margin: 22px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.struck {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}

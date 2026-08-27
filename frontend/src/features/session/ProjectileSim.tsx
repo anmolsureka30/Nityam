@@ -15,8 +15,14 @@ const W = 720, H = 172, FLOOR = 150;
  * just read about it. In production this is a probe (see artifact_generator).
  */
 export default function ProjectileSim({
-  spec, onExplored,
-}: { spec: ProjectileArtifact; onExplored?: (angle: number) => void }) {
+  spec, onExplored, onChange,
+}: {
+  spec: ProjectileArtifact;
+  onExplored?: (angle: number) => void;
+  /** Every angle change, so the tutor's read_screen sees where the student
+   *  actually has it set rather than where it started. */
+  onChange?: (angle: number) => void;
+}) {
   const [angle, setAngle] = useState(spec.angle);
   const [seenBelow, setSeenBelow] = useState(false);
   const [seenAbove, setSeenAbove] = useState(false);
@@ -51,6 +57,7 @@ export default function ProjectileSim({
 
   function change(next: number) {
     setAngle(next);
+    onChange?.(next);
     if (next < best - 2) setSeenBelow(true);
     if (next > best + 2) setSeenAbove(true);
     // Both sides seen and now at the top: the student has found it themselves.
