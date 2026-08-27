@@ -20,11 +20,32 @@ def _conn():
     return store.connect()
 
 
+def list_concepts() -> dict:
+    """List every concept_id that actually exists in the grounding corpus.
+
+    Call this once near the start of a session, or whenever the topic
+    shifts to something not yet covered, BEFORE calling search_grounding —
+    then pass concept_ids EXACTLY as they appear here, never a guess from
+    the conversation's own wording. The corpus uses source-ingestion naming
+    (e.g. "trajectory_equation_in_two-dimensional_motion"), which is often
+    not how a student or tutor would naturally phrase the same topic —
+    confirmed live, roughly two-thirds of invented concept_ids didn't match
+    anything real (memory_layer_eval_report.md §2.1).
+
+    Returns:
+        dict with a "concept_ids" key: every real concept_id in the corpus.
+    """
+    return {"concept_ids": store.list_concept_ids(_conn())}
+
+
 def search_grounding(concept_ids: list[str], tool_context: ToolContext) -> dict:
     """Retrieve citable knowledge chunks (lecture/book excerpts) for the given concepts.
 
     Args:
-        concept_ids: Concept ids to search for, e.g. ["projectile.horizontal_range"].
+        concept_ids: Concept ids to search for — use exact ids from
+            list_concepts, e.g. ["projectile.horizontal_range"]. An id that
+            doesn't exactly match still gets a fuzzy-matched retry, but
+            calling list_concepts first is far more reliable.
 
     Returns:
         dict with a "chunks" key: a list of {chunk_id, source_ref, location, text}.

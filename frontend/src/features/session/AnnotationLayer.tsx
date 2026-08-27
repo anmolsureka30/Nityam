@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { boundsOf, resolveGesture } from "../../lib/grounding";
-import type { AnchorHit, Box } from "../../lib/grounding";
-import type { Anchor, ContextPacket, MarkTool } from "../../lib/types";
+import { boundsOf, buildPacket } from "../../lib/grounding";
+import type { Point } from "../../lib/grounding";
+import type { ContextPacket, MarkTool } from "../../lib/types";
+import { readSweptRegions } from "./readPage";
 import s from "./AnnotationLayer.module.css";
 
 /* Half the drawn nib height. A marker stroke is a horizontal drag, so its raw
@@ -13,46 +14,22 @@ const NIB = 9;
 export interface Stroke {
   id: string;
   tool: MarkTool;
-  points: { x: number; y: number }[];
-}
-
-/* Reads the anchor rects straight out of the DOM at the moment the gesture
- * ends, rather than keeping an index in sync. The layout is the truth; a
- * cached index goes stale the moment the notebook scrolls or an image loads. */
-function readAnchors(host: HTMLElement, anchors: Map<string, Anchor>): AnchorHit[] {
-  const origin = host.getBoundingClientRect();
-  const hits: AnchorHit[] = [];
-  host.querySelectorAll<HTMLElement>("[data-anchor]").forEach((el) => {
-    const id = el.dataset.anchor!;
-    const anchor = anchors.get(id);
-    if (!anchor) return;
-    const r = el.getBoundingClientRect();
-    const box: Box = {
-      x: r.left - origin.left + host.scrollLeft,
-      y: r.top - origin.top + host.scrollTop,
-      w: r.width,
-      h: r.height,
-    };
-    hits.push({ anchor, blockId: el.dataset.block ?? "", box });
-  });
-  return hits;
+  points: Point[];
 }
 
 export default function AnnotationLayer({
-  hostRef, tool, anchors, page, strokes, onStroke, onPacket,
+  hostRef, tool, strokes, onStroke, onPacket,
 }: {
   hostRef: React.RefObject<HTMLDivElement | null>;
   tool: MarkTool | null;
-  anchors: Map<string, Anchor>;
-  page: number;
   strokes: Stroke[];
   onStroke: (stroke: Stroke) => void;
   onPacket: (packet: ContextPacket) => void;
 }) {
-  const [live, setLive] = useState<{ x: number; y: number }[]>([]);
+  const [live, setLive] = useState<Point[]>([]);
   const drawing = useRef(false);
 
-  function toLocal(e: React.PointerEvent): { x: number; y: number } {
+  function toLocal(e: React.PointerEvent): Point {
     const host = hostRef.current!;
     const r = host.getBoundingClientRect();
     return {
@@ -93,7 +70,8 @@ export default function AnnotationLayer({
 
     const host = hostRef.current;
     if (!host) return;
-    onPacket(resolveGesture(tool, gestureShape(tool, points), readAnchors(host, anchors), page));
+    const shape = gestureShape(tool, points);
+    onPacket(buildPacket(tool, pageUnder(host, points), readSweptRegions(host, tool, shape)));
   }
 
   const armed = tool !== null;
@@ -116,19 +94,67 @@ export default function AnnotationLayer({
   );
 }
 
+/** Which page the gesture actually landed on.
+ *
+ *  This used to be a prop, and the only caller passed the FIRST page's number —
+ *  so a mark anywhere past page one was reported to the tutor under the wrong
+ *  page. Harmless while nothing read it; wrong the moment an agent does.
+ *  Derived from the DOM instead, which cannot drift out of step with what the
+ *  student is looking at. */
+function pageUnder(host: HTMLElement, points: Point[]): number {
+  const mid = points[Math.floor(points.length / 2)];
+  const origin = host.getBoundingClientRect();
+  const top = (el: HTMLElement) =>
+    el.getBoundingClientRect().top - origin.top + host.scrollTop;
+  for (const sheet of host.querySelectorAll<HTMLElement>("[data-page]")) {
+    const y = top(sheet);
+    if (mid.y >= y && mid.y <= y + sheet.getBoundingClientRect().height) {
+      return Number(sheet.dataset.page) || 1;
+    }
+  }
+  return 1;
+}
+
 /* Each tool draws as the physical thing it imitates: the marker as a broad
    translucent nib, the circle as a closed loop, the lasso as a dashed one. */
+
+/** The ellipse a circle stroke snaps to. People draw wobbly circles and mean
+ *  tidy ones, and the wobble carries no information. Shared by the drawing and
+ *  the measuring so that what the student sees is what gets tested — a word
+ *  just inside the drawn loop must not fall outside the tested one. */
+function ellipseOf(points: Point[]) {
+  const b = boundsOf(points);
+  return {
+    cx: b.x + b.w / 2,
+    cy: b.y + b.h / 2,
+    rx: Math.max(10, b.w / 2) + 4,
+    ry: Math.max(10, b.h / 2) + 4,
+  };
+}
+
 /** The shape the resolver should test, matching what was drawn. */
-function gestureShape(tool: MarkTool, points: { x: number; y: number }[]) {
-  if (tool !== "marker") return points;
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
-  const x0 = Math.min(...xs), x1 = Math.max(...xs);
-  const y0 = Math.min(...ys) - NIB, y1 = Math.max(...ys) + NIB;
-  return [
-    { x: x0, y: y0 }, { x: x1, y: y0 },
-    { x: x1, y: y1 }, { x: x0, y: y1 },
-  ];
+function gestureShape(tool: MarkTool, points: Point[]): Point[] {
+  if (tool === "marker") {
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(...ys) - NIB, y1 = Math.max(...ys) + NIB;
+    return [
+      { x: x0, y: y0 }, { x: x1, y: y0 },
+      { x: x1, y: y1 }, { x: x0, y: y1 },
+    ];
+  }
+
+  if (tool === "circle") {
+    const { cx, cy, rx, ry } = ellipseOf(points);
+    const N = 32;
+    return Array.from({ length: N }, (_, i) => {
+      const t = (i / N) * Math.PI * 2;
+      return { x: cx + rx * Math.cos(t), y: cy + ry * Math.sin(t) };
+    });
+  }
+
+  return points;
 }
 
 function Mark({ stroke, live }: { stroke: Stroke; live?: boolean }) {
@@ -150,15 +176,13 @@ function Mark({ stroke, live }: { stroke: Stroke; live?: boolean }) {
   }
 
   if (stroke.tool === "circle") {
-    // Snap to the bounding ellipse: people draw wobbly circles and mean
-    // tidy ones, and the wobble carries no information.
-    const b = boundsOf(stroke.points);
+    const e = ellipseOf(stroke.points);
     return (
       <ellipse
-        cx={b.x + b.w / 2}
-        cy={b.y + b.h / 2}
-        rx={Math.max(10, b.w / 2) + 4}
-        ry={Math.max(10, b.h / 2) + 4}
+        cx={e.cx}
+        cy={e.cy}
+        rx={e.rx}
+        ry={e.ry}
         fill="none"
         stroke="var(--accent)"
         strokeOpacity={0.85 * opacity}

@@ -1,97 +1,213 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Label, MasteryBar } from "../../components/ui";
-import { checkpoint, concepts, notebook, student } from "../../lib/data";
+import { concepts, student } from "../../lib/data";
 import { describePacket } from "../../lib/grounding";
-import * as script from "../../lib/tutorScript";
-import type { ContextPacket, MarkTool, TutorState } from "../../lib/types";
+import { useLiveSession } from "../../lib/live/useLiveSession";
+import type { ContextPacket, MarkTool } from "../../lib/types";
 import type { Stroke } from "./AnnotationLayer";
 import CheckpointModal from "./CheckpointModal";
-import Notebook, { type PulledNote } from "./Notebook";
+import MicToggle from "./MicToggle";
+import Notebook from "./Notebook";
 import SessionControls from "./SessionControls";
 import SpeechBubble from "./SpeechBubble";
-import TextbookDrawer from "./TextbookDrawer";
+import TextbookDrawer, { type Clip } from "./TextbookDrawer";
 import TutorAvatar from "./TutorAvatar";
 import s from "./SessionScreen.module.css";
 
 const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ");
 
-/* What tonight covers. Fixed for the demo; the agent will emit this from the
-   intensity the student picked. */
-const PLAN = [
-  "Find why 45° wins",
-  "Say why",
-  "Two throws, one spot",
-];
+/* What tonight covers.
+   STUB: hardcoded. The agent will emit this from the intensity the student
+   picked plus the class recap. See backend/INTEGRATION.md. */
+const PLAN = ["Find why 45° wins", "Say why", "Two throws, one spot"];
+
+/* STUB: one demo student, matching backend/scripts/seed_demo_data.py. A real
+   deployment takes both from the authenticated user (Firebase Auth uid) and a
+   session id minted per lesson. */
+const USER_ID = "demo_student";
 
 export default function SessionScreen() {
   const nav = useNavigate();
   const hostRef = useRef<HTMLDivElement>(null);
 
-  const concept = concepts.find((c) => c.id === notebook.conceptId)!;
+  /* One live session per mount. The id must be stable across renders, or every
+     render opens a new socket and a new board. A lazy useState initialiser, not
+     useMemo: a memo is a performance hint React is free to discard and
+     StrictMode double-invokes it, so neither guarantees identity — and identity
+     is the whole requirement here. */
+  const [sessionId] = useState(() => `s_${crypto.randomUUID().slice(0, 8)}`);
+  const tutor = useLiveSession(USER_ID, sessionId);
+  const { board, dispatch, send, sendScreen } = tutor;
 
   const [tool, setTool] = useState<MarkTool | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [packet, setPacket] = useState<ContextPacket | null>(null);
-  const [pulled, setPulled] = useState<PulledNote[]>([]);
-  const [tutor, setTutor] = useState<TutorState>(script.opening);
-  const [listening, setListening] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
-  const [quizOpen, setQuizOpen] = useState(false);
-  const [finding, setFinding] = useState(false);
+
+  /* Mastery is still local: the tutor writes it at session close, which is
+     after this screen is gone. STUB — see backend/INTEGRATION.md. */
+  const concept = concepts.find((c) => c.id === board.doc.conceptId) ?? concepts[0];
   const [mastery, setMastery] = useState(concept.mastery);
   const [delta, setDelta] = useState<number | null>(null);
 
-  /* Bumped whenever a NEW line should be spoken. The avatar drives its mouth
-     from this rather than from the caption text, so a re-render with the same
-     words never restarts her. */
-  const [speakKey, setSpeakKey] = useState(0);
+  const clock = new Date().toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-  /* Anchors the tutor is currently talking about. Two-way pointing: the
-     student marks a term, and the tutor lights up the same term. */
-  const [hot, setHot] = useState<Set<string>>(new Set());
+  const checkpoint = board.quizQueue[0] ?? null;
 
-  const clock = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-
-  const say = useCallback((next: TutorState) => {
-    setTutor(next);
-    setSpeakKey((k) => k + 1);
-  }, []);
-
-  const onPacket = useCallback((p: ContextPacket) => {
-    setPacket(p);
-    setHot(new Set(p.resolved.map((r) => r.anchorId)));
-  }, []);
+  /* Resolved locally so the highlight is instant, then sent upstream the moment
+     the stroke ends — not on a button press.
+     
+     Marking something IS the question's subject: a student highlights a term
+     and says "what does this mean", and expects the two to arrive together.
+     Requiring "Ask about this" first meant the spoken question landed with no
+     referent and she answered about the topic in general. The backend takes it
+     as context for whatever they say next rather than as a turn of its own. */
+  const onPacket = useCallback(
+    (p: ContextPacket) => {
+      setPacket(p);
+      send({ type: "gesture", packet: p });
+    },
+    [send],
+  );
 
   const askAboutMark = useCallback(() => {
     if (!packet) return;
-    say(script.replyToMark(packet));
+    send({ type: "gesture", packet, ask: true });
     setTool(null);
-  }, [packet, say]);
+  }, [packet, send]);
 
   const clearMarks = useCallback(() => {
     setStrokes([]);
     setPacket(null);
-    setHot(new Set());
   }, []);
 
-  const onExplored = useCallback(() => {
-    if (finding || quizOpen) return;
-    say(script.foundIt);
-    // A beat, so the discovery lands before the checkpoint interrupts it.
-    window.setTimeout(() => setQuizOpen(true), 2600);
-  }, [finding, quizOpen, say]);
+  /* The tutor cannot see the page, so tell it: which blocks are on screen,
+     where the simulation is set, whether a checkpoint is open. read_screen
+     serves this back to the model. */
+  const reportScreen = useCallback(
+    (extra: { simulation?: Record<string, number> } = {}) => {
+      const host = hostRef.current;
+      const visible: string[] = [];
+      if (host) {
+        const view = host.getBoundingClientRect();
+        host.querySelectorAll<HTMLElement>("[data-block]").forEach((el) => {
+          const r = el.getBoundingClientRect();
+          if (r.bottom > view.top && r.top < view.bottom) {
+            const id = el.dataset.block;
+            if (id && !visible.includes(id)) visible.push(id);
+          }
+        });
+      }
+      sendScreen({
+        visibleBlockIds: visible,
+        quiz: checkpoint
+          ? { checkpointId: checkpoint.id, open: true, answered: false }
+          : { open: false },
+        ...extra,
+      });
+    },
+    [checkpoint, sendScreen],
+  );
 
-  const onCheckpointDone = useCallback((correct: boolean) => {
-    setQuizOpen(false);
-    if (!correct) { say(script.afterCheckpointWrong); return; }
-    say(script.afterCheckpointRight);
-    setFinding(true);
-    setMastery(84);
-    setDelta(16);
-  }, [say]);
+  // Report on scroll and whenever the board changes under the student.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    reportScreen();
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => reportScreen());
+    };
+    host.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      host.removeEventListener("scroll", onScroll);
+    };
+  }, [reportScreen, board.revision]);
 
-  const planIndex = finding ? 2 : quizOpen ? 1 : 0;
+  /* Follow the writing.
+   *
+   * She writes several blocks over ~20 seconds and they land below the fold, so
+   * without this the student watches a still page while the answer accumulates
+   * off screen.
+   *
+   * "Unless they have scrolled up" is the important half: yanking the page down
+   * while someone is re-reading an earlier line is worse than not following at
+   * all. Once they scroll back to the bottom, following resumes — the same
+   * contract as a chat log. */
+  const following = useRef(true);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const onScroll = () => {
+      const fromBottom = host.scrollHeight - host.scrollTop - host.clientHeight;
+      // The notebook reserves avatar-height of bottom padding, so "at the
+      // bottom" is generous rather than exact.
+      following.current = fromBottom < 340;
+    };
+    host.addEventListener("scroll", onScroll, { passive: true });
+    return () => host.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (board.revision === 0 || !following.current) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const blocks = host.querySelectorAll<HTMLElement>("[data-block]");
+    const last = blocks[blocks.length - 1];
+    if (!last) return;
+    /* Scroll so the newest block sits just above her head rather than behind
+       it — the page reserves that space, so aim at it explicitly instead of
+       scrolling to the true bottom and landing under the avatar. */
+    const avatar = parseInt(
+      getComputedStyle(host).getPropertyValue("--avatar-h") || "288", 10,
+    );
+    const target =
+      last.offsetTop + last.offsetHeight - host.clientHeight + avatar + 28;
+    host.scrollTo({
+      top: Math.max(0, Math.min(target, host.scrollHeight - host.clientHeight)),
+      behavior: "smooth",
+    });
+  }, [board.revision]);
+
+  // The tutor asked to bring an earlier block back into view.
+  useEffect(() => {
+    if (!board.scrollTo) return;
+    const el = hostRef.current?.querySelector<HTMLElement>(
+      `[data-block="${board.scrollTo}"]`,
+    );
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    dispatch({ type: "scrolled" });
+  }, [board.scrollTo, dispatch]);
+
+  const onCheckpointDone = useCallback(
+    (correct: boolean, optionId: string, optionText: string) => {
+      if (!checkpoint) return;
+      send({
+        type: "quiz_answer",
+        checkpointId: checkpoint.id,
+        optionId,
+        optionText,
+        correct,
+      });
+      dispatch({ type: "quiz_done" });
+      if (correct) {
+        setMastery((m) => Math.min(100, m + 8));
+        setDelta((d) => (d ?? 0) + 8);
+      }
+    },
+    [checkpoint, dispatch, send],
+  );
+
+  const planIndex = Math.min(
+    PLAN.length - 1,
+    board.doc.pages.reduce((n, p) => n + p.blocks.length, 0) > 6 ? 2 : checkpoint ? 1 : 0,
+  );
 
   return (
     <div className={s.screen}>
@@ -102,6 +218,8 @@ export default function SessionScreen() {
             <span className={s.word}>Nityam</span>
           </Link>
           <span className={s.mode}>Revision <span aria-hidden="true">▾</span></span>
+          {tutor.mode === "mock" && <Label tone="warn">Mock mode</Label>}
+          {!tutor.connected && <Label tone="warn">Reconnecting…</Label>}
         </div>
         <div className={s.right}>
           <button
@@ -136,7 +254,7 @@ export default function SessionScreen() {
                 i === planIndex && s.planNow,
               )}
             >
-              <span className={s.planTick} aria-hidden="true">
+              <span className={s.planDot}>
                 {i < planIndex ? "✓" : i === planIndex ? "●" : i + 1}
               </span>
               {step}
@@ -147,21 +265,44 @@ export default function SessionScreen() {
 
       <main className={s.stage}>
         <Notebook
-          doc={notebook}
+          doc={board.doc}
           hostRef={hostRef}
           tool={tool}
           strokes={strokes}
           onStroke={(st) => setStrokes((prev) => [...prev, st])}
           onPacket={onPacket}
-          pulled={pulled}
-          finding={finding}
-          hot={hot}
-          onExplored={onExplored}
+          hot={board.hot}
+          waiting={board.revision === 0}
+          interest="cricket"
+          onEvidence={(event) =>
+            send({
+              type: "artifact_evidence",
+              artifactId: event.artifactId,
+              event: event.event,
+              detail: event.detail,
+            })
+          }
+          onSimulation={(sim) => reportScreen({ simulation: sim })}
         />
       </main>
 
-      <SpeechBubble tutor={tutor} />
-      <TutorAvatar mood={tutor.mood} caption={tutor.caption} speakKey={speakKey} />
+      <SpeechBubble
+        caption={tutor.caption}
+        error={tutor.error}
+        agent={tutor.mood === "speaking" ? "tutor" : "tutor"}
+      />
+      <MicToggle
+        muted={tutor.muted}
+        listening={tutor.listening}
+        level={tutor.level}
+        onToggle={tutor.toggleMute}
+      />
+      <TutorAvatar
+        mood={tutor.mood}
+        caption={tutor.caption}
+        speakKey={tutor.speakKey}
+        voice={tutor.voice}
+      />
 
       <SessionControls
         tool={tool}
@@ -171,38 +312,34 @@ export default function SessionScreen() {
         packet={packet}
         packetSummary={packet ? describePacket(packet) : ""}
         onAskAboutMark={askAboutMark}
-        onSend={(text) => say(script.replyToText(text))}
-        listening={listening}
-        onToggleMic={() => {
-          const next = !listening;
-          setListening(next);
-          setTutor((cur) => ({ ...cur, mood: next ? "listening" : "idle" }));
-        }}
+        onSend={(text) => send({ type: "text", text })}
+        thinking={tutor.thinking}
         onEnd={() => nav("/summary")}
       />
 
       {bookOpen && (
         <TextbookDrawer
           onClose={() => setBookOpen(false)}
-          onPull={(sel) => {
-            const label = sel.figure ? "Fig. 4.10" : "NCERT XI · p.79";
-            setPulled((prev) => [
-              ...prev,
-              {
-                id: `pull_${sel.id}_${Date.now()}`,
-                label,
-                source: "You pulled this in",
-                body: sel.text,
-                quote: sel.figure ? undefined : sel.text,
-                figure: sel.figure,
-              },
-            ]);
-            say(script.replyToPull(label));
+          onClip={(clip: Clip) => {
+            /* Straight onto the board and straight to the tutor. The clip
+               carries the caption text it contained, so she can talk about
+               Fig 3.14 by name rather than about "an image". */
+            send({
+              type: "textbook_clip",
+              image: clip.image,
+              text: clip.text,
+              chapter: clip.chapter.file,
+              chapterTitle: `Ch ${clip.chapter.number} · ${clip.chapter.title}`,
+              page: clip.page,
+            });
+            setBookOpen(false);
           }}
         />
       )}
 
-      {quizOpen && <CheckpointModal checkpoint={checkpoint} onDone={onCheckpointDone} />}
+      {checkpoint && (
+        <CheckpointModal checkpoint={checkpoint} onDone={onCheckpointDone} />
+      )}
     </div>
   );
 }

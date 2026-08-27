@@ -1,0 +1,506 @@
+[
+  {
+    "file": "keph103",
+    "number": 3,
+    "title": "Motion in a Plane",
+    "kernels": [
+      "kinematics2d",
+      "circular2d"
+    ],
+    "pages": 22,
+    "sections": [
+      {
+        "section": "3.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "3.2",
+        "title": "SCALARS AND VECTORS",
+        "page": 1
+      },
+      {
+        "section": "3.3",
+        "title": "MULTIPLICATION OF VECTORS BY REAL NUMBERS",
+        "page": 3
+      },
+      {
+        "section": "3.4",
+        "title": "ADDITION AND SUBTRACTION",
+        "page": 3
+      },
+      {
+        "section": "3.5",
+        "title": "RESOLUTION OF VECTORS",
+        "page": 5
+      },
+      {
+        "section": "3.6",
+        "title": "VECTOR ADDITION",
+        "page": 7
+      },
+      {
+        "section": "3.7",
+        "title": "MOTION IN A PLANE",
+        "page": 8
+      },
+      {
+        "section": "3.8",
+        "title": "MOTION IN A PLANE WITH CONSTANT ACCELERATION",
+        "page": 11
+      },
+      {
+        "section": "3.9",
+        "title": "PROJECTILE MOTION",
+        "page": 12
+      },
+      {
+        "section": "3.10",
+        "title": "UNIFORM CIRCULAR MOTION",
+        "page": 14
+      }
+    ],
+    "figures": [
+      {
+        "figure": "3.1",
+        "page": 2
+      },
+      {
+        "figure": "3.2",
+        "page": 3
+      },
+      {
+        "figure": "3.3",
+        "page": 3
+      },
+      {
+        "figure": "3.4",
+        "page": 3
+      },
+      {
+        "figure": "3.5",
+        "page": 4
+      },
+      {
+        "figure": "3.6",
+        "page": 4
+      },
+      {
+        "figure": "3.7",
+        "page": 5
+      },
+      {
+        "figure": "3.8",
+        "page": 5
+      },
+      {
+        "figure": "3.9",
+        "page": 6
+      },
+      {
+        "figure": "3.10",
+        "page": 8
+      },
+      {
+        "figure": "3.11",
+        "page": 8
+      },
+      {
+        "figure": "3.12",
+        "page": 9
+      },
+      {
+        "figure": "3.13",
+        "page": 9
+      },
+      {
+        "figure": "3.14",
+        "page": 10
+      },
+      {
+        "figure": "3.15",
+        "page": 10
+      },
+      {
+        "figure": "3.16",
+        "page": 12
+      },
+      {
+        "figure": "3.17",
+        "page": 13
+      },
+      {
+        "figure": "3.18",
+        "page": 14
+      },
+      {
+        "figure": "3.19",
+        "page": 21
+      },
+      {
+        "figure": "3.20",
+        "page": 21
+      }
+    ]
+  },
+  {
+    "file": "keph104",
+    "number": 4,
+    "title": "Laws of Motion",
+    "kernels": [
+      "incline2d"
+    ],
+    "pages": 22,
+    "sections": [
+      {
+        "section": "4.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "4.3",
+        "title": "THE LAW OF INERTIA",
+        "page": 2
+      },
+      {
+        "section": "4.7",
+        "title": "CONSERVATION OF MOMENTUM",
+        "page": 9
+      },
+      {
+        "section": "4.8",
+        "title": "EQUILIBRIUM OF A PARTICLE",
+        "page": 10
+      },
+      {
+        "section": "4.9",
+        "title": "COMMON FORCES IN MECHANICS",
+        "page": 11
+      },
+      {
+        "section": "4.10",
+        "title": "CIRCULAR MOTION",
+        "page": 15
+      },
+      {
+        "section": "4.11",
+        "title": "SOLVING PROBLEMS IN MECHANICS",
+        "page": 16
+      }
+    ],
+    "figures": [
+      {
+        "figure": "4.1",
+        "page": 2
+      },
+      {
+        "figure": "4.2",
+        "page": 4
+      },
+      {
+        "figure": "4.3",
+        "page": 5
+      },
+      {
+        "figure": "4.4",
+        "page": 6
+      },
+      {
+        "figure": "4.5",
+        "page": 7
+      },
+      {
+        "figure": "4.6",
+        "page": 9
+      },
+      {
+        "figure": "4.7",
+        "page": 10
+      },
+      {
+        "figure": "4.8",
+        "page": 10
+      },
+      {
+        "figure": "4.9",
+        "page": 11
+      },
+      {
+        "figure": "4.10",
+        "page": 12
+      },
+      {
+        "figure": "4.11",
+        "page": 13
+      },
+      {
+        "figure": "4.12",
+        "page": 13
+      },
+      {
+        "figure": "4.13",
+        "page": 14
+      },
+      {
+        "figure": "4.14",
+        "page": 15
+      },
+      {
+        "figure": "4.15",
+        "page": 17
+      },
+      {
+        "figure": "4.16",
+        "page": 21
+      }
+    ]
+  },
+  {
+    "file": "keph206",
+    "number": 13,
+    "title": "Oscillations",
+    "kernels": [
+      "shm1d"
+    ],
+    "pages": 19,
+    "sections": [
+      {
+        "section": "13.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "13.2",
+        "title": "PERIODIC AND OSCILLATORY MOTIONS",
+        "page": 2
+      },
+      {
+        "section": "13.3",
+        "title": "SIMPLE HARMONIC MOTION",
+        "page": 4
+      },
+      {
+        "section": "13.4",
+        "title": "SIMPLE HARMONIC MOTION AND UNIFORM CIRCULAR MOTION",
+        "page": 6
+      },
+      {
+        "section": "13.5",
+        "title": "VELOCITY AND ACCELERATION IN SIMPLE HARMONIC MOTION",
+        "page": 8
+      },
+      {
+        "section": "13.6",
+        "title": "FORCE LAW FOR SIMPLE HARMONIC MOTION",
+        "page": 9
+      },
+      {
+        "section": "13.7",
+        "title": "ENERGY IN SIMPLE HARMONIC MOTION",
+        "page": 10
+      }
+    ],
+    "figures": [
+      {
+        "figure": "13.1",
+        "page": 2
+      },
+      {
+        "figure": "13.2",
+        "page": 3
+      },
+      {
+        "figure": "13.3",
+        "page": 4
+      },
+      {
+        "figure": "13.4",
+        "page": 4
+      },
+      {
+        "figure": "13.5",
+        "page": 4
+      },
+      {
+        "figure": "13.6",
+        "page": 5
+      },
+      {
+        "figure": "13.7",
+        "page": 5
+      },
+      {
+        "figure": "13.8",
+        "page": 6
+      },
+      {
+        "figure": "13.9",
+        "page": 6
+      },
+      {
+        "figure": "13.10",
+        "page": 6
+      },
+      {
+        "figure": "13.11",
+        "page": 8
+      },
+      {
+        "figure": "13.12",
+        "page": 8
+      },
+      {
+        "figure": "13.13",
+        "page": 9
+      },
+      {
+        "figure": "13.14",
+        "page": 9
+      },
+      {
+        "figure": "13.15",
+        "page": 10
+      },
+      {
+        "figure": "13.16",
+        "page": 11
+      },
+      {
+        "figure": "13.17",
+        "page": 12
+      },
+      {
+        "figure": "13.18",
+        "page": 16
+      },
+      {
+        "figure": "13.19",
+        "page": 17
+      },
+      {
+        "figure": "13.20",
+        "page": 18
+      },
+      {
+        "figure": "13.21",
+        "page": 18
+      },
+      {
+        "figure": "18.18",
+        "page": 16
+      }
+    ]
+  },
+  {
+    "file": "keph207",
+    "number": 14,
+    "title": "Waves",
+    "kernels": [
+      "superposition1d"
+    ],
+    "pages": 22,
+    "sections": [
+      {
+        "section": "14.1",
+        "title": "INTRODUCTION",
+        "page": 1
+      },
+      {
+        "section": "14.2",
+        "title": "TRANSVERSE AND LONGITUDINAL WAVES",
+        "page": 3
+      },
+      {
+        "section": "14.3",
+        "title": "DISPLACEMENT RELATION IN A PROGRESSIVE WAVE",
+        "page": 4
+      },
+      {
+        "section": "14.4",
+        "title": "THE SPEED OF A TRAVELLING WAVE",
+        "page": 7
+      },
+      {
+        "section": "14.5",
+        "title": "THE PRINCIPLE OF SUPERPOSITION OF WAVES",
+        "page": 10
+      },
+      {
+        "section": "14.6",
+        "title": "REFLECTION OF WAVES",
+        "page": 11
+      },
+      {
+        "section": "14.7",
+        "title": "BEATS",
+        "page": 16
+      }
+    ],
+    "figures": [
+      {
+        "figure": "14.1",
+        "page": 2
+      },
+      {
+        "figure": "14.2",
+        "page": 3
+      },
+      {
+        "figure": "14.3",
+        "page": 3
+      },
+      {
+        "figure": "14.4",
+        "page": 3
+      },
+      {
+        "figure": "14.5",
+        "page": 5
+      },
+      {
+        "figure": "14.6",
+        "page": 5
+      },
+      {
+        "figure": "14.7",
+        "page": 6
+      },
+      {
+        "figure": "14.8",
+        "page": 7
+      },
+      {
+        "figure": "14.9",
+        "page": 10
+      },
+      {
+        "figure": "14.10",
+        "page": 11
+      },
+      {
+        "figure": "14.11",
+        "page": 12
+      },
+      {
+        "figure": "14.12",
+        "page": 13
+      },
+      {
+        "figure": "14.13",
+        "page": 14
+      },
+      {
+        "figure": "14.14",
+        "page": 15
+      },
+      {
+        "figure": "14.15",
+        "page": 15
+      },
+      {
+        "figure": "14.16",
+        "page": 17
+      }
+    ]
+  }
+]

@@ -11,6 +11,8 @@ Every function below is instrumented (docs/superpowers/specs/2026-08-27-smriti-o
 """
 from __future__ import annotations
 
+import re
+
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
@@ -19,6 +21,19 @@ from google.cloud.firestore_v1.vector import Vector
 from app import config
 from app.memory import instrumentation
 from app.memory.schemas import DPMProfile, GroundingChunk, SessionLog, TeachingMemory
+
+_STOPWORDS = {"of", "the", "a", "an", "in", "on", "for", "to", "and"}
+
+
+def _tokenize(concept_id: str) -> set[str]:
+    """'projectile.trajectory_equation_in_two-dimensional_motion' ->
+    {trajectory, equation, two, dimensional, motion} (drops the fixed
+    'projectile.' domain prefix, splits on non-alphanumeric, drops
+    stopwords). Used for token-overlap fuzzy matching, not any indexed
+    field — see search_grounding's fallback."""
+    body = concept_id.split(".", 1)[-1]
+    tokens = {t for t in re.split(r"[^a-z0-9]+", body.lower()) if t}
+    return tokens - _STOPWORDS
 
 
 def connect(project: str | None = None, database: str | None = None) -> firestore.Client:
@@ -83,12 +98,19 @@ def put_grounding_chunk(
     db.collection("grounding_chunks").document(chunk.chunk_id).set(payload)
 
 
-@instrumentation.emit_memory_event(
-    tier="long_term", record_type="grounding_chunk", operation="read", extract_ids=_ids_context_session_only,
-)
-def search_grounding(db: firestore.Client, concept_ids: list[str], limit: int = 5) -> list[GroundingChunk]:
-    if not concept_ids:
-        return []
+def list_concept_ids(db: firestore.Client) -> list[str]:
+    """Every distinct concept_id actually present in the corpus. Fetches all
+    chunks and unions their concept_ids in Python - fine at this corpus's
+    scale (dozens of chunks); a real-scale corpus should back this with a
+    dedicated metadata collection updated at ingestion time instead of a
+    full-corpus scan on every call."""
+    concept_ids: set[str] = set()
+    for doc in db.collection("grounding_chunks").stream():
+        concept_ids.update(doc.to_dict().get("concept_ids", []))
+    return sorted(concept_ids)
+
+
+def _exact_match(db: firestore.Client, concept_ids: list[str], limit: int) -> list[GroundingChunk]:
     docs = (
         db.collection("grounding_chunks")
         .where(filter=FieldFilter("concept_ids", "array_contains_any", concept_ids))
@@ -99,6 +121,59 @@ def search_grounding(db: firestore.Client, concept_ids: list[str], limit: int = 
         GroundingChunk.model_validate({k: v for k, v in d.to_dict().items() if k != "embedding"})
         for d in docs
     ]
+
+
+@instrumentation.emit_memory_event(
+    tier="long_term", record_type="grounding_chunk", operation="read", extract_ids=_ids_context_session_only,
+)
+def search_grounding(db: firestore.Client, concept_ids: list[str], limit: int = 5) -> list[GroundingChunk]:
+    """Concept ids come from an LLM tool call, not a fixed enum - the
+    corpus's real ids come from Shruti's own ingestion naming
+    ("trajectory_equation_in_two-dimensional_motion"), not phrasing a tutor
+    would naturally invent from conversation context. Confirmed live
+    against a real multi-persona eval (memory_layer_eval_report.md §2.1):
+    roughly two-thirds of real search_grounding calls returned nothing
+    because the guessed id didn't exactly match, even for concepts that
+    genuinely exist in the corpus. The primary fix is proactive -
+    app/memory/tools.py's list_concepts() lets the model see the real
+    vocabulary before guessing. This is the reactive safety net for
+    whenever it still doesn't: on an empty exact match, fuzzy-match each
+    queried id against the real vocabulary by token overlap (handles
+    reordering - "equation_of_trajectory" vs
+    "trajectory_equation_in_two-dimensional_motion" - which plain
+    substring/edit-distance matching handles poorly), and retry with
+    whatever real ids clear the threshold."""
+    if not concept_ids:
+        return []
+    exact = _exact_match(db, concept_ids, limit)
+    if exact:
+        return exact
+
+    vocabulary = list_concept_ids(db)
+    if not vocabulary:
+        return []
+    vocab_tokens = {cid: _tokenize(cid) for cid in vocabulary}
+    matched: list[str] = []
+    for guess in concept_ids:
+        guess_tokens = _tokenize(guess)
+        if not guess_tokens:
+            continue
+        best_cid, best_score = None, 0.0
+        for cid, tokens in vocab_tokens.items():
+            if not tokens:
+                continue
+            overlap = len(guess_tokens & tokens)
+            score = overlap / len(guess_tokens | tokens)  # Jaccard similarity
+            if score > best_score:
+                best_cid, best_score = cid, score
+        # >=1/3 token overlap is deliberately lenient - the guesses observed
+        # in the reference eval run are often only partially related to the
+        # real id (e.g. "staircase_problem" vs "staircase_projectile_problem")
+        if best_cid and best_score >= 1 / 3:
+            matched.append(best_cid)
+    if not matched:
+        return []
+    return _exact_match(db, matched, limit)
 
 
 @instrumentation.emit_memory_event(
