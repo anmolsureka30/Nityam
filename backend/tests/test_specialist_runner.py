@@ -9,12 +9,14 @@ import asyncio
 import sys
 import uuid
 
-from app.auth import load_env
+from app.auth import configure, load_env
 
 load_env()
+configure()
 
 from google.adk.agents import LlmAgent  # noqa: E402
 
+from app import config  # noqa: E402
 from app.agents.specialist_runner import SpecialistRunner, recent_transcript  # noqa: E402
 from app.memory import short_term  # noqa: E402
 
@@ -31,7 +33,7 @@ def check(name: str, ok: bool, extra: str = "") -> None:
 def _build_echo_agent() -> LlmAgent:
     return LlmAgent(
         name="EchoAgent",
-        model="gemini-3.7-flash",
+        model=config.reasoning_model(),
         mode=None,
         instruction="Reply with exactly the words: acknowledged.",
     )
