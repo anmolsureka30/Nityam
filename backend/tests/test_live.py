@@ -192,10 +192,12 @@ async def run(port: int) -> None:
         #
         #   ~1.3s   the holding line — "Achha, ek second."
         #   ~6s     the board fills (patches)
-        #   ~13s    the answer, delivered as a nudge
+        #   ~13s    the answer, delivered at the next natural pause
         #
-        # ask_tutor returns immediately so the Live model is free to speak while
-        # the brain works. That broke the previous predicate: it stopped as soon
+        # An ask_* call returns immediately so the Live model is free to speak
+        # while the specialist works (the platform holds the result until she
+        # is idle — response_scheduling=WHEN_IDLE). That broke the previous
+        # predicate: it stopped as soon
         # as audio and a turnComplete followed the last patch, which the
         # *holding line* satisfies — 196 KB of audio and a transcript reading
         # only "Achha, ek second." So require a SUBSTANTIAL settled
@@ -241,8 +243,13 @@ async def run(port: int) -> None:
             for part in (x.get("content") or {}).get("parts") or []
             if part.get("functionCall")
         ]
+        # Any ask_* tool is a delegation: the single ask_tutor this used to
+        # name was split into four specialists (ask_board/ask_artifact/
+        # ask_quiz/ask_textbook), and matching the dead name scored a real
+        # delegation as "she called nothing".
         check("VoiceAgent delegated rather than answering physics alone",
-              "ask_tutor" in calls, str(sorted(set(calls))) or "it called nothing")
+              any(c.startswith("ask_") for c in calls),
+              str(sorted(set(calls))) or "it called nothing")
 
         # ---- the regression guard for the worst bug this system has had.
         #
@@ -256,7 +263,7 @@ async def run(port: int) -> None:
         first_call = next(
             (i for i, x in enumerate(frames)
              for part in (x.get("content") or {}).get("parts") or []
-             if (part.get("functionCall") or {}).get("name") == "ask_tutor"),
+             if ((part.get("functionCall") or {}).get("name") or "").startswith("ask_")),
             None,
         )
         check("she delegated at all", first_call is not None)
@@ -273,7 +280,7 @@ async def run(port: int) -> None:
             ((part["functionCall"].get("args") or {}).get("bridge") or "").strip()
             for x in frames
             for part in (x.get("content") or {}).get("parts") or []
-            if (part.get("functionCall") or {}).get("name") == "ask_tutor"
+            if ((part.get("functionCall") or {}).get("name") or "").startswith("ask_")
         ]
         check("the call carries a holding line the student sees immediately",
               any(bridges), str(bridges))
