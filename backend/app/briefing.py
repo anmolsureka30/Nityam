@@ -9,9 +9,17 @@ So before the first turn, this assembles one context injection: what the session
 is for, what is on record about this student, and their own teacher's words on
 tonight's topic with citations. It is delivered straight through the live
 connection's own sink (see `brief_voice_layer`) — no queue, no background task.
-It is also refreshed once after every specialist call resolves (main.py's
-`trace()`), since a specialist's own work is exactly the moment the student's
-record is most likely to have changed.
+It is also refreshed after every specialist call, since a specialist's own work
+is exactly the moment the student's record is most likely to have changed — see
+`agents/specialist_runner.refresh_brief`, which calls `compose_brief` below.
+
+The split between `compose_brief` (assemble the text) and `brief_voice_layer`
+(assemble it and send it) is what makes that refresh safe. Composing it means
+several blocking Firestore round trips — measured at 3+ seconds — so the
+refresh path runs `compose_brief` in a thread and only touches the sink, on the
+event loop, if the text actually changed. Doing that with a function that
+insisted on holding the sink itself would mean either blocking the loop for
+three seconds mid-lesson or handing a live queue to a worker thread.
 
 Called from main.py's `start` handler, which is guaranteed to run before the
 greeting: the frontend sends `start` and `greet` on the same tick, in that order
@@ -41,7 +49,40 @@ def _tokens(text: str) -> set[str]:
     return {w for w in re.split(r"[^a-z0-9]+", text.lower()) if w and w not in STOPWORDS}
 
 
-def resolve_concepts(plan, student_id: str) -> list[str]:
+def load_record(student_id: str):
+    """One trip to the store for the two documents the whole brief is built
+    from: `(conn, dpm, teaching_memory)`.
+
+    Both halves of the brief need both documents — `resolve_concepts` reads
+    the weaknesses and open doubts for their concept ids, `_student_brief`
+    reads the same two objects for their prose. They used to fetch
+    independently, which meant four blocking Firestore round trips per brief
+    instead of two, on a function that is now called after every single
+    specialist call rather than once at session start.
+
+    Returns `(None, None, None)` if the store is unreachable, and
+    `(conn, None, None)` if the store is up but the reads fail — the caller
+    can still use `conn` for the grounding index in that second case, which
+    is what the original code did.
+    """
+    from app.memory.tools import shared_connection
+
+    try:
+        conn = shared_connection()
+    except Exception:  # noqa: BLE001 - never block a lesson on the store
+        log.warning("no store; the voice layer opens unbriefed")
+        return None, None, None
+    try:
+        return (
+            conn,
+            store.get_dpm(conn, student_id),
+            store.get_teaching_memory(conn, student_id),
+        )
+    except Exception:  # noqa: BLE001
+        return conn, None, None
+
+
+def resolve_concepts(plan, conn, dpm, memory) -> list[str]:
     """The plan's topic name -> real grounding concept ids.
 
     `plan.concept` is a syllabus code ("PHY-11-K2") and `plan.concept_name` is
@@ -49,28 +90,22 @@ def resolve_concepts(plan, student_id: str) -> list[str]:
     against the ids the index actually holds, and always fold in what this
     student is weak on or has an open doubt about — those are the things she has
     to be able to discuss the moment the session opens.
+
+    Takes the already-fetched `conn`/`dpm`/`memory` from `load_record` rather
+    than fetching its own: this and `_student_brief` want the identical two
+    documents, and fetching them twice doubled the blocking round trips.
     """
     wanted: list[str] = []
-    from app.memory.tools import shared_connection
-
-    try:
-        conn = shared_connection()
-    except Exception:  # noqa: BLE001 - never block a lesson on the store
-        log.warning("no store; the voice layer opens unbriefed")
+    if conn is None:
         return []
 
     # 1. This student's own trouble spots, first — they are guaranteed real ids.
-    try:
-        dpm = store.get_dpm(conn, student_id)
-        if dpm is not None:
-            wanted.extend(dpm.weaknesses)
-        memory = store.get_teaching_memory(conn, student_id)
-        if memory is not None:
-            wanted.extend(
-                d.concept_id for d in memory.open_doubts if d.status != "resolved"
-            )
-    except Exception:  # noqa: BLE001
-        pass
+    if dpm is not None:
+        wanted.extend(dpm.weaknesses)
+    if memory is not None:
+        wanted.extend(
+            d.concept_id for d in memory.open_doubts if d.status != "resolved"
+        )
 
     # 2. Whatever the topic name points at.
     words = _tokens(f"{plan.concept_name} {plan.concept}")
@@ -85,19 +120,13 @@ def resolve_concepts(plan, student_id: str) -> list[str]:
     return list(dict.fromkeys(wanted))  # de-duplicated, order preserved
 
 
-def _student_brief(student_id: str) -> str:
+def _student_brief(dpm, memory) -> str:
     """This student's record, as prose. Moved here from the retired
-    TutorAgent — see git history for the original if needed."""
-    from app.memory import store
-    from app.memory.tools import shared_connection
+    TutorAgent — see git history for the original if needed.
 
-    try:
-        conn = shared_connection()
-        dpm = store.get_dpm(conn, student_id)
-        memory = store.get_teaching_memory(conn, student_id)
-    except Exception:  # noqa: BLE001 - never block a lesson on the store
-        return "Nothing on record for this student yet. Teach from scratch."
-
+    Handed the documents `load_record` already fetched, for the same reason
+    `resolve_concepts` is: this used to open the store and read both of them
+    a second time, on the same two ids, in the same function call."""
     if dpm is None and memory is None:
         return "Nothing on record for this student yet. Teach from scratch."
 
@@ -136,13 +165,18 @@ def _student_brief(student_id: str) -> str:
     return "\n".join(lines) if lines else "Nothing on record yet. Teach from scratch."
 
 
-def brief_voice_layer(session_id: str, student_id: str, sink) -> int:
-    """Assemble and deliver the briefing directly through sink. Returns how
-    many chunks it carried. Called once at session start, and again after
-    every specialist call resolves — a specialist's own work is exactly
-    the moment the student's record is most likely to have changed."""
+def compose_brief(session_id: str, student_id: str) -> str:
+    """Assemble the briefing text and return it. Sends nothing.
+
+    BLOCKING: several Firestore round trips, measured at 3+ seconds on a
+    real store. Never call this straight from the event loop on a path that
+    runs mid-lesson — `specialist_runner.refresh_brief` runs it through
+    `asyncio.to_thread` for exactly that reason. The one place it is
+    acceptable inline is the `start` handler, before the first turn, where
+    there is nothing yet to stall."""
     state = sessions.get(session_id, student_id=student_id)
-    concept_ids = resolve_concepts(state.plan, student_id)
+    conn, dpm, memory = load_record(student_id)
+    concept_ids = resolve_concepts(state.plan, conn, dpm, memory)
 
     chunks: list[dict] = []
     if concept_ids:
@@ -153,13 +187,27 @@ def brief_voice_layer(session_id: str, student_id: str, sink) -> int:
         except Exception:  # noqa: BLE001
             log.warning("grounding lookup failed; briefing without it", exc_info=True)
 
-    brief = _student_brief(student_id)
+    brief = _student_brief(dpm, memory)
 
     line = incoming.describe_grounding_pack(state.plan, brief, chunks)
-    sink.text(line, partial=True)
     log.info(
-        "briefed the voice layer: %s concept(s), %s chunk(s), %s chars",
+        "composed the briefing: %s concept(s), %s chunk(s), %s chars",
         len(concept_ids), len(chunks), len(line),
     )
     log.debug("briefing in full:\n%s", line)
-    return len(chunks)
+    return line
+
+
+def brief_voice_layer(session_id: str, student_id: str, sink) -> str:
+    """Assemble and deliver the briefing directly through sink; return the
+    text it sent.
+
+    The session-start path. Refreshes during a lesson go through
+    `specialist_runner.refresh_brief` instead, which composes off the event
+    loop and only sends when the text actually changed — the returned text is
+    what seeds that comparison, so the first refresh of a session doesn't
+    re-send what the opening brief already said. (Nothing ever used the chunk
+    count this used to return.)"""
+    line = compose_brief(session_id, student_id)
+    sink.text(line, partial=True)
+    return line

@@ -14,7 +14,11 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config
-from app.agents.specialist_runner import SpecialistRunner, recent_transcript
+from app.agents.specialist_runner import (
+    SpecialistRunner,
+    recent_transcript,
+    refresh_brief,
+)
 from app.canvas.tools import BOARD_TOOLS
 from app.memory.tools import list_concepts, search_grounding
 
@@ -101,6 +105,14 @@ async def ask_board(bridge: str, request: str, tool_context: ToolContext) -> dic
         transcript = await recent_transcript(session_id, student_id, n=10)
         message = f"{request}\n\n{transcript}"
         summary = await _RUNNER.run_turn(session_id, student_id, message)
+        # A specialist's own work is the moment the student's record is most
+        # likely to have moved, so re-brief the voice layer here. This is the
+        # trigger point precisely BECAUSE this function runs to completion —
+        # ADK yields no function_response event for a WHEN_IDLE tool, so the
+        # event-stream hook this replaces never fired once. refresh_brief
+        # swallows its own failures, so it cannot turn a good answer into an
+        # error, and no-ops entirely when no live sink is set.
+        await refresh_brief(session_id, student_id)
         return {"status": "done", "summary": summary or "It's on the board now."}
     except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
         log.exception("BoardAgent turn failed")
