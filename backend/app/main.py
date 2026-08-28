@@ -34,6 +34,7 @@ load_env()
 MODE = configure()
 
 import asyncio  # noqa: E402
+import contextvars  # noqa: E402
 import json  # noqa: E402
 import logging  # noqa: E402
 import os  # noqa: E402
@@ -63,6 +64,14 @@ app.include_router(memory_router)
 
 runner = None
 session_service = None
+
+_recording_context: contextvars.ContextVar[tuple[str, str] | None] = (
+    contextvars.ContextVar("nityam_recording_context", default=None)
+)
+"""(session_id, student_id) for whoever is currently recording transcript
+turns — set once per connection in ws_endpoint, same pattern as
+instrumentation.set_session_context. Lets trace() record every exchange
+without needing session_id/student_id threaded through the ADK Event."""
 
 if MODE != "mock":
     from google.adk.agents.live_request_queue import LiveRequestQueue
@@ -178,6 +187,7 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
     # context holds, so setting it once, this early, covers the whole
     # connection — including brain.py's and artifact_agent.py's own tasks.
     instrumentation.set_session_context(session_id)
+    _recording_context.set((session_id, user_id))
     state = sessions.get(session_id, student_id=user_id)
     await send_control(
         ws,
@@ -553,6 +563,29 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         queue.close()
 
 
+def _record_turn(role: str, text: str) -> None:
+    """Every settled exchange, not just delegated ones — what makes a
+    specialist's "last N turns" context genuine. Fire-and-forget: a Redis
+    hiccup here must never affect the live conversation.
+    """
+    ctx = _recording_context.get()
+    if ctx is None:
+        return
+    session_id, student_id = ctx
+
+    async def _write() -> None:
+        try:
+            await short_term.append_turn(
+                session_id, student_id,
+                {"turn": 0, "role": role, "text": text[:2000],
+                 "concept_id": None, "artifact_id": None},
+            )
+        except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
+            log.warning("transcript recording failed", exc_info=True)
+
+    asyncio.get_running_loop().create_task(_write())
+
+
 def trace(event) -> None:
     """One readable line per interesting event, so a manual test is verifiable.
 
@@ -589,6 +622,7 @@ def trace(event) -> None:
         if said:
             logs.spoke(said)
             log.info('  %s says: "%s"', who, said)
+            _record_turn("tutor", said)
     if event.input_transcription and event.partial is False:
         heard = event.input_transcription.text.strip()
         if heard:
@@ -597,6 +631,7 @@ def trace(event) -> None:
             # meant to read as "how long since I stopped talking".
             logs.heard(heard)
             log.info('  student said: "%s"', heard)
+            _record_turn("student", heard)
     if event.interrupted:
         log.info("!! INTERRUPTED %s was cut off by the student", who)
 
