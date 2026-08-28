@@ -569,6 +569,18 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         # (normally read_client() raising WebSocketDisconnect) now cancels
         # the rest, so the connection actually tears down.
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        # _transcript_writer is one of `pending` at this point (nothing but
+        # read_client's disconnect finishes first in the ordinary case) — drain
+        # it before cancelling anything, or a turn enqueued right as the
+        # connection closed is lost not just from the ephemeral Redis buffer
+        # but from the durable session_log _flush_session_memory writes from
+        # that same buffer moments later. join() returns immediately when
+        # nothing is in flight, so this costs nothing in the common case;
+        # bounded so a stuck Redis can't hang teardown.
+        try:
+            await asyncio.wait_for(transcript_queue.join(), timeout=2.0)
+        except asyncio.TimeoutError:
+            log.warning("transcript queue did not drain before teardown")
         for t in pending:
             t.cancel()
         results = await asyncio.gather(*tasks, return_exceptions=True)

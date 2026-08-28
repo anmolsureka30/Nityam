@@ -82,8 +82,70 @@ async def run() -> None:
         nityam_main.logs.close_session(session_id)
 
 
+async def run_drain_on_disconnect() -> None:
+    """The exact sequence run_live now uses at teardown: drain the transcript
+    queue (bounded, via asyncio.wait_for(queue.join(), ...)) BEFORE cancelling
+    the pending tasks, which include the consumer -- not cancel-then-hope.
+    Without this, a turn enqueued right as the connection closes is lost not
+    just from the ephemeral Redis buffer but from the durable session_log
+    _flush_session_memory writes from that same buffer moments later, on the
+    single most common shutdown path (an ordinary disconnect).
+
+    Artificially slows the Redis write so the consumer is still mid-flight
+    at the exact moment we would otherwise cancel it -- this reproduces "the
+    connection closes right as the last turn settles" deterministically,
+    instead of relying on a real race to land the right way by chance (the
+    original fire-and-forget bug hid for exactly that reason).
+    """
+    session_id = f"test_drain_{uuid.uuid4().hex[:8]}"
+    student_id = "demo_student"
+    nityam_main.logs.open_session(session_id, student_id, mode="mock", live_model="", detail="test")
+    nityam_main.instrumentation.set_session_context(session_id)
+    nityam_main._recording_context.set((session_id, student_id))
+
+    queue: asyncio.Queue = asyncio.Queue()
+    nityam_main._transcript_queue_context.set(queue)
+    writer_task = asyncio.create_task(nityam_main._transcript_writer(queue))
+
+    real_append_turn = short_term.append_turn
+
+    async def _slow_append_turn(*args, **kwargs):
+        # Guarantees _transcript_writer is still awaiting the Redis write
+        # (not idle on queue.get()) at the instant the test tries to cancel
+        # it -- the race the drain step exists to survive.
+        await asyncio.sleep(0.2)
+        await real_append_turn(*args, **kwargs)
+
+    short_term.append_turn = _slow_append_turn
+    try:
+        nityam_main.trace(_event("student", "last thing before disconnect", input_side=True))
+
+        # Mirrors run_live's fixed sequence: bounded drain BEFORE cancelling
+        # the consumer. (Reverting to cancel-first-then-drain would cancel
+        # the writer mid-sleep, above, and this turn would never reach
+        # Redis -- this assertion is what catches that regression.)
+        try:
+            await asyncio.wait_for(queue.join(), timeout=2.0)
+        except asyncio.TimeoutError:
+            pass
+        writer_task.cancel()
+
+        buffer = await short_term.get_turn_buffer(session_id, student_id)
+        check(
+            "a turn enqueued right before teardown survives the drain",
+            len(buffer) == 1 and buffer[0]["text"] == "last thing before disconnect",
+            repr(buffer),
+        )
+    finally:
+        short_term.append_turn = real_append_turn
+        writer_task.cancel()
+        await short_term.clear_session(session_id, student_id)
+        nityam_main.logs.close_session(session_id)
+
+
 def main() -> int:
     asyncio.run(run())
+    asyncio.run(run_drain_on_disconnect())
     return 1 if FAILED else 0
 
 
