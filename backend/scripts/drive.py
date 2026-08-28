@@ -1,7 +1,7 @@
 """Drive the teaching loop in text mode — no microphone, no browser, no Live API.
 
 This is the cheapest way to see whether the tutor actually uses its board, and
-it is where to come back to when it stops. It runs TutorAgent directly through
+it is where to come back to when it stops. It runs BoardAgent directly through
 run_async (so `before_model_callback` and friends all fire normally), prints
 every tool call, and then prints the board that came out.
 
@@ -29,7 +29,7 @@ from google.genai import types  # noqa: E402
 
 from app import sessions  # noqa: E402
 from app.agent import APP_NAME  # noqa: E402
-from app.agents.tutor_agent import build_tutor_agent  # noqa: E402
+from app.agents.board_agent import build_board_agent  # noqa: E402
 from app.canvas import doc as D  # noqa: E402
 
 SESSION_ID = "s_drive"
@@ -39,7 +39,6 @@ SCRIPT = [
     "Hi — Mr Deshpande asked why 45 degrees is special and then the bell went.",
     "Why is 45 the best angle?",
     "[The student marked “sin(2θ)” on the page with the marker. Explain that specific thing.]",
-    "Quiz me on this.",
 ]
 
 
@@ -48,7 +47,7 @@ async def main(turns: list[str]) -> int:
 
     service = InMemorySessionService()
     runner = Runner(
-        app=App(name=APP_NAME, root_agent=build_tutor_agent()),
+        app=App(name=APP_NAME, root_agent=build_board_agent()),
         session_service=service,
     )
     await service.create_session(
@@ -81,7 +80,7 @@ async def main(turns: list[str]) -> int:
                     got = str(part.function_response.response)
                     print(f"  ← {part.function_response.name} -> {got[:160]}"
                           f"{'…' if len(got) > 160 else ''}")
-                if part.text and event.author == "TutorAgent":
+                if part.text and event.author == "BoardAgent":
                     said.append(part.text)
         if said:
             print(f"\n\033[1mtutor:\033[0m {''.join(said).strip()}")
