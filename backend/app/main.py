@@ -43,6 +43,8 @@ from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from app import incoming, sessions, user_auth  # noqa: E402
+from app.memory import short_term, store  # noqa: E402
+from app.session_close import close_session as _close_session_memory  # noqa: E402
 
 from app import logs  # noqa: E402
 
@@ -171,8 +173,36 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
         log.info("disconnected user=%s", user_id)
     finally:
         log.info("closed user=%s", user_id)
+        if MODE != "mock":
+            await _flush_session_memory(session_id, user_id)
         # Prints the turn timeline to the terminal and appends it to the file.
         logs.close_session(session_id)
+
+
+async def _flush_session_memory(session_id: str, student_id: str) -> None:
+    """The actual memory write `close_session` exists for — session_log
+    persisted, dpm_profile/teaching_memory updated via one Reflect call.
+
+    Buffer comes from Redis, not ADK session state: TutorAgent's own Runner
+    (app/agents/brain.py) keeps a SEPARATE InMemorySessionService from this
+    module's, so tool_context.state["turn_buffer"] is not reachable from
+    here — the write-through this same session's Task 2 added to _record()
+    is what makes this readable at all. Never raised past this function: a
+    memory-write failure must not prevent the WebSocket from closing cleanly.
+    """
+    from google import genai
+
+    state = sessions.get(session_id, student_id=student_id)
+    try:
+        buffer = await short_term.get_turn_buffer(session_id)
+        conn = store.connect()
+        client = genai.Client()
+        _close_session_memory(
+            conn, session_id, student_id, state.started_at, buffer, client,
+        )
+        log.info("session memory flushed: %s turn(s)", len(buffer))
+    except Exception:  # noqa: BLE001 - closing the socket must not fail on this
+        log.warning("failed to flush session memory for %s", session_id, exc_info=True)
 
 
 async def send_control(ws: WebSocket, **payload) -> None:
