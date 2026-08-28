@@ -44,15 +44,67 @@ def backend() -> str:
     return BACKEND
 
 
+from app.memory import instrumentation  # noqa: E402
+
+
+def _ids_none(args, kwargs, result):
+    return None, None
+
+
+def _ids_context_session_only(args, kwargs, result):
+    return instrumentation.get_session_context(), None
+
+
+def _ids_student_from_arg1(args, kwargs, result):
+    student_id = kwargs.get("student_id", args[1] if len(args) > 1 else None)
+    return instrumentation.get_session_context(), student_id
+
+
+def _ids_from_profile(args, kwargs, result):
+    profile = kwargs.get("profile", args[1] if len(args) > 1 else None)
+    return instrumentation.get_session_context(), getattr(profile, "student_id", None)
+
+
+def _ids_from_memory(args, kwargs, result):
+    memory = kwargs.get("memory", args[1] if len(args) > 1 else None)
+    return instrumentation.get_session_context(), getattr(memory, "student_id", None)
+
+
+def _ids_from_log(args, kwargs, result):
+    log_obj = kwargs.get("log", args[1] if len(args) > 1 else None)
+    return getattr(log_obj, "session_id", None), getattr(log_obj, "student_id", None)
+
+
+def _ids_session_from_arg1(args, kwargs, result):
+    session_id = kwargs.get("session_id", args[1] if len(args) > 1 else None)
+    return session_id, None
+
+
 connect = _impl.connect
-put_grounding_chunk = _impl.put_grounding_chunk
-search_grounding = _impl.search_grounding
-get_dpm = _impl.get_dpm
-put_dpm = _impl.put_dpm
-get_teaching_memory = _impl.get_teaching_memory
-put_teaching_memory = _impl.put_teaching_memory
-put_session_log = _impl.put_session_log
-get_session_log = _impl.get_session_log
+put_grounding_chunk = instrumentation.emit_memory_event(
+    "long_term", "grounding_chunk", "write", _ids_none,
+)(_impl.put_grounding_chunk)
+search_grounding = instrumentation.emit_memory_event(
+    "long_term", "grounding_chunk", "read", _ids_context_session_only,
+)(_impl.search_grounding)
+get_dpm = instrumentation.emit_memory_event(
+    "long_term", "dpm_profile", "read", _ids_student_from_arg1,
+)(_impl.get_dpm)
+put_dpm = instrumentation.emit_memory_event(
+    "long_term", "dpm_profile", "write", _ids_from_profile,
+)(_impl.put_dpm)
+get_teaching_memory = instrumentation.emit_memory_event(
+    "long_term", "teaching_memory", "read", _ids_student_from_arg1,
+)(_impl.get_teaching_memory)
+put_teaching_memory = instrumentation.emit_memory_event(
+    "long_term", "teaching_memory", "write", _ids_from_memory,
+)(_impl.put_teaching_memory)
+put_session_log = instrumentation.emit_memory_event(
+    "episodic", "session_log", "write", _ids_from_log,
+)(_impl.put_session_log)
+get_session_log = instrumentation.emit_memory_event(
+    "episodic", "session_log", "read", _ids_session_from_arg1,
+)(_impl.get_session_log)
 
 #: Firestore-only extras. `getattr` rather than a plain import so the sqlite
 #: path degrades instead of raising — callers must check for None.
