@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import uuid
 from pathlib import Path
 
 from app.auth import load_env  # noqa: E402
@@ -104,7 +105,7 @@ def main() -> int:
         return 0
 
     port = free_port()
-    session_id = "s_close_session_wiring_test"
+    session_id = f"s_close_session_wiring_{uuid.uuid4().hex[:8]}"
     server = Server(port)
     try:
         if not server.wait():

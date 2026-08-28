@@ -173,10 +173,12 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
         log.info("disconnected user=%s", user_id)
     finally:
         log.info("closed user=%s", user_id)
+        # Prints the turn timeline to the terminal and appends it to the file.
+        # Runs before the memory flush so the debug log always closes even if
+        # the flush below is itself interrupted (e.g. a server shutdown).
+        logs.close_session(session_id)
         if MODE != "mock":
             await _flush_session_memory(session_id, user_id)
-        # Prints the turn timeline to the terminal and appends it to the file.
-        logs.close_session(session_id)
 
 
 async def _flush_session_memory(session_id: str, student_id: str) -> None:
@@ -187,19 +189,35 @@ async def _flush_session_memory(session_id: str, student_id: str) -> None:
     (app/agents/brain.py) keeps a SEPARATE InMemorySessionService from this
     module's, so tool_context.state["turn_buffer"] is not reachable from
     here — the write-through this same session's Task 2 added to _record()
-    is what makes this readable at all. Never raised past this function: a
-    memory-write failure must not prevent the WebSocket from closing cleanly.
-    """
-    from google import genai
+    is what makes this readable at all.
 
-    state = sessions.get(session_id, student_id=student_id)
+    Runs the Reflect call and Firestore round-trips in a thread: this makes
+    a real generate_content call plus several blocking Firestore round
+    trips, and awaited inline that would stall the whole event loop — and
+    with it every concurrent student's audio stream — for however long that
+    takes, exactly what app.user_auth.verify_token's own asyncio.to_thread
+    call exists to avoid a few hundred lines up in this same file.
+
+    Never raised past this function: a memory-write failure must not
+    prevent the WebSocket from closing cleanly.
+    """
     try:
         buffer = await short_term.get_turn_buffer(session_id)
-        conn = store.connect()
-        client = genai.Client()
-        _close_session_memory(
-            conn, session_id, student_id, state.started_at, buffer, client,
-        )
+        if not buffer:
+            return
+        state = sessions.get(session_id, student_id=student_id)
+
+        def _flush() -> None:
+            from google import genai
+
+            conn = store.connect()
+            client = genai.Client()
+            _close_session_memory(
+                conn, session_id, student_id, state.started_at, buffer, client,
+            )
+
+        await asyncio.to_thread(_flush)
+        await short_term.clear_session(session_id)
         log.info("session memory flushed: %s turn(s)", len(buffer))
     except Exception:  # noqa: BLE001 - closing the socket must not fail on this
         log.warning("failed to flush session memory for %s", session_id, exc_info=True)
