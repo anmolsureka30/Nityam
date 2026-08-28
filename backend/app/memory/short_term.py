@@ -19,6 +19,17 @@ from app import config
 from app.memory import instrumentation
 
 _SAFETY_TTL_SECONDS = 60 * 60 * 6  # 6h - close_session should flush well before this
+_HEARTBEAT_TTL_SECONDS = 60
+"""Not student-namespaced (session:{id}:heartbeat, no data payload -- just a
+liveness flag) -- matches the exact key shape
+smriti-observatory/backend's routes_rest.py checks (`client.exists(...)`)
+to report a session's status as "live" for the Observatory frontend's
+auto-select. A short TTL, refreshed on every real turn, reflects "a
+conversation is happening right now" more accurately than a long
+idle-timeout window would -- unlike sub_modules_examples/tutor, backend/
+already knows exactly when a session ends (a real WebSocket disconnect
+triggers close_session directly), so this key exists purely for
+observability, not for backend/'s own session lifecycle."""
 
 
 def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
@@ -27,6 +38,10 @@ def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
         port=port or config.REDIS_PORT,
         decode_responses=True,
     )
+
+
+async def _refresh_heartbeat(client: redis.Redis, session_id: str) -> None:
+    await client.set(f"session:{session_id}:heartbeat", "1", ex=_HEARTBEAT_TTL_SECONDS)
 
 
 def _ids_from_args01(args, kwargs, result):
@@ -43,6 +58,7 @@ async def append_turn(session_id: str, student_id: str, turn: dict) -> None:
     key = f"session:{student_id}:{session_id}:turns"
     await client.rpush(key, json.dumps(turn))
     await client.expire(key, _SAFETY_TTL_SECONDS)
+    await _refresh_heartbeat(client, session_id)
     await client.aclose()
 
 
@@ -54,6 +70,7 @@ async def append_artifact_event(session_id: str, student_id: str, event: dict) -
     key = f"session:{student_id}:{session_id}:artifact_events"
     await client.rpush(key, json.dumps(event))
     await client.expire(key, _SAFETY_TTL_SECONDS)
+    await _refresh_heartbeat(client, session_id)
     await client.aclose()
 
 
@@ -75,5 +92,6 @@ async def clear_session(session_id: str, student_id: str) -> None:
     await client.delete(
         f"session:{student_id}:{session_id}:turns",
         f"session:{student_id}:{session_id}:artifact_events",
+        f"session:{session_id}:heartbeat",
     )
     await client.aclose()
