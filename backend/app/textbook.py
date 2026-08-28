@@ -35,7 +35,7 @@ def _index() -> list[dict]:
         return []
 
 
-def search_textbook(query: str) -> dict:
+def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict:
     """Find where something is covered in the student's own NCERT textbook.
 
     Search the section headings and figure numbers of the four Class XI Physics
@@ -48,7 +48,11 @@ def search_textbook(query: str) -> dict:
 
     Returns:
         dict with "hits": chapters, sections and figures that match, each with
-        the `chapter` id and `page` that show_textbook_figure needs.
+        the `chapter` id and `page` that show_textbook_figure needs. After two
+        calls in a row with nothing placed on the board, also carries a "hint"
+        telling the tutor to stop searching — confirmed live: a search that
+        never lands anything can otherwise retry with a new phrasing
+        indefinitely, once burning 70 seconds and four tries on one request.
     """
     q = (query or "").strip().lower()
     if not q:
@@ -88,7 +92,21 @@ def search_textbook(query: str) -> dict:
                     "kind": "figure", "chapter": ch["file"], "page": fig["page"],
                     "title": f"Fig. {fig['figure']}", "in": label,
                 })
-    return {"hits": hits[:12], "found": len(hits)}
+    result = {"hits": hits[:12], "found": len(hits)}
+
+    if tool_context is not None:
+        streak = tool_context.state.get("textbook_search_streak", 0) + 1
+        if streak >= 2:
+            result["hint"] = (
+                "That is two searches in a row without placing a figure. Stop "
+                "here — tell the student plainly that the book doesn't seem to "
+                "have this, and teach on without it. Do not search again for "
+                "this."
+            )
+            streak = 0
+        tool_context.state["textbook_search_streak"] = streak
+
+    return result
 
 
 def show_textbook_figure(
@@ -132,6 +150,7 @@ def show_textbook_figure(
         return {"error": str(exc)}
     log.info("textbook %s p.%s -> %s", chapter, page, block.id)
     logs.count("textbook page")
+    tool_context.state["textbook_search_streak"] = 0
     # So the voice layer can say which page it is and answer "is this in the
     # book?" without a round trip.
     sessions.inject(
