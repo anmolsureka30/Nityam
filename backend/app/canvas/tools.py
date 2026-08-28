@@ -84,21 +84,6 @@ def _sid(tool_context: ToolContext) -> str:
     return tool_context.state.get("session_id") or "unknown"
 
 
-def _brief_voice(session_id: str, blocks: list, pointed: list[str] | None = None) -> None:
-    """Tell the voice layer what just appeared, as context it must not reply to.
-
-    Called from every successful write. Without it VoiceAgent has to spend a
-    round trip asking what the board says before it can answer the simplest
-    question about it — three of eleven ask_tutor calls in the reference session
-    resolved to nothing but a point_at, at 7.8s, 9.0s and 16.7s.
-    """
-    from app import incoming
-
-    line = incoming.describe_board_delta(blocks, pointed)
-    if line:
-        sessions.inject(session_id, line)
-
-
 def _publish(tool_context: ToolContext, patch, **extra) -> dict:
     session_id = _sid(tool_context)
     try:
@@ -107,12 +92,6 @@ def _publish(tool_context: ToolContext, patch, **extra) -> dict:
         log.warning("patch rejected (%s): %s", patch.op, exc)
         return {"error": str(exc)}
     log.info("board %s: %s %s", session_id, patch.op, extra or "")
-    # A newly appended block is the only patch that puts something on the page
-    # the voice layer could not already name. point_at/strike/scroll only move
-    # attention around blocks it has already been told about.
-    block = getattr(patch, "block", None)
-    if block is not None:
-        _brief_voice(session_id, [block])
     return {"ok": True, **extra}
 
 
@@ -461,9 +440,6 @@ def write_lesson(blocks: list[str], tool_context: ToolContext) -> dict:
 
     log.info("board %s: wrote %s block(s) in one call", session_id, len(written))
     logs.count("board block", len(written))
-    # ONE injection for the whole batch. Five separate ones would read to the
-    # voice layer as five teaching moves rather than one lesson.
-    _brief_voice(session_id, staged, lit)
     return {
         "block_ids": written,
         "anchors": sorted(span_to_anchor.values()),

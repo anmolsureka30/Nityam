@@ -5,13 +5,11 @@ with no browser client. This process owns the Runner, the LiveRequestQueue and
 the board; the browser owns the microphone, the speaker and the page.
 One WebSocket between them.
 
-Seven concurrent tasks per connection:
+Five concurrent tasks per connection:
 
     read_client()        browser -> LiveRequestQueue  (mic, text, gestures, screen)
     downstream()         runner.run_live() -> browser (audio, transcripts, tool calls)
     outbound()           board outbox -> browser      (canvas patches)
-    nudges()             background work -> the model (an artifact finished building)
-    injections()         board state -> the model     (context only; she must not reply)
     heartbeat()          this connection -> Redis     (tells the Observatory it's live)
     _transcript_writer() transcript queue -> Redis    (every settled exchange, in order)
 
@@ -92,7 +90,6 @@ if MODE != "mock":
     from google.genai import types
 
     from app import config
-    from app.agents.brain import _cache_config
     from app.agents.voice_agent import build_voice_agent
 
     # Created once at startup and shared by every connection: agents and
@@ -106,10 +103,10 @@ if MODE != "mock":
         app=App(
             name=APP_NAME,
             root_agent=build_voice_agent(),
-            # See brain._cache_config: caching 404s on the express-mode
+            # See config.cache_config: caching 404s on the express-mode
             # endpoint, so it is opt-in via NITYAM_CONTEXT_CACHE rather than
             # logging a failure on every turn.
-            context_cache_config=_cache_config(),
+            context_cache_config=config.cache_config(),
         ),
         session_service=session_service,
         # Wired but not yet load-bearing: nothing calls tool_context.save_artifact()
@@ -194,7 +191,8 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
     # session_id) never saw the session until after it had already closed.
     # asyncio tasks created from here on inherit whatever this coroutine's
     # context holds, so setting it once, this early, covers the whole
-    # connection — including brain.py's and artifact_agent.py's own tasks.
+    # connection — including each specialist agent's own SpecialistRunner
+    # tasks (app/agents/specialist_runner.py).
     instrumentation.set_session_context(session_id)
     _recording_context.set((session_id, user_id))
     state = sessions.get(session_id, student_id=user_id)
@@ -277,42 +275,6 @@ async def send_control(ws: WebSocket, **payload) -> None:
         await ws.send_text(json.dumps({"nityam": payload}))
     except (RuntimeError, WebSocketDisconnect):
         pass
-
-
-async def nudges(sink, session_id: str) -> None:
-    """Background work -> the live conversation, as a COMPLETED turn.
-
-    An artifact takes half a minute to build, so the tutor starts it and keeps
-    teaching. This is how it finds out the thing landed: a completed turn, not
-    a partial one, because she is supposed to interrupt herself and say so.
-    """
-    state = sessions.get(session_id)
-    while True:
-        text = await state.nudges.get()
-        log.info("nudge: %s", text[:140])
-        log.debug("nudge in full: %s", text)
-        sink.text(text)
-
-
-async def injections(sink, session_id: str) -> None:
-    """Background work -> the live conversation, as CONTEXT ONLY.
-
-    The sibling of nudges() and the opposite half of the same idea: a nudge
-    makes her talk, an injection makes her *know*. Board writes and the
-    session's grounding pack arrive here, as partial content, so she can answer
-    "which formula was it?" or "did that go on the board?" herself instead of
-    spending nine seconds asking the reasoning layer what it just did.
-
-    Two tasks rather than one because a single task awaiting two queues would
-    have to poll or race; `asyncio.Queue.get()` on its own coroutine is the
-    honest way to wait on both.
-    """
-    state = sessions.get(session_id)
-    while True:
-        text = await state.context.get()
-        log.info("→ context: %s", text[:140])
-        log.debug("context in full: %s", text)
-        sink.text(text, partial=True)
 
 
 _HEARTBEAT_INTERVAL_S = 20  # well under short_term._HEARTBEAT_TTL_SECONDS (60s)
@@ -555,19 +517,18 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         asyncio.create_task(read_client(ws, session_id, sink)),
         asyncio.create_task(downstream()),
         asyncio.create_task(outbound(ws, session_id)),
-        asyncio.create_task(nudges(sink, session_id)),
-        asyncio.create_task(injections(sink, session_id)),
         asyncio.create_task(heartbeat(session_id)),
         asyncio.create_task(_transcript_writer(transcript_queue)),
     ]
     try:
-        # gather(..., return_exceptions=True) alone waits for ALL SEVEN to
-        # finish — but outbound()/nudges()/injections() are unconditional
-        # `while True: await queue.get()` loops with no termination path of
-        # their own, so that never happened on an ordinary disconnect and
-        # this whole function never returned. Whichever task finishes FIRST
-        # (normally read_client() raising WebSocketDisconnect) now cancels
-        # the rest, so the connection actually tears down.
+        # gather(..., return_exceptions=True) alone waits for ALL FIVE to
+        # finish — but outbound()/heartbeat()/_transcript_writer() are
+        # unconditional `while True: await queue.get()` (or sleep) loops with
+        # no termination path of their own, so that never happened on an
+        # ordinary disconnect and this whole function never returned.
+        # Whichever task finishes FIRST (normally read_client() raising
+        # WebSocketDisconnect) now cancels the rest, so the connection
+        # actually tears down.
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         # _transcript_writer is one of `pending` at this point (nothing but
         # read_client's disconnect finishes first in the ordinary case) — drain
@@ -601,7 +562,7 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         # asyncio.wait — unlike asyncio.gather — does not cancel its members
         # when the awaiting task itself is cancelled, so the loop body above
         # never runs. Cancel explicitly here (a no-op on tasks already done)
-        # so the seven tasks are never orphaned regardless of how this
+        # so the five tasks are never orphaned regardless of how this
         # function exits.
         for t in tasks:
             t.cancel()
@@ -720,8 +681,6 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
         asyncio.create_task(read_client(ws, session_id, mock_sink)),
         asyncio.create_task(downstream()),
         asyncio.create_task(outbound(ws, session_id)),
-        asyncio.create_task(nudges(mock_sink, session_id)),
-        asyncio.create_task(injections(mock_sink, session_id)),
     ]
     try:
         # Same fix as run_live() — see its comment there. Without cancelling

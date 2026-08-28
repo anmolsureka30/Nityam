@@ -65,6 +65,22 @@ def reasoning_model() -> str:
     )
 
 
+def cache_config():
+    """Context caching, when the platform actually supports it.
+
+    On Vertex express mode this fails with `404 Not Found` on every turn —
+    `Failed to create cache` in the log — so it is off by default. It is worth
+    switching on once running under full ADC/Cloud Run, where delegating swaps
+    the system instruction and tool set and the prompt prefix would otherwise be
+    re-sent uncached on every call.
+    """
+    if os.getenv("NITYAM_CONTEXT_CACHE", "").strip() not in ("1", "true", "TRUE"):
+        return None
+    from google.adk.agents.context_cache_config import ContextCacheConfig
+
+    return ContextCacheConfig(ttl_seconds=1800)
+
+
 # The voice each speaking agent uses. Only VoiceAgent speaks, so there is one
 # entry — but it stays a mapping because a second voice (a guest agent, a
 # different language) is a plausible next step and the call site shouldn't change.

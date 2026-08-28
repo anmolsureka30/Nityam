@@ -33,11 +33,14 @@ from app.canvas import doc as D
 
 log = logging.getLogger("nityam.sessions")
 
-# STUB: the topic comes from the class recap Shruti produces overnight. Until
-# that pipeline is wired, one env-overridable line.
-OPENING_EYEBROW = os.getenv("NITYAM_TOPIC_EYEBROW", "Revision · today's class")
-OPENING_HEADING = os.getenv("NITYAM_TOPIC_HEADING", "Maximum range — why 45° wins")
-OPENING_CONCEPT = os.getenv("NITYAM_TOPIC_CONCEPT", "projectile.horizontal_range")
+# The real topic/concept for a session comes from whatever the frontend's
+# "start" payload names (incoming.apply_plan) -- these are only the
+# before-that-arrives placeholder, and deliberately generic rather than
+# naming a specific concept, per the no-hardcoded-subject principle
+# (docs/superpowers/specs/2026-08-28-agent-orchestration-redesign-design.md §6).
+OPENING_EYEBROW = os.getenv("NITYAM_TOPIC_EYEBROW", "Today's session")
+OPENING_HEADING = os.getenv("NITYAM_TOPIC_HEADING", "Let's get started")
+OPENING_CONCEPT = os.getenv("NITYAM_TOPIC_CONCEPT", "")
 
 
 @dataclass
@@ -82,18 +85,6 @@ class SessionState:
     plan: Plan
     outbox: asyncio.Queue
     """Canvas patches waiting for the browser. Drained by main.py's outbound()."""
-    nudges: asyncio.Queue
-    """Things to SAY into the live conversation that nobody asked for — an
-    artifact finishing in the background, mostly. Drained by main.py and sent
-    as a completed turn, so she actually speaks it."""
-    context: asyncio.Queue
-    """Things she should KNOW but must not reply to — what just landed on the
-    board, the topic's grounding pack. Sent as partial content, which reaches
-    the model's context without completing the turn.
-
-    The distinction from `nudges` is the whole point: a nudge makes her talk, an
-    injection makes her able to answer without asking the reasoning layer. It is
-    what lets "which formula was it?" cost one second instead of nine."""
     jobs: set
     """Background work in flight. Held only so the event loop does not garbage
     collect a task nobody is awaiting."""
@@ -136,8 +127,6 @@ def get(session_id: str, student_id: str = "demo_student") -> SessionState:
             screen=Screen(),
             plan=Plan(),
             outbox=asyncio.Queue(),
-            nudges=asyncio.Queue(),
-            context=asyncio.Queue(),
             jobs=set(),
             started_at=datetime.now(timezone.utc),
         )
@@ -152,43 +141,6 @@ def drop(session_id: str) -> None:
 
 def known(session_id: str) -> bool:
     return session_id in _SESSIONS
-
-
-def nudge(session_id: str, text: str) -> None:
-    """Interrupt the lesson with something worth saying.
-
-    Used when work that was started in the background finishes — the tutor sent
-    the student off to do something else and now needs to know it is ready.
-    """
-    state = _SESSIONS.get(session_id)
-    if state is None:
-        return
-    try:
-        state.nudges.put_nowait(text)
-    except asyncio.QueueFull:  # pragma: no cover - unbounded queue
-        log.warning("nudge dropped for %s", session_id)
-
-
-def inject(session_id: str, text: str) -> None:
-    """Put something in the voice layer's context without making her speak.
-
-    The counterpart to `nudge`. Board writes, the session's grounding pack and
-    artifact landings go through here so VoiceAgent can answer questions about
-    them directly — naming a real block, pointing at a real anchor, confirming
-    what is actually on the page — instead of spending a 9-second round trip
-    asking the reasoning model what it just did.
-
-    Verified against the real Live API: partial content injected while a
-    function call is outstanding is accepted, and the text provably reaches the
-    model's context (it quoted an injected canary phrase back verbatim).
-    """
-    state = _SESSIONS.get(session_id)
-    if state is None:
-        return
-    try:
-        state.context.put_nowait(text)
-    except asyncio.QueueFull:  # pragma: no cover - unbounded queue
-        log.warning("context injection dropped for %s", session_id)
 
 
 def track(session_id: str, task) -> None:

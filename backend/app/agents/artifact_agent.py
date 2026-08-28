@@ -266,14 +266,3 @@ async def ask_artifact(bridge: str, request: str, tool_context: ToolContext) -> 
     except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
         log.exception("ArtifactAgent turn failed")
         return {"status": "error", "summary": "The simulation could not be built this time."}
-
-
-async def commission_artifact(brief: str, tool_context: ToolContext) -> dict:
-    """Compatibility shim for tutor_agent.py's import. tutor_agent.py is
-    retired in a later task of this redesign (docs/superpowers/plans/
-    2026-08-28-agent-orchestration-redesign.md, Task 9) -- this exists
-    only to keep the import chain valid during the transition and is
-    never invoked by the live VoiceAgent path, which reaches this file
-    through ask_artifact instead.
-    """
-    return await ask_artifact(bridge="", request=brief, tool_context=tool_context)
