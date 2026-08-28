@@ -1,6 +1,10 @@
-"""The workflow-tier write-through: appending a turn or an artifact event
-through the real call sites lands in Redis, keyed by student_id + session_id,
-not just in whatever in-process state the caller happens to hold.
+"""The workflow-tier write-through: log_artifact_evidence lands in Redis,
+keyed by student_id + session_id, not just in whatever in-process state
+the caller happens to hold.
+
+(This file used to also test brain._record()'s write-through — brain.py
+is retired as of this plan; that coverage now lives in
+test_transcript_recording.py, which tests the mechanism that replaced it.)
 
 Needs a local Redis on localhost:6379 (`redis-server --daemonize yes`).
 
@@ -16,7 +20,6 @@ from app.auth import load_env
 
 load_env()
 
-from app.agents.brain import _record
 from app.memory import short_term
 from app.memory.tools import log_artifact_evidence
 
@@ -39,23 +42,20 @@ class _FakeToolContext:
 
 async def run() -> None:
     session_id = f"test_{uuid.uuid4().hex[:10]}"
-    await short_term.clear_session(session_id, "demo_student")
+    student_id = "demo_student"
+    await short_term.clear_session(session_id, student_id)
 
     ctx = _FakeToolContext()
     ctx.state["session_id"] = session_id
-    ctx.state["student_id"] = "demo_student"
-    ctx.state["turn_buffer"] = []
-    await _record(session_id, "demo_student", "why 45 degrees?", "because sin(2θ) peaks there", ctx)
-
-    turns = await short_term.get_turn_buffer(session_id, "demo_student")
-    check("a recorded turn lands in Redis", len(turns) == 2, repr(turns))
-    check("student half is first", turns[0]["role"] == "student" if turns else False)
-    check("tutor half is second", turns[1]["role"] == "tutor" if len(turns) > 1 else False)
+    ctx.state["student_id"] = student_id
 
     result = await log_artifact_evidence("discovered_optimum", "art_1", ctx)
     check("log_artifact_evidence still returns its ack", result == {"logged": True}, repr(result))
 
-    await short_term.clear_session(session_id, "demo_student")
+    events = await short_term.get_turn_buffer(session_id, student_id)  # sanity: wrong buffer is empty
+    check("log_artifact_evidence doesn't write to the turn buffer", events == [], repr(events))
+
+    await short_term.clear_session(session_id, student_id)
 
 
 def main() -> int:
