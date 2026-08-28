@@ -186,18 +186,24 @@ export function useLiveSession(
         if (event.partial === false) say(out);
       }
 
-      /* The reasoning layer is reached by a tool call, so its start and end are
+      /* A specialist is reached by a tool call, so its start and end are
          visible right here in the stream — no extra protocol needed.
 
-         The call also carries her holding line. `bridge` is a required argument
-         of ask_tutor precisely so it arrives here: the Live model would either
-         speak a bridge OR make the call, never both, so the line it wanted to
-         say is now part of the call and lands in the bubble the instant the
-         reasoning starts. Ten seconds of thinking with "achha, ek second" on
-         screen is a tutor working; ten seconds blank is a tutor who did not
-         hear you. */
+         Matched on the `ask_` prefix rather than by name. The voice layer
+         delegates to four of them today (ask_board, ask_artifact, ask_quiz,
+         ask_textbook) and a fifth would otherwise be invisible here until
+         someone remembered to edit this line — which is exactly how this
+         broke once already, when the single `ask_tutor` these checks used to
+         name was split into four and neither branch matched anything again.
+
+         Every delegate tool takes a required `bridge` argument precisely so
+         it arrives here: the Live model would either speak a bridge OR make
+         the call, never both, so the line it wanted to say is now part of the
+         call and lands in the bubble the instant the delegation starts. Ten
+         seconds of thinking with "achha, ek second" on screen is a tutor
+         working; ten seconds blank is a tutor who did not hear you. */
       for (const part of event.content?.parts ?? []) {
-        if (part.functionCall?.name === "ask_tutor") {
+        if (part.functionCall?.name?.startsWith("ask_")) {
           setThinking(true);
           const line = (part.functionCall.args as { bridge?: string } | undefined)
             ?.bridge?.trim();
@@ -207,7 +213,11 @@ export function useLiveSession(
             say(line);
           }
         }
-        if (part.functionResponse?.name === "ask_tutor") {
+        /* Belt and braces. These tools are scheduled WHEN_IDLE, and ADK does
+           not yield a functionResponse event into this stream for those — so
+           in practice it is the turnComplete branch below that clears the
+           thinking state, when her own current utterance finishes. */
+        if (part.functionResponse?.name?.startsWith("ask_")) {
           setThinking(false);
           setBridge("");
         }

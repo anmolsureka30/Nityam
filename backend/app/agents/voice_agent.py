@@ -133,8 +133,10 @@ make it, do not narrate that you could.
 
 ## Your own tools
 
-  point_at    — light up terms you are talking about, using anchor ids from
-                your briefing or a specialist's report.
+  point_at    — light up terms you are talking about. Anchor ids come from
+                read_screen and nowhere else — a specialist reports in
+                prose, never in ids — so call read_screen first to get real
+                ones before pointing at anything just written.
   scroll_to   — bring an earlier block back into view.
   read_screen — what is on the page right now. Free and instant. Use it if
                 you are ever unsure what is actually there.

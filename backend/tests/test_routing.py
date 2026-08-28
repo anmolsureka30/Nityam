@@ -126,7 +126,11 @@ class Turn:
 
     @property
     def route(self) -> str:
-        return DELEGATE if "ask_tutor" in self.calls else DIRECT
+        # Any `ask_*` tool is a delegation. There are four of them now
+        # (ask_board, ask_artifact, ask_quiz, ask_textbook) where there used
+        # to be a single `ask_tutor`; matching that one deleted name scored
+        # every real delegation in this eval as DIRECT.
+        return DELEGATE if any(c.startswith("ask_") for c in self.calls) else DIRECT
 
     @property
     def text(self) -> str:
