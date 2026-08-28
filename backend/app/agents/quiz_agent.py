@@ -22,6 +22,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config, sessions
+from app.agents.specialist_runner import SpecialistRunner, recent_transcript
 from app.canvas import doc as D
 from app.memory.tools import get_dpm, get_teaching_memory, search_grounding
 
@@ -149,14 +150,44 @@ def build_quiz_agent() -> LlmAgent:
     return LlmAgent(
         name="QuizAgent",
         model=config.reasoning_model(),
-        mode="single_turn",
+        mode=None,
         description=(
             "Writes and displays a short checkpoint quiz (3-4 questions) for "
             "concepts the student has just worked through. Call with a brief "
-            "saying what to test and which misconceptions to probe. It puts "
-            "the questions on screen and reports them back to you; you do the "
-            "talking."
+            "saying what to test and which misconceptions to probe."
         ),
         instruction=QUIZ_INSTRUCTION,
         tools=[publish_quiz_question, get_dpm, get_teaching_memory, search_grounding],
     )
+
+
+_RUNNER = SpecialistRunner("nityam-quiz", build_quiz_agent)
+
+
+async def ask_quiz(bridge: str, request: str, tool_context: ToolContext) -> dict:
+    """Set a checkpoint quiz for the student. Returns IMMEDIATELY — do not
+    wait for it. Keep teaching; you will be told when it is ready, at a
+    natural pause.
+
+    Args:
+        bridge: What you say RIGHT NOW, out loud, while it works.
+        request: What to test and which misconceptions to probe, in your
+            own words.
+
+    Returns:
+        dict with "status" and "summary".
+    """
+    session_id = tool_context.state.get("session_id")
+    student_id = tool_context.state.get("student_id")
+    if not session_id or not student_id:
+        log.warning("ask_quiz called with no session/student id in state")
+        return {"status": "error", "summary": "Something went wrong on my end — let's move on."}
+
+    try:
+        transcript = await recent_transcript(session_id, student_id, n=20)
+        message = f"{request}\n\n{transcript}"
+        summary = await _RUNNER.run_turn(session_id, student_id, message)
+        return {"status": "done", "summary": summary or "The checkpoint is up."}
+    except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
+        log.exception("QuizAgent turn failed")
+        return {"status": "error", "summary": "I couldn't set that checkpoint up this time."}
