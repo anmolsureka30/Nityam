@@ -410,14 +410,14 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
                 event.model_dump_json(exclude_none=True, by_alias=True)
             )
 
+    tasks = [
+        asyncio.create_task(read_client(ws, session_id, sink)),
+        asyncio.create_task(downstream()),
+        asyncio.create_task(outbound(ws, session_id)),
+        asyncio.create_task(nudges(sink, session_id)),
+        asyncio.create_task(injections(sink, session_id)),
+    ]
     try:
-        tasks = [
-            asyncio.create_task(read_client(ws, session_id, sink)),
-            asyncio.create_task(downstream()),
-            asyncio.create_task(outbound(ws, session_id)),
-            asyncio.create_task(nudges(sink, session_id)),
-            asyncio.create_task(injections(sink, session_id)),
-        ]
         # gather(..., return_exceptions=True) alone waits for ALL FIVE to
         # finish — but outbound()/nudges()/injections() are unconditional
         # `while True: await queue.get()` loops with no termination path of
@@ -441,6 +441,15 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
                     message=f"{type(result).__name__}: {str(result)[:300]}",
                 )
     finally:
+        # If ws_endpoint's own task is cancelled while suspended above (a
+        # server shutdown or Cloud Run scale-down sending SIGTERM),
+        # asyncio.wait — unlike asyncio.gather — does not cancel its members
+        # when the awaiting task itself is cancelled, so the loop body above
+        # never runs. Cancel explicitly here (a no-op on tasks already done)
+        # so the five tasks are never orphaned regardless of how this
+        # function exits.
+        for t in tasks:
+            t.cancel()
         # Without this the Live API session lingers server-side and keeps
         # counting against the concurrent-session quota.
         queue.close()
@@ -532,15 +541,15 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
         async for event in live.events():
             await ws.send_text(json.dumps(event))
 
+    mock_sink = _MockSink()
+    tasks = [
+        asyncio.create_task(read_client(ws, session_id, mock_sink)),
+        asyncio.create_task(downstream()),
+        asyncio.create_task(outbound(ws, session_id)),
+        asyncio.create_task(nudges(mock_sink, session_id)),
+        asyncio.create_task(injections(mock_sink, session_id)),
+    ]
     try:
-        mock_sink = _MockSink()
-        tasks = [
-            asyncio.create_task(read_client(ws, session_id, mock_sink)),
-            asyncio.create_task(downstream()),
-            asyncio.create_task(outbound(ws, session_id)),
-            asyncio.create_task(nudges(mock_sink, session_id)),
-            asyncio.create_task(injections(mock_sink, session_id)),
-        ]
         # Same fix as run_live() — see its comment there. Without cancelling
         # the rest on first completion, this gather() never returned on an
         # ordinary disconnect either.
@@ -549,6 +558,10 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
             t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
     finally:
+        # See run_live()'s matching comment: outer cancellation while
+        # suspended at asyncio.wait() would otherwise orphan these tasks.
+        for t in tasks:
+            t.cancel()
         live.close()
 
 
