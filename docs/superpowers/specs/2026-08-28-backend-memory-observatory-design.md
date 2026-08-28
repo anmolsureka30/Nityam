@@ -165,25 +165,27 @@ instrumentation.)
 `get_dpm`/`put_dpm`/`get_teaching_memory`/`put_teaching_memory` never receive
 a `session_id` argument (same gap the tutor's version documents) — same
 fix: a `contextvars.ContextVar` + `set_session_context(session_id)` /
-`get_session_context()` pair in the new `instrumentation.py`, called once
-from `backend/app/main.py`'s `_flush_session_memory` right before the
-`asyncio.to_thread(_flush)` call that runs `close_session` (§3.4's actual
-long-term writes happen inside that thread). `asyncio.to_thread` runs its
-target inside a **copy of the calling context** (stdlib behavior — the copy
-is taken at call time), so a contextvar set just before the call is visible
-inside the thread; nothing needs to flow back out, and the coroutine's Task
-ends right after, so no explicit reset is needed — exactly the same
-reasoning `sub_modules_examples/tutor`'s own instrumentation.py already
-documents for its call site.
+`get_session_context()` pair in the new `instrumentation.py`. Verified
+directly where the tutor's real (not illustrative) code calls this:
+`sub_modules_examples/tutor/app/session_close.py:169`, the **first line
+inside `close_session(...)` itself** — not in its caller. `backend/app/
+session_close.py` gets the identical one-line addition at the top of its
+own `close_session(...)`:
 
 ```python
-# backend/app/main.py, inside _flush_session_memory, before the existing
-# `await asyncio.to_thread(_flush)` line:
-from app.memory.instrumentation import set_session_context
-...
-set_session_context(session_id)
-await asyncio.to_thread(_flush)
+# backend/app/session_close.py, first line of close_session(...):
+def close_session(conn, session_id, student_id, started_at, buffer, client):
+    instrumentation.set_session_context(session_id)
+    ...  # rest unchanged
 ```
+
+Since `close_session` runs synchronously inside the background thread
+`main.py`'s `_flush_session_memory` already spawns via `asyncio.to_thread`,
+setting the contextvar as the function's own first statement and reading it
+moments later in the same synchronous call stack (still the same thread)
+needs no cross-thread/cross-task propagation reasoning at all — it's a
+plain same-thread set-then-read, same as the tutor's own call site.
+`main.py` needs no change for this part.
 
 No changes anywhere else: `app/memory/tools.py` (the ADK-tool-facing layer)
 and `app/session_close.py` call `store.*`/`short_term.*` by name and never
@@ -283,10 +285,45 @@ import-based** — it already does this for one route
   `observatory/ingest.py` needs **zero changes** — its `get_dpm`/
   `get_teaching_memory` params are already typed as plain `Callable[[str],
   dict | None]`, agnostic to what's behind them.
-- `pyproject.toml` — drop the `tutor` path dependency and its `[tool.uv.
-  sources]` entry entirely; add `"google-cloud-firestore>=2.16"` directly
-  (same version floor `sub_modules_examples/tutor` already pins) as an
-  explicit dependency instead of an inherited transitive one.
+- `pyproject.toml` — move the `tutor` path dependency out of `[project]
+  dependencies` and into `[dependency-groups] dev` instead of dropping it
+  outright: `tests/test_end_to_end.py` is a real, valuable integration test
+  that deliberately drives `sub_modules_examples/tutor`'s actual
+  `app.memory.tools`/`app.app_utils.memory_routes`/`app.session_close` in
+  process to prove the whole tutor-specific pipeline works — that test stays
+  exactly as it is, still tutor-coupled on purpose, since it's testing that
+  integration specifically. What moves off the dependency is the
+  **production code path** (`main.py`, `routes_rest.py`, `events.py`) — it
+  no longer imports `app.*` at all, so the running `observatory.main:app`
+  process itself has no coupling to either app's package, and can be
+  pointed at `backend/` (which also ships a package literally named `app`)
+  without a naming collision. Also add `"google-cloud-firestore>=2.16"`
+  (same version floor `sub_modules_examples/tutor` already pins) as its own
+  explicit runtime dependency instead of an inherited transitive one.
+- `tests/conftest.py`'s `firestore_db`/`redis_client` fixtures currently
+  import `app.memory.store`/`app.config` too (confirmed by grep) — update
+  both to build a plain `firestore.Client`/`redis.Redis` directly from the
+  Observatory's own env vars, same as `main.py`'s new lifespan (previous
+  bullet). `test_end_to_end.py` doesn't use these fixtures (it builds its
+  own tutor-specific connections directly), so this doesn't affect it.
+- `tests/test_routes_rest.py` seeds Firestore via `store.put_dpm(firestore_db,
+  DPMProfile(...))`/`TeachingMemory(...)` — switch these two seed calls to
+  writing the equivalent plain dict directly through the (now plain)
+  `firestore_db` fixture (`firestore_db.collection("dpm_profiles").
+  document(...).set({...})`), since the fixture and the router under test no
+  longer have typed schema classes available. Every other test in this file
+  is already dict/JSON-based and needs no change.
+- `tests/test_events.py::test_memory_event_is_the_tutor_apps_own_class`
+  currently asserts identity (`MemoryEvent is TutorMemoryEvent`) — this
+  assertion's premise goes away by design once `events.py` declares its own
+  local model. Replace it with a wire-compatibility test instead: construct
+  the tutor's real `app.memory.instrumentation.MemoryEvent` (this one test
+  file may keep that one import, exactly like `test_end_to_end.py`, since
+  it's explicitly testing cross-app JSON compatibility) with a sample
+  payload, serialize it, and assert the Observatory's own local
+  `MemoryEvent.model_validate_json(...)` parses it into an equal object —
+  proving the two classes stay wire-compatible without being the same
+  class.
 - **Health check** (`routes_rest.py`'s `health()`): the `tutor_reachable`
   probe currently hits `/list-apps` (an ADK-dev-server-only route). Switch
   to hitting `{agent_base_url}/health` — a route `backend/`'s own
@@ -403,13 +440,17 @@ fail) if unreachable" convention:
 - `backend/tests/` — `memory_routes.py`'s two new endpoints: happy path,
   missing session/student, `trace_id` filter — same style as
   `sub_modules_examples/tutor`'s `test_routes_rest.py`-equivalent.
-- `smriti-observatory/backend/tests/` — existing `test_routes.py`/
-  `test_ingest.py`/`test_diff.py` re-run unmodified against the refactored
-  (import-free) `routes_rest.py`/`main.py` to confirm no behavior changed
-  for the `sub_modules_examples/tutor`-pointed case; one new test pointing
-  the same router at a fake `agent_base_url` (a local `httpx` mock or a
+- `smriti-observatory/backend/tests/` — `test_ingest.py`/`test_diff.py`/
+  `test_snapshot_cache.py`/`test_trace_links.py` re-run unmodified (none of
+  them import `app.*`, confirmed by grep). `test_routes_rest.py`/
+  `test_main.py`/`conftest.py`/`test_events.py` get the specific,
+  intentional updates §3 already describes (dict-based seeding instead of
+  typed schema classes, a wire-compatibility test instead of a
+  same-class-identity one) — `test_end_to_end.py` is the one file that
+  keeps its tutor-specific imports on purpose. One new test pointing
+  `build_router(...)` at a fake `agent_base_url` (a local `httpx` mock or a
   bare FastAPI test app standing in for `backend/`) to confirm the proxy
-  path works without any `app.*` import present at all.
+  path works with no `app.*` import present in the router itself.
 - **End-to-end acceptance** (the real proof): run `backend/` locally with
   `NITYAM_STORE=firestore`, `NITYAM_AUTH=mock` (per its own existing mock
   mode) or real credentials, drive a session via `scripts/drive.py` (the
