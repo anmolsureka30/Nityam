@@ -44,6 +44,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from app import incoming, sessions, user_auth  # noqa: E402
 from app.memory import short_term, store  # noqa: E402
+from app.memory_routes import router as memory_router  # noqa: E402
 from app.session_close import close_session as _close_session_memory  # noqa: E402
 
 from app import logs  # noqa: E402
@@ -55,6 +56,7 @@ APP_NAME = "nityam"
 
 app = FastAPI(title="Nityam backend")
 user_auth.init_firebase()
+app.include_router(memory_router)
 
 # --------------------------------------------------------------- runtime
 
