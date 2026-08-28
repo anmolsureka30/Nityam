@@ -86,7 +86,13 @@ export function SessionView() {
       .catch(() => {});
 
     return connectSessionSocket(BACKEND_URL.replace("http", "ws"), selectedId, (enriched) => {
-      setEvents((prev) => [...prev, enriched]);
+      // The initial backlog fetch above and this live subscription start at
+      // roughly the same time with no ordering coordination between them --
+      // an event published in that overlap can land in both the REST
+      // snapshot and the live push. Deduping by event_id (always a fresh
+      // uuid4 per real event) keeps the timeline from rendering the same
+      // event twice with a duplicate React key.
+      setEvents((prev) => (prev.some((e) => e.event.event_id === enriched.event.event_id) ? prev : [...prev, enriched]));
     });
   }, [selectedId]);
 
