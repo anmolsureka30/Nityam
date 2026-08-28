@@ -1,15 +1,22 @@
-"""Same skip-if-unreachable shape as sub_modules_examples/tutor/tests/conftest.py."""
+"""Fixtures build their own Firestore/Redis clients directly from this
+package's own env vars — no import from either agent app's `app` package
+(see docs/superpowers/specs/2026-08-28-backend-memory-observatory-design.md §3).
+"""
 from __future__ import annotations
+
+import os
 
 import pytest
 
 
 @pytest.fixture
 def firestore_db():
-    from app.memory import store
+    from google.cloud import firestore
 
+    project = os.environ.get("GCP_PROJECT", "nityam-506707")
+    database = os.environ.get("FIRESTORE_DATABASE", "smriti")
     try:
-        client = store.connect()
+        client = firestore.Client(project=project, database=database)
         client.collection("_healthcheck").document("x").get()
     except Exception as exc:  # noqa: BLE001
         pytest.skip(f"Firestore unreachable ({exc}); run `gcloud auth application-default login`")
@@ -20,11 +27,12 @@ def firestore_db():
 @pytest.fixture
 def redis_client():
     import redis as redis_module
-    from app import config
 
+    host = os.environ.get("REDIS_HOST", "localhost")
+    port = int(os.environ.get("REDIS_PORT", "6379"))
     try:
-        client = redis_module.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True)
+        client = redis_module.Redis(host=host, port=port, decode_responses=True)
         client.ping()
     except Exception as exc:  # noqa: BLE001
-        pytest.skip(f"Redis unreachable at {config.REDIS_HOST}:{config.REDIS_PORT} ({exc}); run `brew services start redis`")
+        pytest.skip(f"Redis unreachable at {host}:{port} ({exc}); run `brew services start redis`")
     yield client
