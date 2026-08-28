@@ -46,25 +46,40 @@ async def run() -> None:
     nityam_main.instrumentation.set_session_context(session_id)
     nityam_main._recording_context.set((session_id, student_id))
 
-    nityam_main.trace(_event("student", "why does it peak at 45?", input_side=True))
-    nityam_main.trace(_event("VoiceAgent", "because sin two theta peaks there", input_side=False))
+    # A single consumer draining an ordered queue, exactly like run_live sets
+    # up per connection -- not a fire-and-forget task per _record_turn call
+    # (that raced: ~71% failure rate reordering/dropping entries).
+    queue: asyncio.Queue = asyncio.Queue()
+    nityam_main._transcript_queue_context.set(queue)
+    writer_task = asyncio.create_task(nityam_main._transcript_writer(queue))
 
-    buffer = await short_term.get_turn_buffer(session_id, student_id)
-    check("both sides of a direct exchange got recorded", len(buffer) == 2, repr(buffer))
-    if len(buffer) == 2:
-        check("student half recorded with the right role", buffer[0]["role"] == "student")
-        check("student text matches", buffer[0]["text"] == "why does it peak at 45?")
-        check("tutor half recorded with the right role", buffer[1]["role"] == "tutor")
+    try:
+        nityam_main.trace(_event("student", "why does it peak at 45?", input_side=True))
+        nityam_main.trace(_event("VoiceAgent", "because sin two theta peaks there", input_side=False))
 
-    # A partial (not-yet-finalized) transcription must NOT be recorded.
-    partial = _event("student", "um so", input_side=True)
-    partial.partial = True
-    nityam_main.trace(partial)
-    buffer2 = await short_term.get_turn_buffer(session_id, student_id)
-    check("a partial transcription is not recorded", len(buffer2) == 2, repr(buffer2))
+        # Deterministic wait: blocks until both enqueued items have been
+        # drained and task_done() called, instead of hoping a sleep was
+        # long enough.
+        await queue.join()
 
-    await short_term.clear_session(session_id, student_id)
-    nityam_main.logs.close_session(session_id)
+        buffer = await short_term.get_turn_buffer(session_id, student_id)
+        check("both sides of a direct exchange got recorded", len(buffer) == 2, repr(buffer))
+        if len(buffer) == 2:
+            check("student half recorded with the right role", buffer[0]["role"] == "student")
+            check("student text matches", buffer[0]["text"] == "why does it peak at 45?")
+            check("tutor half recorded with the right role", buffer[1]["role"] == "tutor")
+
+        # A partial (not-yet-finalized) transcription must NOT be recorded.
+        partial = _event("student", "um so", input_side=True)
+        partial.partial = True
+        nityam_main.trace(partial)
+        await queue.join()
+        buffer2 = await short_term.get_turn_buffer(session_id, student_id)
+        check("a partial transcription is not recorded", len(buffer2) == 2, repr(buffer2))
+    finally:
+        writer_task.cancel()
+        await short_term.clear_session(session_id, student_id)
+        nityam_main.logs.close_session(session_id)
 
 
 def main() -> int:

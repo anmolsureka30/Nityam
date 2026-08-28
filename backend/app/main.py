@@ -5,14 +5,15 @@ with no browser client. This process owns the Runner, the LiveRequestQueue and
 the board; the browser owns the microphone, the speaker and the page.
 One WebSocket between them.
 
-Six concurrent tasks per connection:
+Seven concurrent tasks per connection:
 
-    read_client() browser -> LiveRequestQueue     (mic, text, gestures, screen)
-    downstream()  runner.run_live() -> browser    (audio, transcripts, tool calls)
-    outbound()    board outbox -> browser         (canvas patches)
-    nudges()      background work -> the model    (an artifact finished building)
-    injections()  board state -> the model        (context only; she must not reply)
-    heartbeat()   this connection -> Redis        (tells the Observatory it's live)
+    read_client()        browser -> LiveRequestQueue  (mic, text, gestures, screen)
+    downstream()         runner.run_live() -> browser (audio, transcripts, tool calls)
+    outbound()           board outbox -> browser      (canvas patches)
+    nudges()             background work -> the model (an artifact finished building)
+    injections()         board state -> the model     (context only; she must not reply)
+    heartbeat()          this connection -> Redis     (tells the Observatory it's live)
+    _transcript_writer() transcript queue -> Redis    (every settled exchange, in order)
 
 The third one is why the tutor can write on the page at all. Board tools run
 inside a mode='single_turn' sub-agent invocation, several frames deep, with no
@@ -72,6 +73,14 @@ _recording_context: contextvars.ContextVar[tuple[str, str] | None] = (
 turns — set once per connection in ws_endpoint, same pattern as
 instrumentation.set_session_context. Lets trace() record every exchange
 without needing session_id/student_id threaded through the ADK Event."""
+
+_transcript_queue_context: contextvars.ContextVar[asyncio.Queue | None] = (
+    contextvars.ContextVar("nityam_transcript_queue", default=None)
+)
+"""The per-connection FIFO _record_turn enqueues onto and _transcript_writer
+drains, set once per live connection in run_live. A separate task per
+_record_turn call each opening its own Redis connection raced each other and
+reordered/dropped entries under real load -- see _record_turn's docstring."""
 
 if MODE != "mock":
     from google.adk.agents.live_request_queue import LiveRequestQueue
@@ -326,6 +335,23 @@ async def heartbeat(session_id: str) -> None:
         await asyncio.sleep(_HEARTBEAT_INTERVAL_S)
 
 
+async def _transcript_writer(queue: asyncio.Queue) -> None:
+    """Drains transcript turns in the order trace() saw them. One
+    consumer, not one task per turn -- see _record_turn's docstring."""
+    while True:
+        session_id, student_id, role, text = await queue.get()
+        try:
+            await short_term.append_turn(
+                session_id, student_id,
+                {"turn": 0, "role": role, "text": text[:2000],
+                 "concept_id": None, "artifact_id": None},
+            )
+        except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
+            log.warning("transcript recording failed", exc_info=True)
+        finally:
+            queue.task_done()
+
+
 async def outbound(ws: WebSocket, session_id: str) -> None:
     """board outbox -> browser. One canvas patch per frame, in order."""
     state = sessions.get(session_id)
@@ -486,6 +512,14 @@ class _LiveSink:
 async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
     run_config = build_run_config()
 
+    # One FIFO per connection, drained by a single _transcript_writer task
+    # below: this is what makes _record_turn's writes land in the order
+    # trace() saw them, instead of racing each other over separate Redis
+    # connections. Set here (not ws_endpoint) because only the live path
+    # calls trace() at all.
+    transcript_queue: asyncio.Queue = asyncio.Queue()
+    _transcript_queue_context.set(transcript_queue)
+
     session = await session_service.get_session(
         app_name=APP_NAME, user_id=user_id, session_id=session_id
     )
@@ -524,9 +558,10 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         asyncio.create_task(nudges(sink, session_id)),
         asyncio.create_task(injections(sink, session_id)),
         asyncio.create_task(heartbeat(session_id)),
+        asyncio.create_task(_transcript_writer(transcript_queue)),
     ]
     try:
-        # gather(..., return_exceptions=True) alone waits for ALL SIX to
+        # gather(..., return_exceptions=True) alone waits for ALL SEVEN to
         # finish — but outbound()/nudges()/injections() are unconditional
         # `while True: await queue.get()` loops with no termination path of
         # their own, so that never happened on an ordinary disconnect and
@@ -554,7 +589,7 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         # asyncio.wait — unlike asyncio.gather — does not cancel its members
         # when the awaiting task itself is cancelled, so the loop body above
         # never runs. Cancel explicitly here (a no-op on tasks already done)
-        # so the six tasks are never orphaned regardless of how this
+        # so the seven tasks are never orphaned regardless of how this
         # function exits.
         for t in tasks:
             t.cancel()
@@ -565,25 +600,19 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
 
 def _record_turn(role: str, text: str) -> None:
     """Every settled exchange, not just delegated ones — what makes a
-    specialist's "last N turns" context genuine. Fire-and-forget: a Redis
-    hiccup here must never affect the live conversation.
+    specialist's "last N turns" context genuine. Enqueues onto an
+    ordered per-connection queue rather than spawning an independent
+    task per call: two fire-and-forget tasks each opening their own
+    Redis connection raced each other and reordered/dropped entries
+    under real load (~71% failure rate across reruns, confirmed) —
+    a single consumer draining a FIFO queue preserves order.
     """
     ctx = _recording_context.get()
-    if ctx is None:
+    queue = _transcript_queue_context.get()
+    if ctx is None or queue is None:
         return
     session_id, student_id = ctx
-
-    async def _write() -> None:
-        try:
-            await short_term.append_turn(
-                session_id, student_id,
-                {"turn": 0, "role": role, "text": text[:2000],
-                 "concept_id": None, "artifact_id": None},
-            )
-        except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
-            log.warning("transcript recording failed", exc_info=True)
-
-    asyncio.get_running_loop().create_task(_write())
+    queue.put_nowait((session_id, student_id, role, text))
 
 
 def trace(event) -> None:
