@@ -68,8 +68,16 @@ WEB_PORT="${NITYAM_WEB_PORT:-5173}"
 # The Observatory frontend's own vite.config.ts hardcodes port 5173 — a real
 # collision with the line above. It's overridden with a CLI flag at spawn
 # time below rather than edited in smriti-observatory's own source.
+#
+# The web port MUST be 3000: smriti-observatory/backend/observatory/main.py
+# hardcodes its CORS allow_origins to exactly ["http://localhost:5173",
+# "http://localhost:3000"] — nothing else is permitted, and a browser fetch
+# from any other origin fails silently (no console-visible error beyond
+# DevTools' network tab; the frontend's own .catch() just renders an empty
+# session list). 5173 is already taken by the tutor's own frontend above, so
+# 3000 is the only other origin the Observatory backend will actually answer.
 OBS_PORT="${NITYAM_OBSERVATORY_PORT:-8100}"
-OBS_WEB_PORT="${NITYAM_OBSERVATORY_WEB_PORT:-5174}"
+OBS_WEB_PORT="${NITYAM_OBSERVATORY_WEB_PORT:-3000}"
 busy() {
   local port="$1" what="$2" var="$3" alt="$4"
   lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 || return 0
