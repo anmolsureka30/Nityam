@@ -80,5 +80,9 @@ FIRESTORE_DATABASE = os.environ.get("FIRESTORE_DATABASE", "smriti")
 """A named, non-default database, kept apart from the testbed's own."""
 
 GCS_BUCKET = os.environ.get("GCS_BUCKET", "")
-REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+# `or`, not a get() default: .env.example documents both as empty (the file's
+# convention for "leave this alone unless deploying"), and a *set but empty*
+# value skips the default — which for the port meant int("") raising at import
+# time for anyone who copied .env.example to .env verbatim.
+REDIS_HOST = os.environ.get("REDIS_HOST") or "localhost"
+REDIS_PORT = int(os.environ.get("REDIS_PORT") or "6379")

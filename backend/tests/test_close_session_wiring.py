@@ -80,11 +80,11 @@ class Server:
 async def run(port: int, session_id: str) -> None:
     import websockets
 
-    await short_term.append_turn(session_id, {
+    await short_term.append_turn(session_id, "demo_student", {
         "turn": 1, "role": "student", "text": "why 45 degrees?",
         "concept_id": "projectile.horizontal_range", "artifact_id": None,
     })
-    await short_term.append_turn(session_id, {
+    await short_term.append_turn(session_id, "demo_student", {
         "turn": 2, "role": "tutor", "text": "because sin(2θ) peaks there",
         "concept_id": "projectile.horizontal_range", "artifact_id": None,
     })

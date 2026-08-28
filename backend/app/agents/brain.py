@@ -140,8 +140,12 @@ async def _record(session_id: str, student_id: str, asked: str, replied: str,
 
     Also writes through to Memorystore (async, sub-millisecond, wrapped so an
     outage never breaks a live turn) — the durable copy `close_session` reads
-    back from, since this buffer lives in brain.py's own session state, not the
-    one main.py's ws_endpoint can see.
+    back from. It has to be a separate store rather than this same
+    tool_context.state: this runs from a detached background task, after the
+    tool invocation that spawned it has already returned, and ToolContext's
+    state is scoped to a live invocation — so what is written through it is not
+    a reliable read-back path from a different point in time, which is what
+    session close is. (Same reasoning as app/artifacts_gcs.py's docstring.)
     """
     buffer = list(tool_context.state.get("turn_buffer", []))
     for role, text in (("student", asked), ("tutor", replied)):
@@ -160,7 +164,7 @@ async def _record(session_id: str, student_id: str, asked: str, replied: str,
         }
         buffer.append(turn)
         try:
-            await short_term.append_turn(session_id, turn)
+            await short_term.append_turn(session_id, student_id, turn)
         except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
             log.warning("turn write-through to Redis failed", exc_info=True)
     tool_context.state["turn_buffer"] = buffer

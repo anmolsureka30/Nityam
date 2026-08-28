@@ -152,7 +152,7 @@ async def _build(session_id: str, spec, interest: str, placeholder_id: str) -> N
         return
 
     try:
-        artifacts_gcs.save_artifact_to_gcs(artifact_id, ir)
+        await asyncio.to_thread(artifacts_gcs.save_artifact_to_gcs, artifact_id, ir)
     except Exception:  # noqa: BLE001 - durability is a bonus, not a lesson-blocker
         log.warning("artifact %s failed to persist to GCS", artifact_id, exc_info=True)
 

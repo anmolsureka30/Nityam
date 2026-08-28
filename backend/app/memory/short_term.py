@@ -1,8 +1,11 @@
 """Write-through mirror of the workflow tier's turn buffer into Redis
 (Memorystore in deployment). Deliberately NOT a swap of ADK's own
-SessionService — log_turn/log_artifact_evidence keep writing to
+SessionService — brain._record/log_artifact_evidence keep writing to
 tool_context.state first (free, in-process, unchanged), and additionally
 write through here so the buffer survives outside one process's memory.
+Keys are namespaced `session:{student_id}:{session_id}:*`, so a session_id on
+its own — the client picks it, and nothing validates it against the connecting
+user — is never enough to read or clear another student's buffer.
 See project_documentation/memory_nityam_architecture/google_cloud_storage_integration.md
 §5.2 for why this is a mirror, not a session-service swap.
 """
@@ -25,30 +28,33 @@ def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
     )
 
 
-async def append_turn(session_id: str, turn: dict) -> None:
+async def append_turn(session_id: str, student_id: str, turn: dict) -> None:
     client = _client()
-    key = f"session:{session_id}:turns"
+    key = f"session:{student_id}:{session_id}:turns"
     await client.rpush(key, json.dumps(turn))
     await client.expire(key, _SAFETY_TTL_SECONDS)
     await client.aclose()
 
 
-async def append_artifact_event(session_id: str, event: dict) -> None:
+async def append_artifact_event(session_id: str, student_id: str, event: dict) -> None:
     client = _client()
-    key = f"session:{session_id}:artifact_events"
+    key = f"session:{student_id}:{session_id}:artifact_events"
     await client.rpush(key, json.dumps(event))
     await client.expire(key, _SAFETY_TTL_SECONDS)
     await client.aclose()
 
 
-async def get_turn_buffer(session_id: str) -> list[dict]:
+async def get_turn_buffer(session_id: str, student_id: str) -> list[dict]:
     client = _client()
-    raw = await client.lrange(f"session:{session_id}:turns", 0, -1)
+    raw = await client.lrange(f"session:{student_id}:{session_id}:turns", 0, -1)
     await client.aclose()
     return [json.loads(r) for r in raw]
 
 
-async def clear_session(session_id: str) -> None:
+async def clear_session(session_id: str, student_id: str) -> None:
     client = _client()
-    await client.delete(f"session:{session_id}:turns", f"session:{session_id}:artifact_events")
+    await client.delete(
+        f"session:{student_id}:{session_id}:turns",
+        f"session:{student_id}:{session_id}:artifact_events",
+    )
     await client.aclose()

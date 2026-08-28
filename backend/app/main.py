@@ -91,6 +91,14 @@ if MODE != "mock":
             context_cache_config=_cache_config(),
         ),
         session_service=session_service,
+        # Wired but not yet load-bearing: nothing calls tool_context.save_artifact()
+        # — generated artifacts persist through app/artifacts_gcs.py directly
+        # (see artifact_agent.py:_build for why). Worth knowing before a deploy:
+        # GcsArtifactService.__init__ eagerly constructs a storage.Client(), so
+        # in live mode importing this module now requires resolvable Application
+        # Default Credentials, even though this line has no functional effect
+        # yet. A box with valid model-serving credentials but no ADC will fail
+        # here, and the cause will not be obvious.
         artifact_service=GcsArtifactService(bucket_name=config.GCS_BUCKET),
     )
 
@@ -173,23 +181,29 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
         log.info("disconnected user=%s", user_id)
     finally:
         log.info("closed user=%s", user_id)
-        # Prints the turn timeline to the terminal and appends it to the file.
-        # Runs before the memory flush so the debug log always closes even if
-        # the flush below is itself interrupted (e.g. a server shutdown).
-        logs.close_session(session_id)
-        if MODE != "mock":
-            await _flush_session_memory(session_id, user_id)
+        # Nested rather than sequenced, which buys both properties at once: the
+        # flush's own log lines still land in the per-session file (they would
+        # not if the file handle were already closed), AND the debug log closes
+        # even if the flush is interrupted (e.g. a server shutdown).
+        try:
+            if MODE != "mock":
+                await _flush_session_memory(session_id, user_id)
+        finally:
+            # Prints the turn timeline to the terminal and appends it to the file.
+            logs.close_session(session_id)
 
 
 async def _flush_session_memory(session_id: str, student_id: str) -> None:
     """The actual memory write `close_session` exists for — session_log
     persisted, dpm_profile/teaching_memory updated via one Reflect call.
 
-    Buffer comes from Redis, not ADK session state: TutorAgent's own Runner
-    (app/agents/brain.py) keeps a SEPARATE InMemorySessionService from this
-    module's, so tool_context.state["turn_buffer"] is not reachable from
-    here — the write-through this same session's Task 2 added to _record()
-    is what makes this readable at all.
+    Buffer comes from Redis, not ADK session state: _record() writes it from
+    a detached background task, after the tool invocation that spawned it has
+    already returned, and ToolContext's state is scoped to a live invocation —
+    so state written through it is not a reliable read-back path from a
+    different point in time, which is exactly what this function is. (Same
+    reasoning as app/artifacts_gcs.py's own docstring, for the same class of
+    problem.) The write-through _record() does is what makes this readable.
 
     Runs the Reflect call and Firestore round-trips in a thread: this makes
     a real generate_content call plus several blocking Firestore round
@@ -202,7 +216,7 @@ async def _flush_session_memory(session_id: str, student_id: str) -> None:
     prevent the WebSocket from closing cleanly.
     """
     try:
-        buffer = await short_term.get_turn_buffer(session_id)
+        buffer = await short_term.get_turn_buffer(session_id, student_id)
         if not buffer:
             return
         state = sessions.get(session_id, student_id=student_id)
@@ -217,7 +231,7 @@ async def _flush_session_memory(session_id: str, student_id: str) -> None:
             )
 
         await asyncio.to_thread(_flush)
-        await short_term.clear_session(session_id)
+        await short_term.clear_session(session_id, student_id)
         log.info("session memory flushed: %s turn(s)", len(buffer))
     except Exception:  # noqa: BLE001 - closing the socket must not fail on this
         log.warning("failed to flush session memory for %s", session_id, exc_info=True)
@@ -629,8 +643,6 @@ async def flush_session_logs() -> None:
 
 @app.get("/health")
 async def health() -> dict:
-    from app.memory import store
-
     return {
         "status": "ok",
         "mode": MODE,

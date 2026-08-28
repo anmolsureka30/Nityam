@@ -46,8 +46,10 @@ carried over from the port: Shruti's embedder emits 3072-dim vectors and
 Firestore's vector index caps at 2048, so chunks are searchable by concept id
 today and semantically only once a smaller companion embedding exists.
 
-`short_term.py` (Redis / Memorystore) came across with it and is the natural
-home for the turn buffer in §4 below, but nothing calls it yet.
+`short_term.py` (Redis / Memorystore) came across with it and is now live: it
+holds the turn buffer described in §4 below, written from
+`app/agents/brain.py:_record` and `app/memory/tools.py:log_artifact_evidence`,
+and read back by `app/main.py:_flush_session_memory` at session close.
 
 ## 2. ADK sessions are in memory
 
@@ -116,18 +118,41 @@ Verified against the real Live API: partial content injected *while a function
 call is outstanding* is accepted, and the text provably reaches the model's
 context.
 
-## 4. The in-session turn buffer is RAM
+## 4. The in-session turn buffer — now written through to Memorystore
 
-`app/memory/tools.py:log_turn` — `tool_context.state["turn_buffer"]`
+`app/memory/short_term.py` (Redis), alongside `tool_context.state["turn_buffer"]`
 
-Deliberate, per `memory_layer.md` §3: turns are held in memory during the
-session and written once at close, so a chatty lesson is not 60 database writes.
-But it means a crash loses the session's episodic record.
+The RAM buffer is still there and still deliberate, per `memory_layer.md` §3:
+turns accumulate during the session and the learner model is written once at
+close, so a chatty lesson is not 60 database writes. What changed is that each
+turn *additionally* writes through to Redis as it happens, so a crash no longer
+takes the session's episodic record with it.
 
-**Where Memory Store fits:** this is the natural short-term-cache candidate —
-Redis keyed by session id, with the same append-only shape. Note ADK session
-state is *already* a persistence layer once (2) is swapped, so measure before
-adding a third store.
+Two call sites write:
+
+* `app/agents/brain.py:_record` — both halves of every exchange, appended as
+  they are recorded.
+* `app/memory/tools.py:log_artifact_evidence` — artifact interaction events.
+
+Both wrap the Redis call so an outage degrades to the old RAM-only behaviour
+instead of breaking a live turn. `app/main.py:_flush_session_memory` reads the
+buffer back with `get_turn_buffer` at session close — that read is what
+`session_close.py` actually reflects on — and then deletes the keys.
+
+Keys are `session:{student_id}:{session_id}:turns` and
+`…:artifact_events`, with a 6h safety TTL in case a close is never reached. The
+`student_id` in the key is load-bearing, not decoration: `session_id` is chosen
+by the client and nothing validates it against the connecting user, so without
+the namespace a collision would let one student's buffered turns be reflected
+into another student's memory.
+
+**One thing this doc used to say that was never true.** `app/memory/tools.py:log_turn`
+is dead code — TutorAgent's tool list has never included it, and turn logging
+happens in `brain.py:_record` instead, precisely to avoid spending a model round
+trip per turn on bookkeeping. It is still in the file; nothing calls it.
+
+`REDIS_HOST` / `REDIS_PORT` configure it, defaulting to `localhost:6379`
+(`app/config.py`). See `.env.example`.
 
 ## 5. `student_id` is hardcoded
 
@@ -175,14 +200,26 @@ Two parts, and they are not equally fake:
   references would have quietly broken the property the design exists to
   protect.
 
-## 9. Generated artifacts live only in RAM
+## 9. Generated artifacts — now written to GCS
 
-`app/agents/artifact_agent.py` — the validated IR goes into the canvas patch and
-nowhere else. Reload the page and the artifact is gone with the board.
+`app/artifacts_gcs.py`, called from `app/agents/artifact_agent.py:_build`
 
-**To swap:** write the IR to GCS (or Firestore) keyed by `artifact_id`, which the
-IR already carries. Personalisation is theme-at-render-time, so one stored
-artifact serves every student — that is why `artifact_id` excludes the theme.
+The validated IR still goes into the canvas patch for the live board, and now
+also goes to Cloud Storage as `artifacts/{artifact_id}.json` — the copy that
+survives a reload or a restart. `artifact_id` is the key because the IR already
+carries it, and because personalisation is theme-at-render-time, so one stored
+artifact serves every student; that is why `artifact_id` excludes the theme.
+
+The write is wrapped and non-fatal: durability is a bonus, and a GCS failure
+must not cost the student the artifact that is already on their page. It runs
+through `asyncio.to_thread` — `google-cloud-storage` is a blocking client, and
+`_build` is on the event loop that carries every concurrent student's audio.
+
+`GCS_BUCKET` names the bucket and must already exist. `read_artifact_from_gcs`
+and `delete_artifact_from_gcs` exist for the reload path and are exercised by
+`tests/test_gcs_artifacts.py`, but **nothing in the app reads the stored copy
+back yet** — the frontend still gets its IR from the board. That is the piece
+still to do.
 
 ## 10. The frontend still has hardcoded content
 

@@ -137,9 +137,10 @@ async def log_artifact_evidence(event: str, artifact_id: str, tool_context: Tool
     events.append(entry)
     tool_context.state["artifact_events"] = events
     session_id = tool_context.state.get("session_id")
-    if session_id:
+    student_id = tool_context.state.get("student_id")
+    if session_id and student_id:
         try:
-            await short_term.append_artifact_event(session_id, entry)
+            await short_term.append_artifact_event(session_id, student_id, entry)
         except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
             log.warning("artifact-event write-through to Redis failed", exc_info=True)
     return {"logged": True}
