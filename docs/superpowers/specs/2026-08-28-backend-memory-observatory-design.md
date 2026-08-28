@@ -379,14 +379,14 @@ click required. If nothing is live yet, it falls back to today's existing
 behavior (empty state / manual pick from history) — not a new failure mode.
 
 **"Open in ADK web ↗" header link** (`SessionView.tsx` line 114): stays as
-today's plain `adkWebUrl(TUTOR_BASE_URL)` helper when pointed at
-`sub_modules_examples/tutor` (unchanged behavior there). When
-`VITE_TUTOR_BASE_URL` points at `backend/` instead, this link would 404
-(`backend/` serves no ADK dev-ui) — hidden via the same `/api/health`
-response already used for the connectivity banner (§3's health check),
-adding one boolean the frontend already has a natural home for (`health.
-adk_web_available`, defaulting from whether `agent_graph`'s own dot_src
-probe succeeded, since that only exists on a real ADK dev server).
+today's plain `adkWebUrl(TUTOR_BASE_URL)` helper, unchanged code, in both
+configurations. When pointed at `backend/`, clicking it 404s (no ADK
+dev-ui there) — same category of harmless rough edge as the already-accepted
+empty agent/tool graph (non-goals list), not fixed in this pass: wiring a
+real "does this agent server have a dev-ui" signal through `/api/health`
+into the frontend is real, separable plumbing for one dead link with no
+functional impact on the actual memory visualization. Deferred, not
+silently dropped — noted here and in the open items below.
 
 ## Data flow, end to end (backend/ case)
 
@@ -473,10 +473,12 @@ fail) if unreachable" convention:
 2. **Poll interval (4s, §4)** — a reasonable starting value for "feels
    live" without meaningfully loading a local dev server; not derived from
    a specific requirement, easy to tune if it ever matters.
-3. **`/api/health`'s new `adk_web_available` field (§4)** — exact shape is
-   an implementation-plan detail; the requirement is just "the ADK-web deep
-   link and the close-session action hide themselves against a backend
-   that doesn't support them," not a specific JSON schema.
+3. **The "Open in ADK web" link 404ing against `backend/` (§4)** — deferred
+   rather than fixed: hiding it correctly needs a real "does this agent
+   server expose a dev-ui" signal plumbed through `/api/health`, which is
+   separable, low-value plumbing for one dead link with zero effect on
+   memory visualization itself. Worth doing if it proves confusing in
+   practice, not required for this feature to work.
 4. This document does not touch, and is not blocked by,
    `sub_modules_examples/tutor` + `smriti-observatory/adk-web` in any way —
    confirmed no shared files between the two efforts other than the (now
