@@ -1789,8 +1789,58 @@ if __name__ == "__main__":
 ```
 Expected: multiple failures — everything still present.
 
-- [ ] **Step 3: Delete the retired agent files**
+- [ ] **Step 3: Relocate `_cache_config`, then delete the retired agent files**
 
+`backend/app/main.py:95` does `from app.agents.brain import _cache_config` —
+a direct dependency Task 9 must resolve before deleting `brain.py`, or
+`main.py` fails to import in live mode. Move the function into
+`backend/app/config.py` (dropping the leading underscore — it's public API
+of that module now, matching `reasoning_model()`/`live_model()`'s naming):
+
+```python
+def cache_config():
+    """Context caching, when the platform actually supports it.
+
+    On Vertex express mode this fails with `404 Not Found` on every turn —
+    `Failed to create cache` in the log — so it is off by default. It is worth
+    switching on once running under full ADC/Cloud Run, where delegating swaps
+    the system instruction and tool set and the prompt prefix would otherwise be
+    re-sent uncached on every call.
+    """
+    if os.getenv("NITYAM_CONTEXT_CACHE", "").strip() not in ("1", "true", "TRUE"):
+        return None
+    from google.adk.agents.context_cache_config import ContextCacheConfig
+
+    return ContextCacheConfig(ttl_seconds=1800)
+```
+
+(`os` is already imported at the top of `config.py`; the ADK import is
+local to the function, matching how `config.py` already keeps optional/
+situational imports local rather than module-level.)
+
+In `backend/app/main.py`, change:
+```python
+    from app.agents.brain import _cache_config
+```
+to:
+```python
+    from app import config as app_config
+```
+(`config` is already imported a few lines below as a bare `from app import
+config` for `config.GCS_BUCKET` — reuse that same import, don't add a
+second one under a different alias; check the surrounding lines and adjust
+whichever of the two call sites needs it so there is exactly one `from app
+import config` in this block.) Then change the `context_cache_config=_cache_config(),`
+line to `context_cache_config=config.cache_config(),`.
+
+Verify immediately, before deleting anything:
+```bash
+NITYAM_AUTH=vertex_express .venv/bin/python -c "import app.main"
+```
+Expected: no output, exit code 0 (confirms `main.py` no longer depends on
+`brain.py` for this).
+
+Then delete the retired agent files:
 ```bash
 git rm backend/app/agents/tutor_agent.py backend/app/agents/brain.py
 ```
