@@ -411,14 +411,24 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
             )
 
     try:
-        results = await asyncio.gather(
-            read_client(ws, session_id, sink),
-            downstream(),
-            outbound(ws, session_id),
-            nudges(sink, session_id),
-            injections(sink, session_id),
-            return_exceptions=True,
-        )
+        tasks = [
+            asyncio.create_task(read_client(ws, session_id, sink)),
+            asyncio.create_task(downstream()),
+            asyncio.create_task(outbound(ws, session_id)),
+            asyncio.create_task(nudges(sink, session_id)),
+            asyncio.create_task(injections(sink, session_id)),
+        ]
+        # gather(..., return_exceptions=True) alone waits for ALL FIVE to
+        # finish — but outbound()/nudges()/injections() are unconditional
+        # `while True: await queue.get()` loops with no termination path of
+        # their own, so that never happened on an ordinary disconnect and
+        # this whole function never returned. Whichever task finishes FIRST
+        # (normally read_client() raising WebSocketDisconnect) now cancels
+        # the rest, so the connection actually tears down.
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in pending:
+            t.cancel()
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         # gather(return_exceptions=True) swallows failures — surface them, or a
         # dead stream just looks like a silent tutor.
         for result in results:
@@ -524,14 +534,20 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
 
     try:
         mock_sink = _MockSink()
-        await asyncio.gather(
-            read_client(ws, session_id, mock_sink),
-            downstream(),
-            outbound(ws, session_id),
-            nudges(mock_sink, session_id),
-            injections(mock_sink, session_id),
-            return_exceptions=True,
-        )
+        tasks = [
+            asyncio.create_task(read_client(ws, session_id, mock_sink)),
+            asyncio.create_task(downstream()),
+            asyncio.create_task(outbound(ws, session_id)),
+            asyncio.create_task(nudges(mock_sink, session_id)),
+            asyncio.create_task(injections(mock_sink, session_id)),
+        ]
+        # Same fix as run_live() — see its comment there. Without cancelling
+        # the rest on first completion, this gather() never returned on an
+        # ordinary disconnect either.
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in pending:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
     finally:
         live.close()
 
