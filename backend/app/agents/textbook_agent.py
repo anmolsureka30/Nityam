@@ -20,8 +20,8 @@ your report becomes what the voice layer says.
 
   search_textbook      — where a topic, section or figure lives. Ask it the
                          way the student asked — "figure 3.14",
-                         "projectile", "section 3.9" all work. Never guess
-                         a page number.
+                         "that diagram", "section 3.9" all work. Never
+                         guess a page number.
   show_textbook_figure — put that page on their board, with one line about
                          what to look at. Pass the figure number whenever
                          one was named: with it they get the diagram
