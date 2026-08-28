@@ -23,6 +23,8 @@ build_tutor_agent(mode=...) serves both.
 """
 from __future__ import annotations
 
+import asyncio
+
 from google.adk.agents import LlmAgent
 from google.adk.agents.callback_context import CallbackContext
 
@@ -32,7 +34,7 @@ from app.agents.quiz_agent import build_quiz_agent
 from app.canvas.tools import BOARD_TOOLS
 from app.textbook import TEXTBOOK_TOOLS
 from app.memory import store
-from app.memory.tools import list_concepts, search_grounding
+from app.memory.tools import list_concepts, search_grounding, shared_connection
 
 # ADK runs every instruction through session-state template injection
 # (google/adk/utils/instructions_utils.py), so a literal `{g}` anywhere in the
@@ -245,7 +247,7 @@ def _brief(student_id: str) -> str:
     a stray brace.
     """
     try:
-        conn = store.connect()
+        conn = shared_connection()
         dpm = store.get_dpm(conn, student_id)
         memory = store.get_teaching_memory(conn, student_id)
     except Exception:  # noqa: BLE001 - never block a lesson on the store
@@ -339,9 +341,11 @@ async def _init_state(callback_context: CallbackContext) -> None:
     callback_context.state.setdefault("student_id", "demo_student")
     callback_context.state.setdefault("session_id", "unknown")
     # Refreshed every turn so a mid-session write is picked up, and always
-    # present so `{student_brief}` can never raise.
-    callback_context.state["student_brief"] = _brief(
-        callback_context.state["student_id"]
+    # present so `{student_brief}` can never raise. _brief() does real store
+    # I/O (a Firestore read under NITYAM_STORE=firestore) — off the event
+    # loop, or every turn stalls every session's audio while it runs.
+    callback_context.state["student_brief"] = await asyncio.to_thread(
+        _brief, callback_context.state["student_id"]
     )
     callback_context.state["session_plan"] = _plan(
         callback_context.state.get("session_id") or ""

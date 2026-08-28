@@ -18,7 +18,9 @@ log = logging.getLogger("nityam.memory")
 
 
 @functools.cache
-def _conn():
+def shared_connection():
+    """The one store connection this process ever opens — shared by every
+    tool and agent that touches the memory layer (see module docstring)."""
     return store.connect()
 
 
@@ -43,7 +45,7 @@ def list_concepts() -> dict:
     """
     if store.list_concept_ids is None:
         return {"concept_ids": []}
-    return {"concept_ids": store.list_concept_ids(_conn())}
+    return {"concept_ids": store.list_concept_ids(shared_connection())}
 
 
 def search_grounding(concept_ids: list[str]) -> dict:
@@ -58,7 +60,7 @@ def search_grounding(concept_ids: list[str]) -> dict:
     Returns:
         dict with a "chunks" key: a list of {chunk_id, source_ref, location, text}.
     """
-    chunks = store.search_grounding(_conn(), concept_ids)
+    chunks = store.search_grounding(shared_connection(), concept_ids)
     return {
         "chunks": [
             c.model_dump(include={"chunk_id", "source_ref", "location", "text"})
@@ -75,7 +77,7 @@ def get_dpm(tool_context: ToolContext) -> dict:
         dict with the DPM profile fields, or {"found": false} if none exists yet.
     """
     student_id = tool_context.state["student_id"]
-    profile = store.get_dpm(_conn(), student_id)
+    profile = store.get_dpm(shared_connection(), student_id)
     if profile is None:
         return {"found": False}
     return {"found": True, **profile.model_dump(mode="json")}
@@ -89,7 +91,7 @@ def get_teaching_memory(tool_context: ToolContext) -> dict:
         dict with the teaching memory fields, or {"found": false} if none exists yet.
     """
     student_id = tool_context.state["student_id"]
-    memory = store.get_teaching_memory(_conn(), student_id)
+    memory = store.get_teaching_memory(shared_connection(), student_id)
     if memory is None:
         return {"found": False}
     return {"found": True, **memory.model_dump(mode="json")}
