@@ -15,6 +15,7 @@ once here instead.
 """
 from __future__ import annotations
 
+import re
 from typing import Callable
 
 from google.adk.agents import LlmAgent
@@ -24,6 +25,22 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from app.memory import short_term
+
+_MARKUP = re.compile(r"\$+|\\[a-zA-Z]+|[*_`#]|\\[(){}\[\]]")
+
+
+def _speakable(text: str) -> str:
+    """Strip markup from text that is about to be spoken by VoiceAgent.
+
+    Moved from brain.py's identical function (retired elsewhere in this
+    plan) — every specialist's spoken summary now flows through
+    run_turn() below, so sanitizing once here replaces sanitizing in each
+    of Board/Artifact/Quiz/TextbookAgent's own tool functions. Seen for
+    real, historically: a reply came back as `$\\sin(2\\theta)$`, which
+    is worse read aloud than any amount of belt-and-braces here.
+    """
+    cleaned = _MARKUP.sub(" ", text)
+    return " ".join(cleaned.split()).strip()
 
 
 class SpecialistRunner:
@@ -71,7 +88,7 @@ class SpecialistRunner:
             for part in event.content.parts if event.content and event.content.parts else []:
                 if part.text:
                     said.append(part.text)
-        return " ".join(said).strip()
+        return _speakable(" ".join(said))
 
 
 async def recent_transcript(session_id: str, student_id: str, n: int) -> str:
