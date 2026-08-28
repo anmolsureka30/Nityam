@@ -43,7 +43,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from app import incoming, sessions, user_auth  # noqa: E402
+from app import briefing, incoming, sessions, user_auth  # noqa: E402
 from app.memory import instrumentation, short_term, store  # noqa: E402
 from app.memory_routes import router as memory_router  # noqa: E402
 from app.session_close import close_session as _close_session_memory  # noqa: E402
@@ -384,10 +384,8 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             # that order, so the topic, the student's record and their own
             # teacher's words are in context before the first turn. Without it
             # VoiceAgent has to delegate every question, however small.
-            from app import briefing
-
             try:
-                briefing.brief_voice_layer(session_id, state.student_id)
+                briefing.brief_voice_layer(session_id, state.student_id, sink)
             except Exception:  # noqa: BLE001 - a lesson must start regardless
                 log.exception("could not brief the voice layer")
 
@@ -500,6 +498,7 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
     # a recycled queue kills the next session the moment it arrives.
     queue = LiveRequestQueue()
     sink = _LiveSink(queue)
+    _live_sink_context.set(sink)
 
     async def downstream() -> None:
         async for event in runner.run_live(
@@ -571,6 +570,23 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         queue.close()
 
 
+_live_sink_context: contextvars.ContextVar[object | None] = contextvars.ContextVar(
+    "nityam_live_sink_context", default=None
+)
+
+
+def _refresh_brief(who: str) -> None:
+    ctx = _recording_context.get()
+    sink = _live_sink_context.get()
+    if ctx is None or sink is None:
+        return
+    session_id, student_id = ctx
+    try:
+        briefing.brief_voice_layer(session_id, student_id, sink)
+    except Exception:  # noqa: BLE001 - a stale brief is better than a crashed turn
+        log.warning("brief refresh failed", exc_info=True)
+
+
 def _record_turn(role: str, text: str) -> None:
     """Every settled exchange, not just delegated ones — what makes a
     specialist's "last N turns" context genuine. Enqueues onto an
@@ -616,6 +632,8 @@ def trace(event) -> None:
             log.info("← TOOL DONE %s got %s -> %s", who, response.name,
                      got[:200] + ("…" if len(got) > 200 else ""))
             log.debug("  result in full: %s", got)
+            if response.name in ("ask_board", "ask_artifact", "ask_quiz", "ask_textbook"):
+                _refresh_brief(who)
 
     # A consolidated transcription can be empty (end-of-turn marker); logging
     # those just adds blank lines.

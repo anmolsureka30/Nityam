@@ -295,49 +295,11 @@ def apply_screen(state: SessionState, payload: dict) -> None:
 
 # --------------------------------------------------------- context injections
 #
-# These two produce the text that goes onto `sessions.context` — the voice
-# layer's private briefing. Nothing here is ever spoken; it exists so
-# VoiceAgent can answer "which formula was it?", "point at the sine term" and
-# "did that go on the board?" from fact, in about a second, instead of spending
-# a nine-second round trip asking the reasoning layer what it just did.
-
-
-def describe_board_delta(blocks: list, pointed: list[str] | None = None) -> str:
-    """What just landed on the board, compactly, with the real ids.
-
-    One injection per write_lesson call, not one per block: five separate
-    injections for one lesson would be five entries in the model's context
-    describing one event, and it would start talking about "the four things you
-    just showed me" as though they were four teaching moves.
-
-    Kept to ids, kind, a 60-character opening and the anchor spans. The full
-    text is on the student's screen — she does not need it re-read to her, she
-    needs to be able to *refer* to it.
-    """
-    from app.canvas import doc as D
-
-    if not blocks:
-        return ""
-    parts: list[str] = []
-    for block in blocks:
-        text = D.block_text(block).strip().replace("\n", " ")
-        if len(text) > 60:
-            text = text[:60].rstrip() + "…"
-        entry = f'{block.id} {block.kind} “{text}”'
-        anchors = D.block_anchors(block)
-        if anchors:
-            spans = "; ".join(f'{a.id} = “{a.span}”' for a in anchors)
-            entry += f" [{spans}]"
-        parts.append(entry)
-
-    line = "[BOARD UPDATED, and this is context only — do not announce it or " \
-           "reply to this. Now on the student's page: " + " · ".join(parts) + "."
-    if pointed:
-        line += f" Currently lit up: {', '.join(pointed)}."
-    return line + (
-        " You may now answer questions about these blocks yourself, quote them, "
-        "and point_at their anchors, without consulting your teaching layer.]"
-    )
+# This produces the text delivered directly through the live connection's
+# sink as the voice layer's private briefing (see app/briefing.py). Nothing
+# here is ever spoken; it exists so VoiceAgent can answer from fact, in about
+# a second, instead of spending a nine-second round trip asking the reasoning
+# layer what it just did.
 
 
 def describe_grounding_pack(plan, brief: str, chunks: list[dict]) -> str:
