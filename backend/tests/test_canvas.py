@@ -206,6 +206,47 @@ def main() -> int:
     check("and a plain topic still searches text",
           len(search_textbook("projectile")["hits"]) > 2)
 
+    # ------------------------------------------------- the figure, not the page
+    # "show me figure 3.14" used to put the whole printed page on the board and
+    # leave the student to find the diagram on it. The index now records the
+    # band each caption occupies, worked out from the caption's position and the
+    # text above it.
+    from app.textbook import _index, show_textbook_figure
+
+    figures = [f for ch in _index() for f in ch["figures"]]
+    boxed = [f for f in figures if f.get("box")]
+    check("most figures know where they are on their page",
+          len(boxed) / len(figures) > 0.8,
+          f"{len(boxed)} of {len(figures)}")
+    check("and every box is a plausible region, not a sliver or the whole sheet",
+          all(0 < f["box"]["w"] <= 1 and 0.06 <= f["box"]["h"] <= 0.8
+              and 0 <= f["box"]["x"] < 1 and 0 <= f["box"]["y"] < 1 for f in boxed),
+          str([f for f in boxed
+               if not (0.06 <= f["box"]["h"] <= 0.8)][:2]))
+
+    class _Ctx:
+        state = {"session_id": "s_fig"}
+
+    sessions.get("s_fig")
+    out = show_textbook_figure("keph103", 1, "look here", "3.14", _Ctx())
+    placed = sessions.get("s_fig").board.blocks()[-1]
+    check("asking for a numbered figure crops to it", placed.clip is not None,
+          str(out))
+    # The caller passed page 1. The index knows 3.14 is on page 10, and the
+    # index wins: search_textbook can return the page that merely MENTIONS a
+    # figure, and picking that one is an easy mistake to make.
+    check("and it lands on the page the figure is actually printed on",
+          placed.page == 10, f"page {placed.page}")
+
+    out = show_textbook_figure("keph103", 12, "the whole page", "", _Ctx())
+    whole = sessions.get("s_fig").board.blocks()[-1]
+    check("asking for a page with no figure number shows the whole page",
+          whole.clip is None and whole.page == 12, str(out))
+
+    bad = show_textbook_figure("keph103", 1, "nope", "9.9", _Ctx())
+    check("and a figure the chapter does not have is refused, with the list",
+          "error" in bad and "9.9" in bad["error"], str(bad)[:110])
+
     print()
     print(f"{FAILED} failed" if FAILED else "all passed")
     return 1 if FAILED else 0

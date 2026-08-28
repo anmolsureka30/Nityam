@@ -92,26 +92,48 @@ def search_textbook(query: str) -> dict:
 
 
 def show_textbook_figure(
-    chapter: str, page: int, caption: str, tool_context: ToolContext
+    chapter: str, page: int, caption: str, figure: str, tool_context: ToolContext
 ) -> dict:
-    """Put a page of the student's textbook on their board, next to your work.
+    """Put a figure from the student's textbook on their board.
 
     Use it when the book's own diagram says something your words cannot — a
-    force diagram, a wave shape, the geometry of a projectile. Find the page
-    with search_textbook first; do not guess one.
+    force diagram, a wave shape, the geometry of a projectile. Find it with
+    search_textbook first; do not guess a page.
+
+    **Pass `figure` whenever the student named one.** With it they get the
+    diagram itself, cropped out of the page. Without it they get the entire
+    printed page and have to hunt for the figure on it — which is exactly the
+    complaint that led to this argument existing.
 
     Args:
         chapter: The chapter id from search_textbook, e.g. "keph103".
         page: The page within that chapter, from search_textbook.
         caption: One line saying what they should look at in it, in your words.
+        figure: The figure number if there is one, e.g. "3.14". Pass "" only
+            when the student asked for a whole page rather than a figure.
 
     Returns:
-        dict with "block_id", or {"error": ...} if that page does not exist.
+        dict with "block_id" and "showing", or {"error": ...}.
     """
     known = {c["file"]: c for c in _index()}
     ch = known.get(chapter)
     if ch is None:
         return {"error": f"no chapter {chapter!r}. Known: {sorted(known)}"}
+
+    # A named figure carries its own page, and it beats the one passed in.
+    # search_textbook can return several hits for one query, and the page that
+    # merely MENTIONS a figure is an easy one to pick by mistake; the index
+    # knows where the caption actually is.
+    clip = None
+    want = (figure or "").strip().lstrip("fig.Fig ").strip()
+    if want:
+        entry = next((f for f in ch["figures"] if f["figure"] == want), None)
+        if entry is None:
+            return {"error": f"{ch['title']} has no figure {want}. "
+                             f"Known: {[f['figure'] for f in ch['figures']]}"}
+        page = entry["page"]
+        clip = entry.get("box")
+
     if not 1 <= int(page) <= ch["pages"]:
         return {"error": f"page {page} is outside {chapter} (1-{ch['pages']})"}
 
@@ -125,12 +147,15 @@ def show_textbook_figure(
         figure=True,
         pdf=chapter,
         page=int(page),
+        clip=clip,
     )
     try:
         sessions.publish(session_id, D.AppendBlock(block=block))
     except (sessions.PatchRejected, ValueError) as exc:
         return {"error": str(exc)}
-    log.info("textbook %s p.%s -> %s", chapter, page, block.id)
+    log.info("textbook %s p.%s%s -> %s", chapter, page,
+             f" fig {want} cropped" if clip else (f" fig {want} (whole page)" if want else ""),
+             block.id)
     logs.count("textbook page")
     # So the voice layer can say which page it is and answer "is this in the
     # book?" without a round trip.

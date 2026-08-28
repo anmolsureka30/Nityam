@@ -119,6 +119,11 @@ export type NotebookBlock =
        *  asked for a figure rather than the student clipping one. */
       pdf?: string;
       page?: number;
+      /** And which part of that page, as fractions of it (0..1, origin
+       *  top-left). Present when the index could place the numbered figure, so
+       *  "show me figure 3.14" shows the diagram rather than the whole sheet
+       *  it is printed on. */
+      clip?: { x: number; y: number; w: number; h: number };
     })
   | (BlockCommon & { kind: "next"; label: string; title: string; text: string });
 

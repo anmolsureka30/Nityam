@@ -226,7 +226,7 @@ export default function Notebook({
                 title="Click to enlarge"
                 aria-label={`Enlarge ${block.source || `textbook page ${block.page}`}`}
               >
-                <TextbookFigure pdf={block.pdf} page={block.page} />
+                <TextbookFigure pdf={block.pdf} page={block.page} clip={block.clip} />
                 <span className={s.figureZoom} aria-hidden="true">⤢</span>
               </button>
             ) : null}

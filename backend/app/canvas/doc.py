@@ -111,6 +111,13 @@ class Pulled(_Block):
     rasteriser, and no megabyte of base64 on the wire."""
     pdf: str | None = None
     page: int | None = None
+    """And optionally WHICH PART of that page, as fractions of it (0..1, origin
+    top-left). NCERT prints a figure with its caption underneath, so the index
+    can work out the band each numbered figure occupies — and "show me figure
+    3.14" should show figure 3.14, not the page it happens to sit on. Absent
+    when the index could not place it confidently, in which case the reader
+    gets the whole page, which is wrong-but-useful rather than wrong."""
+    clip: dict | None = None
 
 
 class NextUp(_Block):
