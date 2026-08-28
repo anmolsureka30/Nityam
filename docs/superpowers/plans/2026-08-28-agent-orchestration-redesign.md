@@ -1845,6 +1845,13 @@ Then delete the retired agent files:
 git rm backend/app/agents/tutor_agent.py backend/app/agents/brain.py
 ```
 
+Also remove the `commission_artifact` compatibility shim from
+`backend/app/agents/artifact_agent.py` — it was added during Task 7 solely
+to keep `tutor_agent.py`'s import valid during the transition (see the SDD
+ledger), and has no caller once `tutor_agent.py` is gone. Confirm with
+`grep -rn commission_artifact backend/app` that nothing references it
+after removal.
+
 - [ ] **Step 4: Clean up `sessions.py`**
 
 Remove `nudges` and `context` from the `SessionState` dataclass (both
