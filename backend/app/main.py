@@ -63,10 +63,12 @@ if MODE != "mock":
     from google.adk.agents.live_request_queue import LiveRequestQueue
     from google.adk.agents.run_config import RunConfig, StreamingMode
     from google.adk.apps import App
+    from google.adk.artifacts import GcsArtifactService
     from google.adk.runners import Runner
     from google.adk.sessions import InMemorySessionService
     from google.genai import types
 
+    from app import config
     from app.agents.brain import _cache_config
     from app.agents.voice_agent import build_voice_agent
 
@@ -87,6 +89,7 @@ if MODE != "mock":
             context_cache_config=_cache_config(),
         ),
         session_service=session_service,
+        artifact_service=GcsArtifactService(bucket_name=config.GCS_BUCKET),
     )
 
 log.info("starting — %s", describe())

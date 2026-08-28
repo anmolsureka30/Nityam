@@ -29,7 +29,7 @@ import uuid
 from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
-from app import config, logs, sessions
+from app import artifacts_gcs, config, logs, sessions
 from app.canvas import doc as D
 from app.memory.tools import get_dpm, get_teaching_memory, log_artifact_evidence
 
@@ -150,6 +150,11 @@ async def _build(session_id: str, spec, interest: str, placeholder_id: str) -> N
     except (sessions.PatchRejected, ValueError) as exc:
         log.warning("finished artifact rejected by the board: %s", exc)
         return
+
+    try:
+        artifacts_gcs.save_artifact_to_gcs(artifact_id, ir)
+    except Exception:  # noqa: BLE001 - durability is a bonus, not a lesson-blocker
+        log.warning("artifact %s failed to persist to GCS", artifact_id, exc_info=True)
 
     log.info("artifact %s mounted as %s — %s", artifact_id, block.id, provenance)
     log.debug("artifact IR: %s", json.dumps(ir, ensure_ascii=False))
