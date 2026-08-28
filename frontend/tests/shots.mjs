@@ -156,6 +156,37 @@ await shot("03-session-written");
 await sleep(3200);
 await shot("03b-session-settled");
 
+/* A numbered figure, cropped out of the page it is printed on. */
+await ev(`
+  const i = document.querySelector('input[aria-label="Ask Nityam"]');
+  if (i) i.focus();
+  return 1;
+`);
+await send("Input.insertText", { text: "show me figure 3.14" });
+await send("Input.dispatchKeyEvent", {
+  type: "keyDown", key: "Enter", code: "Enter", text: "\r",
+  windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+});
+await send("Input.dispatchKeyEvent", {
+  type: "keyUp", key: "Enter", code: "Enter",
+  windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+});
+for (let i = 0; i < 40; i++) {
+  const ready = await ev(`
+    const c = [...document.querySelectorAll('[data-kind="pulled"] canvas')].pop();
+    return !!c && c.width > 20;
+  `);
+  if (ready) break;
+  await sleep(300);
+}
+await ev(`
+  const b = [...document.querySelectorAll('[data-kind="pulled"]')].pop();
+  b?.scrollIntoView({ block: "center" });
+  await new Promise(r => setTimeout(r, 500));
+  return 1;
+`);
+await shot("03c-figure-cropped");
+
 await ev(`
   const b = [...document.querySelectorAll('button')].find(b=>/View textbook/.test(b.textContent));
   b?.click(); return 1;

@@ -10,6 +10,8 @@ the demo reads the same with the network unplugged.
 """
 from __future__ import annotations
 
+import re
+
 from app import sessions
 from app.canvas import doc as D
 from app.canvas.tools import parse_markup
@@ -156,6 +158,32 @@ def script_reply(session_id: str, said: str) -> None:
             "[[θ|projectile.launch_angle]] is yours to choose, so θ is what decides "
             "the answer.",
         )
+        return
+
+    # A numbered figure, exactly as the real path does it: search_textbook finds
+    # the caption's page, show_textbook_figure crops to it. Mock mode had no way
+    # to put a textbook figure on the board at all, so the whole crop path could
+    # not be seen or tested without spending tokens.
+    # Only on something the STUDENT said. A bracketed line is a stage direction,
+    # and the clip one quotes the text inside the region they lassoed — which,
+    # on a page of Motion in a Plane, routinely contains "…in Fig. 3.2(b)…".
+    # Matching that published a third figure nobody asked for on top of the two
+    # they had clipped.
+    fig = (None if low.lstrip().startswith("[")
+           else re.search(r"\bfig(?:ure)?\.?\s*(\d{1,2}\.\d{1,2})\b", low))
+    if fig:
+        from types import SimpleNamespace
+
+        from app.textbook import show_textbook_figure
+
+        for chapter in ("keph103", "keph104", "keph206", "keph207"):
+            out = show_textbook_figure(
+                chapter, 1, "the figure you asked for", fig.group(1),
+                SimpleNamespace(state={"session_id": session_id}),
+            )
+            if "block_id" in out:
+                return
+        _note(session_id, f"I could not find figure {fig.group(1)} in the chapters you have.")
         return
 
     if "show me" in low or "simulat" in low or "diagram" in low or "draw" in low:
