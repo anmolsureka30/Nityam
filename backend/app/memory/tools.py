@@ -8,10 +8,13 @@ write path is close_session (app/session_close.py), run once at session end.
 from __future__ import annotations
 
 import functools
+import logging
 
 from google.adk.tools import ToolContext
 
-from app.memory import store
+from app.memory import short_term, store
+
+log = logging.getLogger("nityam.memory")
 
 
 @functools.cache
@@ -117,10 +120,10 @@ def log_turn(text: str, role: str, concept_id: str, artifact_id: str, tool_conte
     return {"buffer_length": len(buffer)}
 
 
-def log_artifact_evidence(event: str, artifact_id: str, tool_context: ToolContext) -> dict:
+async def log_artifact_evidence(event: str, artifact_id: str, tool_context: ToolContext) -> dict:
     """Append an artifact interaction event (e.g. "discovered_optimum",
     "misconception_behavior" — see sub_modules/artifact_generator's probes)
-    to the in-session buffer.
+    to the in-session buffer, and write through to Memorystore.
 
     Args:
         event: The event name the artifact reported.
@@ -130,6 +133,13 @@ def log_artifact_evidence(event: str, artifact_id: str, tool_context: ToolContex
         dict confirming the event was buffered.
     """
     events = tool_context.state.get("artifact_events", [])
-    events.append({"event": event, "artifact_id": artifact_id})
+    entry = {"event": event, "artifact_id": artifact_id}
+    events.append(entry)
     tool_context.state["artifact_events"] = events
+    session_id = tool_context.state.get("session_id")
+    if session_id:
+        try:
+            await short_term.append_artifact_event(session_id, entry)
+        except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
+            log.warning("artifact-event write-through to Redis failed", exc_info=True)
     return {"logged": True}

@@ -54,6 +54,7 @@ from google.genai import types
 
 from app import logs, sessions
 from app.agents.tutor_agent import build_tutor_agent
+from app.memory import short_term
 
 log = logging.getLogger("nityam.brain")
 
@@ -127,8 +128,8 @@ async def _ensure_session(session_id: str, student_id: str) -> None:
 _MARKUP = re.compile(r"\$+|\\[a-zA-Z]+|[*_`#]|\\[(){}\[\]]")
 
 
-def _record(session_id: str, student_id: str, asked: str, replied: str,
-            tool_context: ToolContext) -> None:
+async def _record(session_id: str, student_id: str, asked: str, replied: str,
+                   tool_context: ToolContext) -> None:
     """Append the exchange to the session buffer, here rather than as a tool.
 
     `log_turn` used to be something TutorAgent called, and every call is a model
@@ -136,6 +137,11 @@ def _record(session_id: str, student_id: str, asked: str, replied: str,
     listening to silence, for bookkeeping they never see. Both halves of the
     exchange are already in hand at this point, so write them directly and give
     the time back to teaching.
+
+    Also writes through to Memorystore (async, sub-millisecond, wrapped so an
+    outage never breaks a live turn) — the durable copy `close_session` reads
+    back from, since this buffer lives in brain.py's own session state, not the
+    one main.py's ws_endpoint can see.
     """
     buffer = list(tool_context.state.get("turn_buffer", []))
     for role, text in (("student", asked), ("tutor", replied)):
@@ -145,13 +151,18 @@ def _record(session_id: str, student_id: str, asked: str, replied: str,
         # Stage directions are not things the student said.
         if role == "student" and clean.startswith("["):
             clean = clean[:400]
-        buffer.append({
+        turn = {
             "turn": len(buffer) + 1,
             "role": role,
             "text": clean[:2000],
             "concept_id": None,
             "artifact_id": None,
-        })
+        }
+        buffer.append(turn)
+        try:
+            await short_term.append_turn(session_id, turn)
+        except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
+            log.warning("turn write-through to Redis failed", exc_info=True)
     tool_context.state["turn_buffer"] = buffer
 
 
@@ -300,7 +311,7 @@ async def _turn(session_id: str, student_id: str, request: str,
         _drain_pending(session_id)
 
     reply = _speakable(" ".join(said))
-    _record(session_id, student_id, request, reply, tool_context)
+    await _record(session_id, student_id, request, reply, tool_context)
     log.info("brain replied in %s tool call(s): %r", len(calls), reply[:120])
     log.debug("reply in full: %s", reply)
     log.debug("tools used: %s", calls)
