@@ -16,6 +16,7 @@ import json
 import redis.asyncio as redis
 
 from app import config
+from app.memory import instrumentation
 
 _SAFETY_TTL_SECONDS = 60 * 60 * 6  # 6h - close_session should flush well before this
 
@@ -28,6 +29,15 @@ def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
     )
 
 
+def _ids_from_args01(args, kwargs, result):
+    session_id = kwargs.get("session_id", args[0] if len(args) > 0 else None)
+    student_id = kwargs.get("student_id", args[1] if len(args) > 1 else None)
+    return session_id, student_id
+
+
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="turn_buffer", operation="write", extract_ids=_ids_from_args01,
+)
 async def append_turn(session_id: str, student_id: str, turn: dict) -> None:
     client = _client()
     key = f"session:{student_id}:{session_id}:turns"
@@ -36,6 +46,9 @@ async def append_turn(session_id: str, student_id: str, turn: dict) -> None:
     await client.aclose()
 
 
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="artifact_event", operation="write", extract_ids=_ids_from_args01,
+)
 async def append_artifact_event(session_id: str, student_id: str, event: dict) -> None:
     client = _client()
     key = f"session:{student_id}:{session_id}:artifact_events"
@@ -44,6 +57,9 @@ async def append_artifact_event(session_id: str, student_id: str, event: dict) -
     await client.aclose()
 
 
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="turn_buffer", operation="read", extract_ids=_ids_from_args01,
+)
 async def get_turn_buffer(session_id: str, student_id: str) -> list[dict]:
     client = _client()
     raw = await client.lrange(f"session:{student_id}:{session_id}:turns", 0, -1)
@@ -51,6 +67,9 @@ async def get_turn_buffer(session_id: str, student_id: str) -> list[dict]:
     return [json.loads(r) for r in raw]
 
 
+@instrumentation.emit_memory_event(
+    tier="workflow", record_type="turn_buffer", operation="write", extract_ids=_ids_from_args01,
+)
 async def clear_session(session_id: str, student_id: str) -> None:
     client = _client()
     await client.delete(
