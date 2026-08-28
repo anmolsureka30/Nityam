@@ -569,9 +569,10 @@ import sys
 import uuid
 from types import SimpleNamespace
 
-from app.auth import load_env
+from app.auth import configure, load_env
 
 load_env()
+configure()
 
 from app import sessions  # noqa: E402
 from app.agents.board_agent import ask_board  # noqa: E402
@@ -818,9 +819,10 @@ import sys
 import uuid
 from types import SimpleNamespace
 
-from app.auth import load_env
+from app.auth import configure, load_env
 
 load_env()
+configure()
 
 from app import sessions  # noqa: E402
 from app.agents.textbook_agent import ask_textbook  # noqa: E402
@@ -1028,9 +1030,10 @@ import sys
 import uuid
 from types import SimpleNamespace
 
-from app.auth import load_env
+from app.auth import configure, load_env
 
 load_env()
+configure()
 
 from app import sessions  # noqa: E402
 from app.agents.quiz_agent import ask_quiz  # noqa: E402
@@ -1223,9 +1226,10 @@ import sys
 import uuid
 from types import SimpleNamespace
 
-from app.auth import load_env
+from app.auth import configure, load_env
 
 load_env()
+configure()
 
 from app import sessions  # noqa: E402
 from app.agents.artifact_agent import ask_artifact  # noqa: E402
@@ -1742,9 +1746,10 @@ from __future__ import annotations
 
 import sys
 
-from app.auth import load_env
+from app.auth import configure, load_env
 
 load_env()
+configure()
 
 from app import sessions  # noqa: E402
 
