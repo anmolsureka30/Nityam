@@ -198,6 +198,13 @@ def compose_brief(session_id: str, student_id: str) -> str:
     return line
 
 
+# The exact wording below is load-bearing: tests/test_routing.py's plumbing
+# check greps the session log for "briefed the voice layer" to prove the
+# briefing actually reached the model before the first turn. Splitting this
+# function in two moved that line onto the compose half and quietly broke
+# that check. It belongs on the half that does the delivering anyway.
+
+
 def brief_voice_layer(session_id: str, student_id: str, sink) -> str:
     """Assemble and deliver the briefing directly through sink; return the
     text it sent.
@@ -210,4 +217,5 @@ def brief_voice_layer(session_id: str, student_id: str, sink) -> str:
     count this used to return.)"""
     line = compose_brief(session_id, student_id)
     sink.text(line, partial=True)
+    log.info("briefed the voice layer: %s chars", len(line))
     return line

@@ -6,9 +6,10 @@ cites evidence back to.
 
 ## Structure
 
-- **`backend/`** + **`frontend/`** — the real production tutor: a Gemini Live voice loop, three
-  reasoning agents (`VoiceAgent` → `TutorAgent` → `ArtifactAgent`), and a shared canvas the tutor
-  writes on and the student points at. Custom-built (not the ADK dev-server scaffold below) — see
+- **`backend/`** + **`frontend/`** — the real production tutor: a Gemini Live voice loop, a
+  routing voice agent over four reasoning specialists (`VoiceAgent` → `BoardAgent` /
+  `ArtifactAgent` / `QuizAgent` / `TextbookAgent`), and a shared canvas the tutor writes on and
+  the student points at. Custom-built (not the ADK dev-server scaffold below) — see
   `backend/README.md` to run it.
 - **`sub_modules_examples/tutor/`** — an ADK (Google Agent Development Kit)-scaffolded reference
   implementation of the same memory layer and agent topology, used for ADK-tooling-specific work

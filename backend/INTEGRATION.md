@@ -48,7 +48,7 @@ today and semantically only once a smaller companion embedding exists.
 
 `short_term.py` (Redis / Memorystore) came across with it and is now live: it
 holds the turn buffer described in §4 below, written from
-`app/agents/brain.py:_record` and `app/memory/tools.py:log_artifact_evidence`,
+`app/main.py:_transcript_writer` and `app/memory/tools.py:log_artifact_evidence`,
 and read back by `app/main.py:_flush_session_memory` at session close.
 
 ## 2. ADK sessions are in memory
@@ -69,9 +69,13 @@ persistence rides on `append_event`.
 `app/sessions.py` — `_SESSIONS: dict[str, SessionState] = {}`
 
 Per session: the board (`CanvasDoc`), the id minter, the screen snapshot, and
-three queues — `outbox` (patches for the browser), `nudges` (things she must
-say) and `context` (things she must know). A second instance sees none of it,
-and a restart mid-lesson loses the page the student is looking at.
+one queue — `outbox` (patches for the browser). A second instance sees none of
+it, and a restart mid-lesson loses the page the student is looking at.
+
+(It used to hold three. `nudges` — things she must say — and `context` — things
+she must know — were the hand-rolled delivery queue for a specialist's result;
+`response_scheduling=WHEN_IDLE` on the `ask_*` tools does that job in the
+platform now, and both queues are gone. See §3b.)
 
 **To swap:** `publish()` is the single write path — it applies the patch to the
 board *and* enqueues it. That is deliberate: split them and `read_screen` can
@@ -90,24 +94,36 @@ Then delete `outbound()` from `app/main.py` and have the browser subscribe with
 is `useLiveSession.ts`'s one `canvas_patch` branch — the reducer, the patch
 types and every component stay exactly as they are.
 
-**One thing not to break while doing it.** `publish()` is also what triggers the
-context injection that keeps the voice layer able to answer without delegating
-(`canvas/tools.py:_brief_voice`). That injection is a *live-session* concern, not
-a persistence one, so it must survive the move to Firestore — it does not belong
-inside the document write. Keep `_brief_voice` where it is, at the tool call
-sites, and Firestore replaces only the queue.
+`publish()` is now purely a board write — Firestore replaces the queue and
+nothing else rides on it. (It used to also trigger a context injection through
+`canvas/tools.py:_brief_voice`, which no longer exists; see §3b.)
 
-## 3b. The voice layer's context channel is RAM, and should stay that way
+## 3b. The voice layer's context channel is the live connection's own sink
 
-`app/sessions.py` — `state.context: asyncio.Queue[str]`, `sessions.inject()`
+`app/main.py` — `_LiveSink.text(line, partial=True)`
 
-The counterpart to `nudges`: a nudge makes her speak, an injection makes her
-*know*. The session's grounding pack (`app/briefing.py`) and every board change
-go down it as `partial=True` content, which reaches the Live model's context
-without completing a turn. It is what lets "which formula was it?" cost one
-second instead of nine.
+What keeps the voice layer able to answer without delegating: `partial=True`
+content reaches the Live model's context *without completing a turn*, so it
+knows more without being made to speak. It is what lets "which formula was it?"
+cost one second instead of nine.
 
-**This one is deliberately NOT a Firestore seam.** It is per-live-session,
+Two things go down it, both straight through the connection's own sink — no
+queue, no background task:
+
+* The session's grounding pack, once at `start` (`briefing.brief_voice_layer`).
+* A re-brief after each specialist call, if and only if the composed text
+  actually changed (`agents/specialist_runner.refresh_brief`). That call site is
+  the specialist's own `ask_*` tool function, because ADK yields no
+  `function_response` event for a WHEN_IDLE tool — there is no event to hang it
+  on. It composes via `asyncio.to_thread`: the Firestore reads behind it take
+  3+ seconds and this runs mid-lesson.
+
+`refresh_brief` reaches the sink through a `contextvars.ContextVar` set once per
+connection by `main.py:run_live` (`specialist_runner.set_live_sink`). A tool
+running several frames deep inside another Runner has no other route back to
+this WebSocket.
+
+**This is deliberately NOT a Firestore seam.** It is per-live-session,
 per-process, and meaningless outside the lifetime of one WebSocket — the Live
 API session it feeds does not outlive the connection either. If the process dies
 mid-lesson the injections are lost, and that is correct: the replacement
@@ -130,8 +146,11 @@ takes the session's episodic record with it.
 
 Two call sites write:
 
-* `app/agents/brain.py:_record` — both halves of every exchange, appended as
-  they are recorded.
+* `app/main.py:_transcript_writer` — both halves of every exchange, drained in
+  order off a per-connection queue that `trace()` enqueues onto. It is the one
+  ordered consumer, so it is also what numbers the turns (`Turn.turn` is
+  `ge=1`; a write numbered 0 fails validation at session close and is
+  swallowed, which is how this silently persisted nothing for a while).
 * `app/memory/tools.py:log_artifact_evidence` — artifact interaction events.
 
 Both wrap the Redis call so an outage degrades to the old RAM-only behaviour
@@ -147,17 +166,17 @@ the namespace a collision would let one student's buffered turns be reflected
 into another student's memory.
 
 **One thing this doc used to say that was never true.** `app/memory/tools.py:log_turn`
-is dead code — TutorAgent's tool list has never included it, and turn logging
-happens in `brain.py:_record` instead, precisely to avoid spending a model round
-trip per turn on bookkeeping. It is still in the file; nothing calls it.
+was described here as the turn-logging path. It never was: no agent's tool list
+ever included it, because turn logging deliberately costs no model round trip.
+It has since been deleted outright, along with `brain.py`.
 
 `REDIS_HOST` / `REDIS_PORT` configure it, defaulting to `localhost:6379`
 (`app/config.py`). See `.env.example`.
 
 ## 5. `student_id` is hardcoded
 
-`app/agents/tutor_agent.py:_init_state` — `setdefault("student_id", "demo_student")`,
-and `frontend/src/features/session/SessionScreen.tsx` — `const USER_ID = "demo_student"`.
+`app/sessions.py:get` — `student_id: str = "demo_student"`, and
+`frontend/src/features/session/SessionScreen.tsx` — `const USER_ID = "demo_student"`.
 
 **To swap:** the WebSocket path is already `/ws/{user_id}/{session_id}`, and
 `main.py` seeds both into ADK session state at creation, so the plumbing exists.
@@ -270,12 +289,23 @@ credentials and no spend. Only the *choice* of what to write is scripted.
   literal `{g}` in an instruction raises `KeyError: 'g'` before the model is
   called. Keep braces out of instruction text.
 * **`mode='single_turn'` sub-agents do not work under `run_live`** in
-  google-adk 2.7.1. `run_async` initialises `InvocationContext._event_queue`
+  google-adk 2.8.0. `run_async` initialises `InvocationContext._event_queue`
   and `run_live` does not, so the nested node runner raises on its first event.
-  This is why `app/agents/brain.py` exists, and why `architecture.md` §2's
-  topology needs amending — it was verified by reading the ADK source, which is
-  correct about the mechanism and silent about the queue.
-* **A brain turn is genuinely slow** — grounding, two or three board writes,
-  sometimes a delegated quiz. `NITYAM_BRAIN_TIMEOUT` (default 70s) bounds it,
-  and VoiceAgent is instructed to speak before delegating so the student is not
-  listening to silence.
+  This is why `app/agents/specialist_runner.py` exists — every specialist runs
+  in its own Runner through `run_async`, reached as a plain function tool — and
+  why `architecture.md` §2's topology needs amending. Verified by reading the
+  ADK source, which is correct about the mechanism and silent about the queue.
+* **ADK yields no `function_response` event for a `response_scheduling`
+  (WHEN_IDLE) tool.** `_execute_single_function_call_live` spawns the tool in a
+  background task and returns `None`; `handle_function_calls_live` filters that
+  out. So nothing can be triggered off a specialist finishing by watching
+  `run_live`'s event stream — put it at the tool function's own call site
+  instead. Costs to know about: the frontend must match the *call* to show a
+  bridge line, and `specialist_runner.refresh_brief` is called from inside each
+  `ask_*`.
+* **A specialist turn is genuinely slow** — grounding, two or three board
+  writes, sometimes a delegated quiz. `specialist_runner.TURN_TIMEOUT_S`
+  (70s) bounds it, and VoiceAgent is instructed to speak its `bridge` before
+  delegating so the student is not listening to silence. The bound matters more
+  than it looks: a WHEN_IDLE tool delivers nothing at all until its coroutine
+  returns, so an unbounded hang is silence for the rest of the session.

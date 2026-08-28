@@ -1,8 +1,7 @@
 """Write-through mirror of the workflow tier's turn buffer into Redis
 (Memorystore in deployment). Deliberately NOT a swap of ADK's own
-SessionService — brain._record/log_artifact_evidence keep writing to
-tool_context.state first (free, in-process, unchanged), and additionally
-write through here so the buffer survives outside one process's memory.
+SessionService — main._transcript_writer/log_artifact_evidence write here as
+each exchange settles, so the buffer survives outside one process's memory.
 Keys are namespaced `session:{student_id}:{session_id}:*`, so a session_id on
 its own — the client picks it, and nothing validates it against the connecting
 user — is never enough to read or clear another student's buffer.
@@ -35,7 +34,7 @@ observability, not for backend/'s own session lifecycle."""
 async def touch_heartbeat(session_id: str) -> None:
     """Mark this session live for the Observatory, independent of any
     memory-tier write. append_turn/append_artifact_event only refresh the
-    heartbeat as a side effect of a TutorAgent delegation -- a real
+    heartbeat as a side effect of a specialist delegation -- a real
     conversation routinely goes over a minute between those (or never
     delegates at all), during which the Observatory would otherwise show
     the session as closed despite it being very much in progress."""
