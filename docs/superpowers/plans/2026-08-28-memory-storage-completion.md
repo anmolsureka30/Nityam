@@ -606,6 +606,354 @@ git commit -m "feat: write-through the workflow-tier buffer to Memorystore"
 
 ---
 
+### Task 3: Fix graceful WebSocket teardown (so `close_session` can actually run)
+
+> **Inserted during execution (2026-08-28)**, not part of the original plan — discovered while
+> implementing what is now Task 4. Ruling and full reasoning:
+> `.superpowers/sdd/2026-08-28-memory-storage-completion/progress.md`. Summary: `run_live()` and
+> `run_mock()` each drive 5 tasks via `asyncio.gather(..., return_exceptions=True)`; three of the
+> five (`outbound`, `nudges`, `injections`) are unconditional `while True: await queue.get()`
+> loops with no termination path of their own, so `gather` can only return once **all five**
+> finish — which never happens on an ordinary disconnect, since only `read_client` actually
+> raises. `ws_endpoint`'s `finally:` block (home of `logs.close_session` today, and Task 4's
+> real `close_session` fix) therefore never runs after a real client disconnect, in either mode.
+> Confirmed empirically, not just by reading the code (fresh isolated servers, both modes,
+> 48-108s of polling `/health` with no `closed user=` log line ever appearing).
+
+**Files:**
+- Modify: `backend/app/main.py` (`run_live`'s `try:`/`finally:` block, `run_mock`'s
+  `try:`/`finally:` block)
+- Test: `backend/tests/test_ws_teardown.py`
+
+**Interfaces:**
+- Consumes: nothing new — `read_client`, `downstream` (defined locally in each function),
+  `outbound`, `nudges`, `injections` are all pre-existing, unchanged.
+- Produces: nothing a later task consumes directly, but Task 4's own test
+  (`test_close_session_wiring.py`) depends on this fix actually landing first — its own Step 2
+  (RED) already failed for the right reason (`close_session` not called) using the OLD gather
+  pattern; after this task lands, re-running it should get past that point.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `backend/tests/test_ws_teardown.py`:
+
+```python
+"""ws_endpoint's `finally:` block must actually run after a real client
+disconnect — before this fix, three of run_live()/run_mock()'s five gathered
+tasks (outbound, nudges, injections) never terminate on their own, so
+asyncio.gather(..., return_exceptions=True) waited forever for them and
+`finally` never fired.
+
+The mock-mode check always runs (free, no credentials). The live-mode check
+needs real credentials and skips otherwise, matching tests/test_live.py's
+own convention — downstream() calls the real Live API there, a materially
+different code path from mock mode's synthetic one, so mock passing alone
+does not prove run_live's fix works too.
+
+    .venv/bin/python -m tests.test_ws_teardown
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+from app.auth import load_env  # noqa: E402
+
+load_env()
+
+from tests._firebase_test_tokens import mint_id_token  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent.parent
+FAILED = 0
+
+
+def check(name: str, ok: bool, extra: str = "") -> None:
+    global FAILED
+    if not ok:
+        FAILED += 1
+    print(f"{'  ok  ' if ok else '  FAIL'} {name}{' — ' + extra if extra else ''}")
+
+
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+class Server:
+    def __init__(self, port: int, extra_env: dict | None = None) -> None:
+        self.port = port
+        env = {**os.environ, **(extra_env or {}), "PYTHONUNBUFFERED": "1"}
+        self.log_path = Path(tempfile.mkdtemp()) / "server.log"
+        self.log_file = open(self.log_path, "w")
+        self.proc = subprocess.Popen(
+            [str(ROOT / ".venv/bin/uvicorn"), "app.main:app",
+             "--port", str(port), "--log-level", "info"],
+            cwd=ROOT, env=env,
+            stdout=self.log_file, stderr=subprocess.STDOUT, text=True,
+        )
+
+    def wait(self, timeout: float = 30) -> bool:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.proc.poll() is not None:
+                print(self.log_path.read_text()[-2000:])
+                return False
+            try:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{self.port}/health", timeout=1
+                ) as r:
+                    if r.status == 200:
+                        return True
+            except Exception:
+                time.sleep(0.3)
+        return False
+
+    def log(self) -> str:
+        return self.log_path.read_text()
+
+    def stop(self) -> None:
+        self.proc.kill()
+        self.proc.wait(timeout=5)
+        self.log_file.close()
+
+
+async def connect_and_disconnect(url: str) -> None:
+    import websockets
+
+    async with websockets.connect(url) as ws:
+        await ws.recv()  # the session frame
+    # `async with` closes the socket on exit — nothing else to do here.
+
+
+def check_graceful_teardown(mode_label: str, url: str, server: Server) -> None:
+    asyncio.run(connect_and_disconnect(url))
+    deadline = time.time() + 10
+    closed = False
+    while time.time() < deadline:
+        if "closed user=" in server.log():
+            closed = True
+            break
+        time.sleep(0.3)
+    check(f"{mode_label}: finally: runs within 10s of a real disconnect", closed,
+          "no 'closed user=' line appeared" if not closed else "")
+
+
+def main() -> int:
+    # ---------------------------------------------------------- mock mode
+    port = free_port()
+    server = Server(port, {"NITYAM_AUTH": "mock"})
+    try:
+        if not server.wait():
+            check("mock server starts", False, "it did not come up")
+            return 1
+        check("mock server starts", True, f"port {port}")
+        token = mint_id_token("demo@nityam.local", "nityam-demo-2026")
+        url = f"ws://127.0.0.1:{port}/ws/demo_student/s_teardown_mock?token={token}"
+        check_graceful_teardown("mock mode", url, server)
+    finally:
+        server.stop()
+
+    # ---------------------------------------------------------- live mode
+    mode = os.getenv("NITYAM_AUTH", "").strip().lower()
+    if mode in ("", "mock"):
+        print("NITYAM_AUTH is mock or unset — skipping the live-mode teardown check.")
+        print()
+        print(f"{FAILED} failed" if FAILED else "all passed (mock-mode only)")
+        return 1 if FAILED else 0
+
+    port = free_port()
+    server = Server(port)  # no override — inherits the real NITYAM_AUTH
+    try:
+        if not server.wait():
+            check("live server starts against real credentials", False, "it did not come up")
+            return 1
+        check("live server starts against real credentials", True, f"port {port}, mode {mode}")
+        token = mint_id_token("demo@nityam.local", "nityam-demo-2026")
+        url = f"ws://127.0.0.1:{port}/ws/demo_student/s_teardown_live?token={token}"
+        check_graceful_teardown("live mode", url, server)
+    finally:
+        server.stop()
+
+    print()
+    print(f"{FAILED} failed" if FAILED else "all passed")
+    return 1 if FAILED else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `cd backend && .venv/bin/python -m tests.test_ws_teardown`
+Expected: `FAIL mock mode: finally: runs within 10s of a real disconnect` (no `closed user=` line
+appears within the 10s window — matches the empirically-confirmed 48-108s-and-counting hang).
+
+- [ ] **Step 3: Fix `run_live`**
+
+The current `try`/`finally` in `run_live` (`backend/app/main.py`) reads:
+
+```python
+    try:
+        results = await asyncio.gather(
+            read_client(ws, session_id, sink),
+            downstream(),
+            outbound(ws, session_id),
+            nudges(sink, session_id),
+            injections(sink, session_id),
+            return_exceptions=True,
+        )
+        # gather(return_exceptions=True) swallows failures — surface them, or a
+        # dead stream just looks like a silent tutor.
+        for result in results:
+            if isinstance(result, BaseException) and not isinstance(
+                result, (WebSocketDisconnect, asyncio.CancelledError)
+            ):
+                log.error("stream task failed", exc_info=result)
+                await send_control(
+                    ws, kind="error",
+                    message=f"{type(result).__name__}: {str(result)[:300]}",
+                )
+    finally:
+        # Without this the Live API session lingers server-side and keeps
+        # counting against the concurrent-session quota.
+        queue.close()
+```
+
+becomes:
+
+```python
+    try:
+        tasks = [
+            asyncio.create_task(read_client(ws, session_id, sink)),
+            asyncio.create_task(downstream()),
+            asyncio.create_task(outbound(ws, session_id)),
+            asyncio.create_task(nudges(sink, session_id)),
+            asyncio.create_task(injections(sink, session_id)),
+        ]
+        # gather(..., return_exceptions=True) alone waits for ALL FIVE to
+        # finish — but outbound()/nudges()/injections() are unconditional
+        # `while True: await queue.get()` loops with no termination path of
+        # their own, so that never happened on an ordinary disconnect and
+        # this whole function never returned. Whichever task finishes FIRST
+        # (normally read_client() raising WebSocketDisconnect) now cancels
+        # the rest, so the connection actually tears down.
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in pending:
+            t.cancel()
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # gather(return_exceptions=True) swallows failures — surface them, or a
+        # dead stream just looks like a silent tutor.
+        for result in results:
+            if isinstance(result, BaseException) and not isinstance(
+                result, (WebSocketDisconnect, asyncio.CancelledError)
+            ):
+                log.error("stream task failed", exc_info=result)
+                await send_control(
+                    ws, kind="error",
+                    message=f"{type(result).__name__}: {str(result)[:300]}",
+                )
+    finally:
+        # Without this the Live API session lingers server-side and keeps
+        # counting against the concurrent-session quota.
+        queue.close()
+```
+
+- [ ] **Step 4: Fix `run_mock`, the same way**
+
+The current `try`/`finally` in `run_mock` reads:
+
+```python
+    try:
+        mock_sink = _MockSink()
+        await asyncio.gather(
+            read_client(ws, session_id, mock_sink),
+            downstream(),
+            outbound(ws, session_id),
+            nudges(mock_sink, session_id),
+            injections(mock_sink, session_id),
+            return_exceptions=True,
+        )
+    finally:
+        live.close()
+```
+
+becomes:
+
+```python
+    try:
+        mock_sink = _MockSink()
+        tasks = [
+            asyncio.create_task(read_client(ws, session_id, mock_sink)),
+            asyncio.create_task(downstream()),
+            asyncio.create_task(outbound(ws, session_id)),
+            asyncio.create_task(nudges(mock_sink, session_id)),
+            asyncio.create_task(injections(mock_sink, session_id)),
+        ]
+        # Same fix as run_live() — see its comment there. Without cancelling
+        # the rest on first completion, this gather() never returned on an
+        # ordinary disconnect either.
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in pending:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        live.close()
+```
+
+- [ ] **Step 5: Run test to verify it passes**
+
+Run: `cd backend && .venv/bin/python -m tests.test_ws_teardown`
+Expected: `mock mode: finally: runs within 10s of a real disconnect` — `ok`. (The live-mode half
+only runs with real credentials in the environment; with none, it prints the skip line and
+exits 0 on the mock-only result — that's a pass, not a gap, matching every other real-credential
+test in this suite.)
+
+Then, separately, with real credentials, confirm the live half too:
+```bash
+cd backend && NITYAM_AUTH=vertex_express .venv/bin/python -m tests.test_ws_teardown
+```
+Expected: both `mock mode: ...` and `live mode: ...` checks `ok`.
+
+- [ ] **Step 6: Confirm the existing suite is unaffected**
+
+```bash
+cd backend
+.venv/bin/python -m tests.test_ws_auth
+.venv/bin/python -m tests.test_wire
+```
+Expected: `test_ws_auth` all passing (unaffected — it already kills the server process directly
+rather than waiting for a graceful close, so this fix doesn't change its behavior). `test_wire`
+shows the same 4 pre-existing, unrelated mock-teaching failures as always — no new ones. (Note:
+`test_wire.py`/`test_live.py` also `proc.kill()` their servers rather than exercising a graceful
+disconnect, which is exactly why neither ever caught this bug — this task's new test is the
+first one in the suite that actually waits for a real, clean teardown.)
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add backend/app/main.py backend/tests/test_ws_teardown.py
+git commit -m "fix: cancel sibling WebSocket tasks on first completion so the connection actually tears down"
+```
+
+**A note on what this task deliberately does not verify behaviorally:** `run_live`'s
+post-gather error-surfacing loop (the `for result in results: ... send_control(ws, kind="error"
+...)` branch) is preserved byte-for-byte in Step 3's diff, but triggering it in a test would
+need deliberately injecting a failure into one of the five tasks — this codebase's own testing
+convention favors real infrastructure over fault injection, and no existing mechanism does this
+cleanly. The task reviewer should confirm by reading the diff that this branch's code is
+unchanged, rather than this plan manufacturing an artificial trigger for it.
+
+---
+
 ### Task 4: Fix `close_session` — real sessions actually reach Firestore
 
 > Renumbered from Task 3 during execution (2026-08-28): implementing this task surfaced a
