@@ -176,16 +176,6 @@ def show_textbook_figure(
              block.id)
     logs.count("textbook page")
     tool_context.state["textbook_search_streak"] = 0
-    # So the voice layer can say which page it is and answer "is this in the
-    # book?" without a round trip.
-    sessions.inject(
-        session_id,
-        f"[BOARD UPDATED, context only — do not announce it or reply to this. "
-        f"A page of the student's own NCERT textbook is now on their page as "
-        f"{block.id}: {block.source}. You said about it: “{block.body}”. "
-        f"You may refer to it and answer questions about which page it is "
-        f"yourself.]",
-    )
     return {"block_id": block.id, "showing": block.source}
 
 
