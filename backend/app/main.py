@@ -44,6 +44,10 @@ from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from app import briefing, incoming, sessions, user_auth  # noqa: E402
+# Imported on both paths, not just the live one: the `start` handler is shared
+# with mock mode, and this module holds nothing but a contextvar, a dict and
+# the ADK Runner plumbing — no client is constructed at import time.
+from app.agents import specialist_runner  # noqa: E402
 from app.memory import instrumentation, short_term, store  # noqa: E402
 from app.memory_routes import router as memory_router  # noqa: E402
 from app.session_close import close_session as _close_session_memory  # noqa: E402
@@ -299,13 +303,29 @@ async def heartbeat(session_id: str) -> None:
 
 async def _transcript_writer(queue: asyncio.Queue) -> None:
     """Drains transcript turns in the order trace() saw them. One
-    consumer, not one task per turn -- see _record_turn's docstring."""
+    consumer, not one task per turn -- see _record_turn's docstring.
+
+    Numbers the turns as it goes. This is the ONLY ordered consumer of the
+    queue, so it is the only place in the system that can honestly say
+    "this is the nth turn of this session" -- and a number is required:
+    memory/schemas.py's `Turn` declares `turn: int = Field(ge=1)`, so the
+    hardcoded 0 this used to write failed validation inside
+    session_close.close_session for EVERY turn. That failure was swallowed
+    by _flush_session_memory's own broad except, so the visible symptom was
+    not an error but silence: no SessionLog was ever persisted, no Reflect
+    call ever ran, and dpm_profile/teaching_memory never updated, in any
+    session. Counting here (and pre-incrementing, so the first turn is 1,
+    not 0) is what makes the durable memory write actually happen.
+    """
+    counters: dict[tuple[str, str], int] = {}
     while True:
         session_id, student_id, role, text = await queue.get()
         try:
+            key = (session_id, student_id)
+            counters[key] = counters.get(key, 0) + 1
             await short_term.append_turn(
                 session_id, student_id,
-                {"turn": 0, "role": role, "text": text[:2000],
+                {"turn": counters[key], "role": role, "text": text[:2000],
                  "concept_id": None, "artifact_id": None},
             )
         except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
@@ -385,7 +405,11 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             # teacher's words are in context before the first turn. Without it
             # VoiceAgent has to delegate every question, however small.
             try:
-                briefing.brief_voice_layer(session_id, state.student_id, sink)
+                line = briefing.brief_voice_layer(session_id, state.student_id, sink)
+                # Tell the refresh path what the voice layer has already been
+                # handed, so the first specialist call of the session doesn't
+                # re-inject a byte-identical copy of it.
+                specialist_runner.note_brief_sent(session_id, line)
             except Exception:  # noqa: BLE001 - a lesson must start regardless
                 log.exception("could not brief the voice layer")
 
@@ -498,7 +522,11 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
     # a recycled queue kills the next session the moment it arrives.
     queue = LiveRequestQueue()
     sink = _LiveSink(queue)
-    _live_sink_context.set(sink)
+    # Hand the sink to the specialists. They re-brief the voice layer after
+    # their own turns (specialist_runner.refresh_brief), and a tool running
+    # several frames down inside another Runner has no other route back to
+    # this connection.
+    specialist_runner.set_live_sink(sink)
 
     async def downstream() -> None:
         async for event in runner.run_live(
@@ -570,23 +598,6 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         queue.close()
 
 
-_live_sink_context: contextvars.ContextVar[object | None] = contextvars.ContextVar(
-    "nityam_live_sink_context", default=None
-)
-
-
-def _refresh_brief(who: str) -> None:
-    ctx = _recording_context.get()
-    sink = _live_sink_context.get()
-    if ctx is None or sink is None:
-        return
-    session_id, student_id = ctx
-    try:
-        briefing.brief_voice_layer(session_id, student_id, sink)
-    except Exception:  # noqa: BLE001 - a stale brief is better than a crashed turn
-        log.warning("brief refresh failed", exc_info=True)
-
-
 def _record_turn(role: str, text: str) -> None:
     """Every settled exchange, not just delegated ones — what makes a
     specialist's "last N turns" context genuine. Enqueues onto an
@@ -626,14 +637,18 @@ def trace(event) -> None:
                 # you are going to read afterwards to work out what she meant.
                 log.debug("  args in full: %s", args)
 
+        # Note: for a response_scheduling=WHEN_IDLE tool — which every ask_*
+        # delegation is — ADK yields no function_response Event into this
+        # stream at all, so nothing hung here would ever fire for a
+        # specialist. Re-briefing the voice layer after a delegation is
+        # triggered from the specialist's own tool function instead
+        # (agents/specialist_runner.refresh_brief).
         response = part.function_response
         if response and response.name != "transfer_to_agent":
             got = str(response.response)
             log.info("← TOOL DONE %s got %s -> %s", who, response.name,
                      got[:200] + ("…" if len(got) > 200 else ""))
             log.debug("  result in full: %s", got)
-            if response.name in ("ask_board", "ask_artifact", "ask_quiz", "ask_textbook"):
-                _refresh_brief(who)
 
     # A consolidated transcription can be empty (end-of-turn marker); logging
     # those just adds blank lines.

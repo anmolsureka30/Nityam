@@ -82,6 +82,56 @@ async def run() -> None:
         nityam_main.logs.close_session(session_id)
 
 
+async def run_turn_numbering() -> None:
+    """Consecutive turns get 1, 2, 3... and validate against the `Turn`
+    schema the durable write actually uses.
+
+    _transcript_writer used to hardcode `"turn": 0`, and `Turn` declares
+    `turn: int = Field(ge=1)` -- so every single write failed Pydantic
+    validation inside session_close.close_session, swallowed by
+    _flush_session_memory's broad except. Nothing looked broken; no
+    SessionLog was ever persisted and no Reflect call ever ran, for every
+    session ever recorded. This asserts the numbers directly AND feeds them
+    through the real schema, because "not 0" is not the same claim as
+    "the durable write will accept it".
+    """
+    session_id = f"test_turnno_{uuid.uuid4().hex[:8]}"
+    student_id = "demo_student"
+    nityam_main.logs.open_session(session_id, student_id, mode="mock", live_model="", detail="test")
+    nityam_main.instrumentation.set_session_context(session_id)
+    nityam_main._recording_context.set((session_id, student_id))
+
+    queue: asyncio.Queue = asyncio.Queue()
+    nityam_main._transcript_queue_context.set(queue)
+    writer_task = asyncio.create_task(nityam_main._transcript_writer(queue))
+
+    try:
+        nityam_main.trace(_event("student", "first", input_side=True))
+        nityam_main.trace(_event("VoiceAgent", "second", input_side=False))
+        nityam_main.trace(_event("student", "third", input_side=True))
+        await queue.join()
+
+        buffer = await short_term.get_turn_buffer(session_id, student_id)
+        numbers = [t["turn"] for t in buffer]
+        check("three turns recorded", len(buffer) == 3, repr(buffer))
+        check("turns are numbered 1, 2, 3 -- not 0, 0, 0", numbers == [1, 2, 3], repr(numbers))
+
+        # The real gate: the schema session_close validates against.
+        from app.memory.schemas import Turn
+
+        try:
+            parsed = [Turn(**t) for t in buffer]
+            check("every recorded turn validates against Turn's schema", True)
+            check("and keeps its number through validation",
+                  [t.turn for t in parsed] == [1, 2, 3], repr(parsed))
+        except Exception as exc:  # noqa: BLE001 - the failure IS the finding
+            check("every recorded turn validates against Turn's schema", False, repr(exc))
+    finally:
+        writer_task.cancel()
+        await short_term.clear_session(session_id, student_id)
+        nityam_main.logs.close_session(session_id)
+
+
 async def run_drain_on_disconnect() -> None:
     """The exact sequence run_live now uses at teardown: drain the transcript
     queue (bounded, via asyncio.wait_for(queue.join(), ...)) BEFORE cancelling
@@ -145,6 +195,7 @@ async def run_drain_on_disconnect() -> None:
 
 def main() -> int:
     asyncio.run(run())
+    asyncio.run(run_turn_numbering())
     asyncio.run(run_drain_on_disconnect())
     return 1 if FAILED else 0
 
