@@ -26,20 +26,49 @@ export function SessionView() {
   const sessionsRef = useRef<SessionSummary[]>([]);
 
   useEffect(() => {
-    fetch(`${BACKEND_URL}/api/sessions`)
-      .then((r) => r.json())
-      .then((body) => setSessions(body.sessions ?? []))
-      .catch(() => setSessions([]));
+    let cancelled = false;
+    const fetchSessions = () => {
+      fetch(`${BACKEND_URL}/api/sessions`)
+        .then((r) => r.json())
+        .then((body) => {
+          if (cancelled) return;
+          setSessions(body.sessions ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setSessions([]);
+        });
+    };
+    fetchSessions();
+    const interval = setInterval(fetchSessions, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   // Kept out of the effect below on purpose: `sessions` is refetched (and
   // gets a new array reference) independently of session selection — e.g.
-  // React StrictMode's dev double-invoke, or a future periodic refresh —
+  // React StrictMode's dev double-invoke, or the periodic refresh above —
   // and including it in that effect's deps would restart the events/state
   // fetch and websocket every time, discarding whatever had just loaded.
   useEffect(() => {
     sessionsRef.current = sessions;
   }, [sessions]);
+
+  // Auto-select the most-recently-active live session whenever there is no
+  // selection yet, or the selected session just stopped being live while a
+  // different one is now live -- never overrides a manual pick that's still
+  // live. This is what makes the Observatory show a session with zero
+  // clicks: open the page while backend/ has a live conversation, and it's
+  // already there.
+  useEffect(() => {
+    const live = sessions.filter((s) => s.status === "live");
+    if (live.length === 0) return;
+    const currentlySelectedIsLive = live.some((s) => s.session_id === selectedId);
+    if (selectedId && currentlySelectedIsLive) return;
+    const newest = [...live].sort((a, b) => b.last_event_at.localeCompare(a.last_event_at))[0];
+    setSelectedId(newest.session_id);
+  }, [sessions, selectedId]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -57,7 +86,13 @@ export function SessionView() {
       .catch(() => {});
 
     return connectSessionSocket(BACKEND_URL.replace("http", "ws"), selectedId, (enriched) => {
-      setEvents((prev) => [...prev, enriched]);
+      // The initial backlog fetch above and this live subscription start at
+      // roughly the same time with no ordering coordination between them --
+      // an event published in that overlap can land in both the REST
+      // snapshot and the live push. Deduping by event_id (always a fresh
+      // uuid4 per real event) keeps the timeline from rendering the same
+      // event twice with a duplicate React key.
+      setEvents((prev) => (prev.some((e) => e.event.event_id === enriched.event.event_id) ? prev : [...prev, enriched]));
     });
   }, [selectedId]);
 

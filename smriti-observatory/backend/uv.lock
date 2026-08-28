@@ -2270,11 +2270,11 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "google-cloud-firestore" },
     { name = "httpx" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "redis" },
-    { name = "tutor" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -2282,16 +2282,17 @@ dependencies = [
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "tutor" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "google-cloud-firestore", specifier = ">=2.16" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "redis", specifier = ">=5.0" },
-    { name = "tutor", editable = "../../sub_modules_examples/tutor" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 
@@ -2299,6 +2300,7 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=9.0.2,<10.0.0" },
     { name = "pytest-asyncio", specifier = ">=1.0.0,<2.0.0" },
+    { name = "tutor", editable = "../../sub_modules_examples/tutor" },
 ]
 
 [[package]]

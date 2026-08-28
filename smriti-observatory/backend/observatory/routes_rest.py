@@ -1,18 +1,18 @@
-"""REST snapshot endpoints. Never re-implements a Firestore/Redis read —
-every read goes through app.memory.store / app.memory.short_term directly
-(the tutor package, via the pyproject.toml path dependency)."""
+"""REST snapshot endpoints. Talks to whichever agent server is configured
+(sub_modules_examples/tutor or backend/) purely over HTTP — never imports
+either app's Python package. See
+docs/superpowers/specs/2026-08-28-backend-memory-observatory-design.md §3.
+"""
 from __future__ import annotations
 
 import httpx
 import redis as redis_sync
 from fastapi import APIRouter, Request
 
-from app import config
-from app.memory import short_term, store
 from observatory.events import MemoryEvent
 
 
-def build_router(tutor_base_url: str) -> APIRouter:
+def build_router(tutor_base_url: str, redis_host: str, redis_port: int) -> APIRouter:
     router = APIRouter(prefix="/api")
     _agent_graph_cache: dict[str, str] = {}
 
@@ -21,7 +21,10 @@ def build_router(tutor_base_url: str) -> APIRouter:
         """Proxies the tutor app's own ADK dev-ui graph (agents + tools, as
         Graphviz DOT source) so the browser can render it without a direct
         cross-origin request — the ADK dev server doesn't send CORS headers.
-        Cached in-process: the agent/tool topology only changes on redeploy."""
+        Cached in-process: the agent/tool topology only changes on redeploy.
+        Degrades to an empty dot_src when the configured agent server has no
+        ADK dev-ui at all (e.g. backend/) — accepted, see the design spec's
+        non-goals."""
         if "dot_src" in _agent_graph_cache:
             return {"dot_src": _agent_graph_cache["dot_src"]}
         try:
@@ -36,7 +39,7 @@ def build_router(tutor_base_url: str) -> APIRouter:
     @router.get("/sessions")
     def list_sessions():
         try:
-            client = redis_sync.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True)
+            client = redis_sync.Redis(host=redis_host, port=redis_port, decode_responses=True)
             raw_events = client.lrange("smriti:events:recent", 0, -1)
         except Exception:
             return {"sessions": []}
@@ -62,33 +65,37 @@ def build_router(tutor_base_url: str) -> APIRouter:
         return {"sessions": sorted(by_session.values(), key=lambda s: s["last_event_at"], reverse=True)}
 
     @router.get("/sessions/{session_id}/state")
-    async def session_state(session_id: str, student_id: str, request: Request):
-        db = request.app.state.firestore
-        profile = store.get_dpm(db, student_id)
-        memory = store.get_teaching_memory(db, student_id)
-        session_log = store.get_session_log(db, session_id)
-        turn_buffer = await short_term.get_turn_buffer(session_id)
-        return {
-            "session_id": session_id,
-            "student_id": student_id,
-            "workflow": {"turn_buffer": turn_buffer},
-            "episodic": {"session_log": session_log.model_dump(mode="json") if session_log else None},
-            "long_term": {
-                "dpm_profile": profile.model_dump(mode="json") if profile else None,
-                "teaching_memory": memory.model_dump(mode="json") if memory else None,
-            },
-        }
+    async def session_state(session_id: str, student_id: str):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{tutor_base_url}/memory/sessions/{session_id}/state",
+                    params={"student_id": student_id}, timeout=10.0,
+                )
+            return response.json()
+        except Exception:
+            # The agent server being briefly unreachable must not crash the
+            # viewer — same graceful-degradation contract as agent_graph()
+            # above. Same shape the frontend already handles for "nothing
+            # here yet" (see memory_routes.py's own missing-record shape).
+            return {
+                "session_id": session_id, "student_id": student_id,
+                "workflow": {"turn_buffer": []},
+                "episodic": {"session_log": None},
+                "long_term": {"dpm_profile": None, "teaching_memory": None},
+            }
 
     @router.get("/sessions/{session_id}/events")
-    def session_events(session_id: str):
+    async def session_events(session_id: str, student_id: str = ""):
         try:
-            client = redis_sync.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True)
-            raw_events = client.lrange("smriti:events:recent", 0, -1)
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{tutor_base_url}/memory/sessions/{session_id}/events",
+                    params={"student_id": student_id}, timeout=10.0,
+                )
+            return response.json()
         except Exception:
             return {"events": []}
-        events = [MemoryEvent.model_validate_json(raw) for raw in raw_events]
-        matching = [e.model_dump(mode="json") for e in events if e.session_id == session_id]
-        return {"events": matching}
 
     @router.post("/sessions/{session_id}/close")
     async def close_session_proxy(session_id: str, body: dict):
@@ -100,7 +107,7 @@ def build_router(tutor_base_url: str) -> APIRouter:
     def health(request: Request):
         redis_ok = True
         try:
-            redis_sync.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT).ping()
+            redis_sync.Redis(host=redis_host, port=redis_port).ping()
         except Exception:
             redis_ok = False
         firestore_ok = True
@@ -110,7 +117,7 @@ def build_router(tutor_base_url: str) -> APIRouter:
             firestore_ok = False
         tutor_ok = True
         try:
-            httpx.get(f"{tutor_base_url}/list-apps", timeout=2.0)
+            httpx.get(f"{tutor_base_url}/health", timeout=2.0)
         except Exception:
             tutor_ok = False
         return {"redis": redis_ok, "firestore": firestore_ok, "tutor_reachable": tutor_ok}
