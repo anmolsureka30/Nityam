@@ -52,6 +52,17 @@ async def run() -> None:
     await short_term.clear_session(session_id, student_id)
     check("clear_session deletes the heartbeat key", client.exists(key) == 0)
 
+    # append_turn/append_artifact_event only refresh this as a side effect of
+    # a TutorAgent delegation — most of a real conversation never triggers
+    # either. touch_heartbeat() is what main.py's own heartbeat() background
+    # task calls every 20s for the life of the WebSocket, independent of
+    # whether anything has been delegated yet.
+    await short_term.touch_heartbeat(session_id)
+    check("touch_heartbeat sets the key with no prior turn buffer activity", client.exists(key) == 1)
+    ttl2 = client.ttl(key)
+    check("and it carries the same short TTL", 0 < ttl2 <= 60, repr(ttl2))
+    client.delete(key)
+
 
 def main() -> int:
     asyncio.run(run())

@@ -32,6 +32,18 @@ triggers close_session directly), so this key exists purely for
 observability, not for backend/'s own session lifecycle."""
 
 
+async def touch_heartbeat(session_id: str) -> None:
+    """Mark this session live for the Observatory, independent of any
+    memory-tier write. append_turn/append_artifact_event only refresh the
+    heartbeat as a side effect of a TutorAgent delegation -- a real
+    conversation routinely goes over a minute between those (or never
+    delegates at all), during which the Observatory would otherwise show
+    the session as closed despite it being very much in progress."""
+    client = _client()
+    await _refresh_heartbeat(client, session_id)
+    await client.aclose()
+
+
 def _client(host: str | None = None, port: int | None = None) -> redis.Redis:
     return redis.Redis(
         host=host or config.REDIS_HOST,

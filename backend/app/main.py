@@ -5,13 +5,14 @@ with no browser client. This process owns the Runner, the LiveRequestQueue and
 the board; the browser owns the microphone, the speaker and the page.
 One WebSocket between them.
 
-Five concurrent tasks per connection:
+Six concurrent tasks per connection:
 
     read_client() browser -> LiveRequestQueue     (mic, text, gestures, screen)
     downstream()  runner.run_live() -> browser    (audio, transcripts, tool calls)
     outbound()    board outbox -> browser         (canvas patches)
     nudges()      background work -> the model    (an artifact finished building)
     injections()  board state -> the model        (context only; she must not reply)
+    heartbeat()   this connection -> Redis        (tells the Observatory it's live)
 
 The third one is why the tutor can write on the page at all. Board tools run
 inside a mode='single_turn' sub-agent invocation, several frames deep, with no
@@ -43,7 +44,7 @@ from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from app import incoming, sessions, user_auth  # noqa: E402
-from app.memory import short_term, store  # noqa: E402
+from app.memory import instrumentation, short_term, store  # noqa: E402
 from app.memory_routes import router as memory_router  # noqa: E402
 from app.session_close import close_session as _close_session_memory  # noqa: E402
 
@@ -165,6 +166,18 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
         live_model=os.getenv("NITYAM_RESOLVED_LIVE_MODEL", ""),
         detail=describe(),
     )
+    # Same contextvar pattern as logs.open_session just above, for a different
+    # reader: every store.py function's instrumentation relies on this to know
+    # which session a long_term/episodic read or write belongs to (get_dpm,
+    # search_grounding and friends never receive a session_id as an argument
+    # at all). Previously only set inside session_close.py, at the very end —
+    # meaning every read for the whole live conversation published with
+    # session_id=None, and the Observatory (which drops events with no
+    # session_id) never saw the session until after it had already closed.
+    # asyncio tasks created from here on inherit whatever this coroutine's
+    # context holds, so setting it once, this early, covers the whole
+    # connection — including brain.py's and artifact_agent.py's own tasks.
+    instrumentation.set_session_context(session_id)
     state = sessions.get(session_id, student_id=user_id)
     await send_control(
         ws,
@@ -281,6 +294,26 @@ async def injections(sink, session_id: str) -> None:
         log.info("→ context: %s", text[:140])
         log.debug("context in full: %s", text)
         sink.text(text, partial=True)
+
+
+_HEARTBEAT_INTERVAL_S = 20  # well under short_term._HEARTBEAT_TTL_SECONDS (60s)
+
+
+async def heartbeat(session_id: str) -> None:
+    """Tell the Observatory this connection is live, for as long as it is.
+
+    Refreshing this only as a side effect of a TutorAgent delegation (as
+    append_turn/append_artifact_event already do) leaves the Observatory
+    showing "closed" for every stretch of a real conversation that doesn't
+    delegate — which is most of one. This task owns the signal directly, tied
+    to the WebSocket's own lifetime instead.
+    """
+    while True:
+        try:
+            await short_term.touch_heartbeat(session_id)
+        except Exception:  # noqa: BLE001 - a Redis outage must not break a live turn
+            pass
+        await asyncio.sleep(_HEARTBEAT_INTERVAL_S)
 
 
 async def outbound(ws: WebSocket, session_id: str) -> None:
@@ -480,9 +513,10 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         asyncio.create_task(outbound(ws, session_id)),
         asyncio.create_task(nudges(sink, session_id)),
         asyncio.create_task(injections(sink, session_id)),
+        asyncio.create_task(heartbeat(session_id)),
     ]
     try:
-        # gather(..., return_exceptions=True) alone waits for ALL FIVE to
+        # gather(..., return_exceptions=True) alone waits for ALL SIX to
         # finish — but outbound()/nudges()/injections() are unconditional
         # `while True: await queue.get()` loops with no termination path of
         # their own, so that never happened on an ordinary disconnect and
@@ -510,7 +544,7 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
         # asyncio.wait — unlike asyncio.gather — does not cancel its members
         # when the awaiting task itself is cancelled, so the loop body above
         # never runs. Cancel explicitly here (a no-op on tasks already done)
-        # so the five tasks are never orphaned regardless of how this
+        # so the six tasks are never orphaned regardless of how this
         # function exits.
         for t in tasks:
             t.cancel()
