@@ -56,14 +56,18 @@ export class LiveSession {
 
   private rateChecked = false;
 
+  private getToken: () => Promise<string>;
+
   constructor(opts: {
     userId: string;
     sessionId: string;
+    getToken: () => Promise<string>;
     onFrame?: (frame: ServerFrame) => void;
     onStatus?: (status: SessionStatus) => void;
   }) {
     this.userId = opts.userId;
     this.sessionId = opts.sessionId;
+    this.getToken = opts.getToken;
     this.onFrame = opts.onFrame ?? (() => {});
     this.onStatus = opts.onStatus ?? (() => {});
   }
@@ -72,7 +76,10 @@ export class LiveSession {
 
   async connect(): Promise<void> {
     const scheme = location.protocol === "https:" ? "wss" : "ws";
-    const url = `${scheme}://${location.host}/ws/${this.userId}/${this.sessionId}`;
+    const token = await this.getToken();
+    const url =
+      `${scheme}://${location.host}/ws/${this.userId}/${this.sessionId}` +
+      `?token=${encodeURIComponent(token)}`;
 
     await new Promise<void>((resolve, reject) => {
       this.ws = new WebSocket(url);

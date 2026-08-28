@@ -1,4 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import LoginScreen from "./features/auth/LoginScreen";
 import HomeScreen from "./features/home/HomeScreen";
 import IntensityScreen from "./features/intensity/IntensityScreen";
 import SessionScreen from "./features/session/SessionScreen";
@@ -13,14 +15,15 @@ import TeacherInsights from "./features/teacher/TeacherInsights";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomeScreen />} />
-      <Route path="/intensity/:conceptId" element={<IntensityScreen />} />
-      <Route path="/session" element={<SessionScreen />} />
-      <Route path="/readiness" element={<ReadinessScreen />} />
-      <Route path="/summary" element={<SummaryScreen />} />
-      <Route path="/teacher" element={<TeacherClassScreen />} />
-      <Route path="/teacher/intervene" element={<TeacherIntervene />} />
-      <Route path="/teacher/insights" element={<TeacherInsights />} />
+      <Route path="/login" element={<LoginScreen />} />
+      <Route path="/" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
+      <Route path="/intensity/:conceptId" element={<ProtectedRoute><IntensityScreen /></ProtectedRoute>} />
+      <Route path="/session" element={<ProtectedRoute><SessionScreen /></ProtectedRoute>} />
+      <Route path="/readiness" element={<ProtectedRoute><ReadinessScreen /></ProtectedRoute>} />
+      <Route path="/summary" element={<ProtectedRoute><SummaryScreen /></ProtectedRoute>} />
+      <Route path="/teacher" element={<ProtectedRoute><TeacherClassScreen /></ProtectedRoute>} />
+      <Route path="/teacher/intervene" element={<ProtectedRoute><TeacherIntervene /></ProtectedRoute>} />
+      <Route path="/teacher/insights" element={<ProtectedRoute><TeacherInsights /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

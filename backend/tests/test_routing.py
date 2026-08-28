@@ -41,6 +41,8 @@ sys.path.insert(0, str(ROOT))
 from app.auth import load_env  # noqa: E402
 
 load_env()
+
+from tests._firebase_test_tokens import mint_id_token  # noqa: E402
 FAILED = 0
 
 DIRECT = "direct"
@@ -204,8 +206,9 @@ async def run(port: int) -> list[tuple[str, str, str, Turn]]:
     import websockets
 
     results: list[tuple[str, str, str, Turn]] = []
+    token = mint_id_token("demo@nityam.local", "nityam-demo-2026")
     async with websockets.connect(
-        f"ws://127.0.0.1:{port}/ws/demo_student/s_routing", max_size=None
+        f"ws://127.0.0.1:{port}/ws/demo_student/s_routing?token={token}", max_size=None
     ) as ws:
         await ws.recv()                      # the session frame
         await ws.send(json.dumps(PLAN))      # triggers the briefing

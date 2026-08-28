@@ -11,6 +11,7 @@
     "test": "node tests/contract.mjs && node tests/kernels.mjs && node tests/grounding.mjs && node tests/reducer.mjs && node tests/ui.mjs"
   },
   "dependencies": {
+    "firebase": "^12.18.0",
     "pdfjs-dist": "^5.7.284",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

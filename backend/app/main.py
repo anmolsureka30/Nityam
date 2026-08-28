@@ -42,7 +42,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from app import incoming, sessions  # noqa: E402
+from app import incoming, sessions, user_auth  # noqa: E402
 
 from app import logs  # noqa: E402
 
@@ -52,6 +52,7 @@ log = logging.getLogger("nityam")
 APP_NAME = "nityam"
 
 app = FastAPI(title="Nityam backend")
+user_auth.init_firebase()
 
 # --------------------------------------------------------------- runtime
 
@@ -112,6 +113,33 @@ def build_run_config():
 @app.websocket("/ws/{user_id}/{session_id}")
 async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
     await ws.accept()
+
+    token = ws.query_params.get("token")
+    decoded = None
+    if token:
+        try:
+            # In a thread: verify_id_token() is synchronous and makes a real
+            # HTTPS call whenever Google's signing certificates are not already
+            # cached (the first connection after startup, and periodically
+            # after that). Called inline it would stall the whole event loop —
+            # and with it every concurrent student's audio stream — for as long
+            # as that fetch takes.
+            decoded = await asyncio.to_thread(user_auth.verify_token, token)
+        except Exception:
+            decoded = None
+    if not decoded or decoded.get("uid") != user_id:
+        # Accept-then-reject, not a pre-accept close: a pre-accept WebSocket
+        # rejection carries no reason string the browser can read (a platform
+        # limitation, not a FastAPI one), so the actual "please sign in again"
+        # message would never reach the screen. Nothing sensitive happens
+        # before this check — no session state, no board data.
+        await send_control(
+            ws, kind="error",
+            message="Your sign-in has expired. Please refresh and sign in again.",
+        )
+        await ws.close(code=4401)
+        return
+
     # First thing, before any other log line: opens backend/logs/<...>.log and
     # sets the ContextVar every task under this connection inherits. Everything
     # from here on is recorded in full, per session, whatever else it prints.

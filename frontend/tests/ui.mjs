@@ -160,6 +160,32 @@ await send("Page.addScriptToEvaluateOnNewDocument", { source: `
   };
 `});
 await send("Page.navigate", { url: `http://localhost:${APP}/session` });
+await sleep(600); // ProtectedRoute bounces to /login while signed out
+
+const fill = async (type, value) => {
+  await ev(`
+    const el = document.querySelector('input[type="${type}"]');
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+    setter.call(el, ${JSON.stringify(value)});
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    return 1;
+  `);
+};
+await fill("email", "demo@nityam.local");
+await fill("password", "nityam-demo-2026");
+await ev(
+  // Scoped to type="submit": the login screen's mode tab reads "Sign in" too
+  // (its default-active state), and comes first in document order, so an
+  // unscoped text match clicks the inert tab instead of submitting the form.
+  `[...document.querySelectorAll('button[type="submit"]')].find(b=>b.textContent.trim()==="Sign in")?.click(); return 1;`,
+);
+for (let i = 0; i < 100; i++) {
+  if ((await ev(`return location.pathname;`)) === "/session") break;
+  await sleep(100);
+}
+check("signing in lands on the session screen",
+      (await ev(`return location.pathname;`)) === "/session");
+
 await sleep(2500);
 
 const blocks = () => ev(`return [...document.querySelectorAll('[data-kind]')].map(e=>({kind:e.dataset.kind,id:e.dataset.block,text:e.textContent.slice(0,60)}));`);

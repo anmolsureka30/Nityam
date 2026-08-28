@@ -31,6 +31,8 @@ sys.path.insert(0, str(ROOT))
 from app.auth import load_env  # noqa: E402
 
 load_env()
+
+from tests._firebase_test_tokens import mint_id_token  # noqa: E402
 FAILED = 0
 
 
@@ -168,7 +170,8 @@ def main() -> int:
 async def run(port: int) -> None:
     import websockets
 
-    url = f"ws://127.0.0.1:{port}/ws/demo_student/s_live_test"
+    token = mint_id_token("demo@nityam.local", "nityam-demo-2026")
+    url = f"ws://127.0.0.1:{port}/ws/demo_student/s_live_test?token={token}"
     async with websockets.connect(url, max_size=None) as ws:
         hello = await collect(ws, 3.0, stop=lambda f: any(
             x.get("nityam", {}).get("kind") == "session" for x in f))

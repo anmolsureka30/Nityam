@@ -20,6 +20,12 @@ import time
 import urllib.request
 from pathlib import Path
 
+from app.auth import load_env  # noqa: E402
+
+load_env()
+
+from tests._firebase_test_tokens import mint_id_token  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 FAILED = 0
 
@@ -101,7 +107,8 @@ def patches(frames: list[dict]) -> list[dict]:
 async def run(port: int) -> None:
     import websockets
 
-    url = f"ws://127.0.0.1:{port}/ws/demo_student/s_wire"
+    token = mint_id_token("demo@nityam.local", "nityam-demo-2026")
+    url = f"ws://127.0.0.1:{port}/ws/demo_student/s_wire?token={token}"
     async with websockets.connect(url) as ws:
         hello = await collect(ws, 1.5)
         session = [f["nityam"] for f in hello if f.get("nityam", {}).get("kind") == "session"]

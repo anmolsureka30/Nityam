@@ -40,6 +40,12 @@ if [[ ! -f data/memory.db ]]; then
   echo "No memory store yet — seeding the demo student…"
   $PY -m scripts.seed_demo_data
   echo
+  $PY -m scripts.create_demo_firebase_user || {
+    echo "(no demo Firebase user — nobody can sign in as demo_student yet."
+    echo " Fix: gcloud auth application-default login"
+    echo "      .venv/bin/python -m scripts.create_demo_firebase_user)"
+  }
+  echo
 fi
 
 # A busy port used to fail silently: uvicorn exited, Vite started anyway, and
@@ -107,7 +113,7 @@ spawn() {
   CHILDREN+=("$!")
 }
 
-spawn .venv/bin/uvicorn app.main:app --port "$PORT" --reload
+spawn .venv/bin/uvicorn app.main:app --port "$PORT" --reload --reload-dir app
 
 if [[ "${1:-}" == "--api-only" ]]; then
   echo "Backend on http://localhost:$PORT"

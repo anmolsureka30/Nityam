@@ -1,9 +1,35 @@
 import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import s from "./Shell.module.css";
-import { student, teacher } from "../lib/data";
+import { teacher } from "../lib/data";
+import { useAuth } from "../lib/auth/AuthContext";
 
 const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ");
+
+/** Real signed-in user, replacing the old hardcoded avatar initial. Doubles
+ *  as the sign-out control — clicking it signs out and returns to /login. */
+export function UserChip() {
+  const { user, signOut } = useAuth();
+  const nav = useNavigate();
+  const label = user?.email ?? "";
+  const initial = label ? label[0]!.toUpperCase() : "?";
+
+  async function handleClick() {
+    await signOut();
+    nav("/login", { replace: true });
+  }
+
+  return (
+    <button
+      type="button"
+      className={s.avatarChip}
+      title={label ? `Sign out (${label})` : "Sign out"}
+      onClick={handleClick}
+    >
+      {initial}
+    </button>
+  );
+}
 
 function useClock() {
   // The design shows a wall clock in the header. Real time, so a demo at
@@ -30,7 +56,7 @@ export function Shell({
           <div className={s.right}>
             <RoleSwitch />
             <span className={s.clock}>{clock}</span>
-            <span className={s.avatarChip} title={student.firstName}>{student.initial}</span>
+            <UserChip />
           </div>
         </header>
         {back && (
@@ -78,7 +104,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
           <div className={s.right}>
             <RoleSwitch />
             <span className="mono">{teacher.klass}</span>
-            <span className={s.avatarChip}>RD</span>
+            <UserChip />
           </div>
         </header>
         {children}

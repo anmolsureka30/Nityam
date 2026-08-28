@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { UserChip } from "../../components/Shell";
 import { Label, MasteryBar } from "../../components/ui";
+import { useAuth } from "../../lib/auth/AuthContext";
 import { concepts, intensities, student } from "../../lib/data";
 import { useLiveSession } from "../../lib/live/useLiveSession";
 import type { ContextPacket, MarkTool } from "../../lib/types";
@@ -24,14 +26,13 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
    picked plus the class recap. See backend/INTEGRATION.md. */
 const PLAN = ["Find why 45° wins", "Say why", "Two throws, one spot"];
 
-/* STUB: one demo student, matching backend/scripts/seed_demo_data.py. A real
-   deployment takes both from the authenticated user (Firebase Auth uid) and a
-   session id minted per lesson. */
-const USER_ID = "demo_student";
-
 export default function SessionScreen() {
   const nav = useNavigate();
   const hostRef = useRef<HTMLDivElement>(null);
+
+  // ProtectedRoute guarantees a signed-in user by the time this screen mounts.
+  const { user } = useAuth();
+  const userId = user!.uid;
 
   /* One live session per mount. The id must be stable across renders, or every
      render opens a new socket and a new board. A lazy useState initialiser, not
@@ -60,7 +61,7 @@ export default function SessionScreen() {
     [mode, plannedConcept?.id, plannedConcept?.name, intensity],
   );
 
-  const tutor = useLiveSession(USER_ID, sessionId, plan);
+  const tutor = useLiveSession(userId, sessionId, plan, () => user!.getIdToken());
   const { board, dispatch, send, sendScreen } = tutor;
 
   const [tool, setTool] = useState<MarkTool | null>(null);
@@ -275,7 +276,7 @@ export default function SessionScreen() {
           </button>
           <span className={s.clock}>{clock}</span>
           <span className={s.who}>{student.firstName}</span>
-          <span className={s.avatarChip}>{student.initial}</span>
+          <UserChip />
         </div>
       </header>
 

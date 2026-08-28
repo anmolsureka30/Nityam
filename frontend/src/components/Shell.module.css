@@ -71,6 +71,8 @@
 .avatarChip {
   width: 28px;
   height: 28px;
+  padding: 0;
+  border: none;
   border-radius: var(--r-pill);
   background: var(--ink-strong);
   display: grid;
@@ -80,6 +82,7 @@
   letter-spacing: 0.04em;
   color: var(--paper);
   flex: none;
+  cursor: pointer;
 }
 
 /* A genuinely pill-shaped control, so it stays a pill while buttons stop

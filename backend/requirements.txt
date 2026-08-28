@@ -3,6 +3,7 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-dotenv>=1.0.1
 pydantic>=2.9
+firebase-admin>=7.2
 
 # Only needed when NITYAM_STORE=firestore. Installed either way so the switch is
 # an environment variable rather than a reinstall.

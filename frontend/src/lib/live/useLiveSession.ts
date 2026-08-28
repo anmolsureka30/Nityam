@@ -66,6 +66,10 @@ export function useLiveSession(
   /** What this session is for. Sent before the greeting so her opening line is
    *  about the thing they clicked, not a blank "what shall we do". */
   plan: ClientMessage & { type: "start" },
+  /** Mints a fresh Firebase ID token right before each connect. Cheap even
+   *  when nothing needs refreshing — the SDK only hits the network if the
+   *  cached token is near expiry. */
+  getToken: () => Promise<string>,
   enabled = true,
 ): LiveTutor {
   const [board, dispatch] = useReducer(boardReducer, undefined, () => emptyBoard());
@@ -275,6 +279,7 @@ export function useLiveSession(
       const live = new LiveSession({
         userId,
         sessionId,
+        getToken,
         onFrame: (frame) => handlerRef.current(frame),
         onStatus: (status) => {
           if (status.connected !== undefined) setConnected(status.connected);
@@ -317,8 +322,10 @@ export function useLiveSession(
       sessionRef.current = null;
       setVoice(null);
     };
-    // `plan` is deliberately not a dependency: it is fixed for the life of a
-    // session, and including it would reconnect on every render.
+    // `plan` and `getToken` are deliberately not dependencies: both are fixed
+    // for the life of a session (a caller passing a fresh `getToken` closure
+    // every render must not reconnect the socket every render either), and
+    // both are only ever read once, inside `open()`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, userId, sessionId]);
 
