@@ -107,11 +107,12 @@ def read_screen(tool_context: ToolContext) -> dict:
     Also tells you what the student last marked and where the simulation is set.
 
     Returns:
-        dict with "blocks" (id, kind, text, struck, anchors), "simulation",
-        "quiz", "lastMarked", and "topic".
+        dict with "blocks" (id, kind, text, struck, anchors, visible),
+        "simulation", "quiz", "lastMarked", and "topic".
     """
     state = sessions.get(_sid(tool_context))
     board = state.board
+    visible_ids = set(state.screen.visibleBlockIds)
     return {
         "topic": board.pages[0].blocks[0].text if board.pages and board.pages[0].blocks else "",
         "blocks": [
@@ -120,6 +121,10 @@ def read_screen(tool_context: ToolContext) -> dict:
                 "kind": b.kind,
                 "text": D.block_text(b)[:400],
                 "struck": b.struck,
+                # False (not just absent) whenever the browser hasn't reported
+                # any screen state yet, which is the honest answer: "unknown"
+                # would just invite guessing at whether it's worth scrolling.
+                "visible": b.id in visible_ids,
                 "anchors": [
                     {"id": a.id, "span": a.span, "concept": a.concept}
                     for a in D.block_anchors(b)
@@ -461,11 +466,12 @@ async def write_lesson(blocks: list[str], tool_context: ToolContext) -> dict:
 BOARD_TOOLS = [
     write_lesson,
     read_screen,
-    write_heading,
-    write_note,
-    write_equation,
-    write_callout,
     point_at,
     strike_block,
     scroll_to,
 ]
+"""write_heading/write_note/write_equation/write_callout are deliberately not
+here: write_lesson's own docstring tells the model not to use them for
+anything longer than one block, and real teaching content always is. They
+stay defined above for direct use (tests, other callers) — BoardAgent itself
+just never sees them as an option."""
