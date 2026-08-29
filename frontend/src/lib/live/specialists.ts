@@ -20,7 +20,7 @@ const SPECIALIST_BY_TOOL: Record<string, Specialist> = {
  *  back to the generic "thinking" copy, never throw and never leave the copy
  *  blank — this is the exact failure mode that broke the app once already,
  *  when the single `ask_tutor` tool these checks used to name was split into
- *  four and no branch matched anything (see useLiveSession.ts own comment
+ *  four and no branch matched anything (see useLiveSession.ts's own comment
  *  on this). */
 export function resolveSpecialist(toolName: string | undefined): Specialist | null {
   if (!toolName) return null;
@@ -28,7 +28,7 @@ export function resolveSpecialist(toolName: string | undefined): Specialist | nu
 }
 
 /** Fallback phrase, shown only when the tutor has not supplied her own bridge
- *  line. Glyphs reuse the app existing plain-geometric vocabulary rather
+ *  line. Glyphs reuse the app's existing plain-geometric vocabulary rather
  *  than emoji, which would clash with this design system: `board` reuses the
  *  marker-tool glyph (SessionControls.tsx), `textbook` reuses the "View
  *  textbook" glyph (TextbookPeek.tsx). */
