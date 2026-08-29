@@ -460,7 +460,7 @@ bridge line. Her own words still always win."
 - Modify: `frontend/src/features/session/TextbookPeek.module.css:8-31` (near `.peek`), `:182-188` (reduced-motion block)
 
 **Interfaces:**
-- Consumes: `tutor.specialist` (Task 2), already-passed prop plumbing from Task 3.
+- Consumes: `tutor.specialist` (Task 2), already-passed prop plumbing from Task 3, `SPECIALIST_COPY` from `frontend/src/lib/live/specialists.ts` (Task 1) — reused directly rather than re-typed as a literal, so the quiz chip's copy can never drift from `specialists.ts`'s copy table.
 - Produces: nothing further consumed by other tasks — this completes the sub-project.
 
 - [ ] **Step 1: Give `.stage` a positioning context and add the glow rules**
@@ -554,6 +554,12 @@ At the very end of `frontend/src/features/session/SessionScreen.module.css`, aft
 
 - [ ] **Step 4: Drive the classes and the chip from `SessionScreen.tsx`**
 
+First, import `SPECIALIST_COPY` alongside this file's other `lib` imports (anywhere in the existing import block, e.g. right after the `useTextbookPlace` import):
+
+```tsx
+import { SPECIALIST_COPY } from "../../lib/live/specialists";
+```
+
 Modify `frontend/src/features/session/SessionScreen.tsx:311` — the `<main>` stage:
 
 ```tsx
@@ -588,7 +594,9 @@ Modify `frontend/src/features/session/SessionScreen.tsx:292-309` — the `.conce
         </div>
 
         {tutor.specialist === "quiz" && (
-          <span className={s.quizPrep}>? Preparing a question…</span>
+          <span className={s.quizPrep}>
+            {SPECIALIST_COPY.quiz.glyph} {SPECIALIST_COPY.quiz.verb}
+          </span>
         )}
       </div>
 ```
