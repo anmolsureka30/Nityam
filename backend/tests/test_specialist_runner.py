@@ -140,8 +140,14 @@ async def run_timeout() -> None:
             state={"session_id": f"test_to_{uuid.uuid4().hex[:8]}",
                    "student_id": "demo_student"}
         )
-        result = await board_agent.ask_board("one sec", "write something", ctx)
-        check("a timed-out ask_board returns an error dict, not a raise",
+        chunks = [c async for c in
+                  board_agent.ask_board("one sec", "write something", ctx)]
+        # The LAST chunk is the outcome; the earlier ones are the keep-talking
+        # responses. An escaping exception here would be delivered to the
+        # student as nothing at all, so a timeout has to arrive as something
+        # sayable.
+        result = chunks[-1]
+        check("a timed-out ask_board ends in an error chunk, not a raise",
               result.get("status") == "error", repr(result))
         check("with something sayable in it", bool(result.get("summary")), repr(result))
     finally:
@@ -181,62 +187,138 @@ async def run_tracing() -> None:
     check("the specialist's own tool result was logged", bool(results), repr(records))
 
 
-async def run_nudge() -> None:
-    """A slow specialist call must produce periodic 'keep teaching' nudges
-    through the live sink, and they must stop the instant the real result is
-    ready. See specialist_runner._nudge_while_waiting's own docstring for why
-    this exists: a WHEN_IDLE tool call ends VoiceAgent's own turn on the
-    spot, and nothing else makes it speak again on its own while waiting."""
-    from app.agents import specialist_runner
+async def run_keep_talking() -> None:
+    """A slow specialist must produce progress chunks that make her speak, and
+    they must stop the instant the real result is ready.
 
-    class _FakeSink:
-        def __init__(self) -> None:
-            self.sent: list[tuple[str, bool]] = []
+    This replaces the old nudge test. The mechanism changed underneath: there
+    is no sink and no timer any more. `delegate` is an async generator, ADK
+    routes it through its streaming path, and every yield becomes a
+    `send_tool_response` whose own `scheduling` decides whether she talks.
+    So what is asserted is the SHAPE OF THE STREAM, which is the thing the
+    Live API actually reacts to.
+    """
+    from google.genai import types
 
-        def text(self, text: str, partial: bool = False) -> None:
-            self.sent.append((text, partial))
+    from app.agents import board_agent, specialist_runner
 
-    sink = _FakeSink()
-    real_interval, real_max = specialist_runner._NUDGE_INTERVAL_S, specialist_runner._MAX_NUDGES
-    specialist_runner._NUDGE_INTERVAL_S = 0.05
-    specialist_runner._MAX_NUDGES = 3
-    specialist_runner.set_live_sink(sink)
-
-    runner = SpecialistRunner("test-nudge-app", _build_echo_agent)
+    real_interval = specialist_runner.KEEP_TALKING_INTERVAL_S
+    specialist_runner.KEEP_TALKING_INTERVAL_S = 0.05
 
     async def _slow(session_id: str, student_id: str, message: str) -> str:
-        await asyncio.sleep(0.18)
+        await asyncio.sleep(0.3)
         return "acknowledged."
 
-    runner._run_turn_uncapped = _slow  # type: ignore[method-assign]
-
+    real_uncapped = board_agent._RUNNER._run_turn_uncapped
+    board_agent._RUNNER._run_turn_uncapped = _slow  # type: ignore[method-assign]
     try:
-        reply = await runner.run_turn("s_nudge", "demo_student", "hi")
-        check("a slow turn still returns the real result", "acknowledged" in reply, repr(reply))
-        check("at least one nudge fired while it was slow", len(sink.sent) >= 1, repr(sink.sent))
-        check(
-            "every nudge is a real, turn-completing message, not partial context",
-            all(p is False for _, p in sink.sent), repr(sink.sent),
+        ctx = SimpleNamespace(
+            state={"session_id": f"test_kt_{uuid.uuid4().hex[:8]}",
+                   "student_id": "demo_student"}
         )
+        chunks = [c async for c in
+                  board_agent.ask_board("one sec", "write something", ctx)]
 
-        settled_count = len(sink.sent)
-        await asyncio.sleep(0.15)
-        check(
-            "no further nudge fires once the real result is already back",
-            len(sink.sent) == settled_count, repr(sink.sent),
-        )
+        check("a slow turn still ends with the real result",
+              "acknowledged" in str(chunks[-1].get("summary", "")), repr(chunks[-1]))
+        check("and the last chunk is the outcome, not a progress note",
+              chunks[-1].get("status") == "done", repr(chunks[-1]))
+
+        progress = [c for c in chunks if isinstance(c, types.FunctionResponse)]
+        check("progress chunks were emitted while it was slow",
+              len(progress) >= 2, f"{len(progress)} of {len(chunks)}")
+
+        # The opening one is context for the turn she is already taking; ADK's
+        # own synthetic pending response is what starts her talking.
+        check("the first chunk is SILENT — context for the turn already running",
+              progress[0].scheduling == types.FunctionResponseScheduling.SILENT,
+              str(progress[0].scheduling))
+        # These are the ones that keep her going. SILENT here was measured at
+        # 23s of dead air; see tests/probe_live_streaming_tool.py.
+        check("every later progress chunk is WHEN_IDLE — what makes her speak",
+              all(c.scheduling == types.FunctionResponseScheduling.WHEN_IDLE
+                  for c in progress[1:]),
+              str([str(c.scheduling) for c in progress[1:]]))
+        check("progress chunks count the seconds, so she does not repeat herself",
+              all("seconds" in c.response for c in progress))
     finally:
-        specialist_runner._NUDGE_INTERVAL_S = real_interval
-        specialist_runner._MAX_NUDGES = real_max
-        specialist_runner._live_sink_context.set(None)
-        specialist_runner._last_brief.clear()
+        board_agent._RUNNER._run_turn_uncapped = real_uncapped
+        specialist_runner.KEEP_TALKING_INTERVAL_S = real_interval
+
+
+async def run_no_talking_over_the_student() -> None:
+    """A progress chunk must be SKIPPED while the student is speaking.
+
+    WHEN_IDLE is defined against HER generation, not theirs — she can be idle
+    while they are mid-sentence, and a chunk delivered then puts her straight
+    over the top of them.
+    """
+    from google.genai import types
+
+    from app.agents import board_agent, specialist_runner
+
+    real_interval = specialist_runner.KEEP_TALKING_INTERVAL_S
+    specialist_runner.KEEP_TALKING_INTERVAL_S = 0.05
+    session_id = f"test_talk_{uuid.uuid4().hex[:8]}"
+
+    async def _slow(session_id_: str, student_id: str, message: str) -> str:
+        await asyncio.sleep(0.3)
+        return "acknowledged."
+
+    real_uncapped = board_agent._RUNNER._run_turn_uncapped
+    board_agent._RUNNER._run_turn_uncapped = _slow  # type: ignore[method-assign]
+    try:
+        specialist_runner.heard_student(session_id)   # they are talking, now
+        ctx = SimpleNamespace(
+            state={"session_id": session_id, "student_id": "demo_student"}
+        )
+        chunks = [c async for c in
+                  board_agent.ask_board("one sec", "write something", ctx)]
+        prompting = [c for c in chunks
+                     if isinstance(c, types.FunctionResponse)
+                     and c.scheduling
+                     == types.FunctionResponseScheduling.WHEN_IDLE]
+        check("nothing prompts her to speak while the student is talking",
+              not prompting, f"{len(prompting)} chunk(s) would have")
+        check("but the real result still arrives",
+              chunks[-1].get("status") == "done", repr(chunks[-1]))
+    finally:
+        board_agent._RUNNER._run_turn_uncapped = real_uncapped
+        specialist_runner.KEEP_TALKING_INTERVAL_S = real_interval
+        specialist_runner._last_heard.pop(session_id, None)
+
+
+async def run_no_double_delegation() -> None:
+    """The same specialist twice while one is outstanding must be refused.
+
+    Not hygiene: ADK registers streaming-tool tasks by TOOL NAME rather than
+    call id, so the second call overwrites the first's entry and orphans it.
+    """
+    from app.agents import board_agent, specialist_runner
+
+    session_id = f"test_dup_{uuid.uuid4().hex[:8]}"
+    key = (session_id, "board")
+    specialist_runner._in_flight.add(key)
+    try:
+        ctx = SimpleNamespace(
+            state={"session_id": session_id, "student_id": "demo_student"}
+        )
+        chunks = [c async for c in board_agent.ask_board("x", "again", ctx)]
+        check("a second concurrent ask_board is refused",
+              chunks[-1].get("status") == "busy", repr(chunks[-1]))
+        check("and says something rather than nothing",
+              bool(chunks[-1].get("summary")), repr(chunks[-1]))
+    finally:
+        specialist_runner._in_flight.discard(key)
 
 
 def main() -> int:
     asyncio.run(run())
     asyncio.run(run_timeout())
     asyncio.run(run_tracing())
-    asyncio.run(run_nudge())
+    asyncio.run(run_keep_talking())
+    asyncio.run(run_no_talking_over_the_student())
+    asyncio.run(run_no_double_delegation())
     return 1 if FAILED else 0
 
 

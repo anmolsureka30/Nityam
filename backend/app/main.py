@@ -722,6 +722,16 @@ def trace(event) -> None:
             logs.heard(heard)
             log.info('  student said: "%s"', heard)
             _record_turn("student", heard)
+            # Tell the delegation layer the student was just speaking, so a
+            # keep-talking response scheduled for the next quiet moment is
+            # skipped rather than landing on top of them. Stamped off
+            # TRANSCRIPTION, deliberately, and never off the microphone bytes
+            # in read_client: those arrive continuously whether or not anyone
+            # is talking, which would report the student as permanently
+            # mid-sentence and suppress every response.
+            session_id = (_recording_context.get() or (None, None))[0]
+            if session_id:
+                specialist_runner.heard_student(session_id)
     if event.interrupted:
         log.info("!! INTERRUPTED %s was cut off by the student", who)
 

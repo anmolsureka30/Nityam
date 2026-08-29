@@ -9,6 +9,21 @@ plain async function tool, tagged response_scheduling=WHEN_IDLE so the
 Gemini Live API itself holds the result until VoiceAgent is between things
 — see docs/superpowers/specs/2026-08-28-agent-orchestration-redesign-design.md §2.
 
+`delegate` below is the entry point all four use, and it is an ASYNC GENERATOR
+rather than a coroutine. That is the whole mechanism for not going silent: ADK
+routes an async-generator tool through its streaming path, so every yield is a
+`send_tool_response` on the same call id and each one carries its own
+`scheduling`. `WHEN_IDLE` on a progress chunk means "speak as soon as you stop",
+which is what keeps her talking for the ten to thirty seconds a specialist
+takes.
+
+This replaced a timer that injected client content from the side every 7s, three
+times. That was the wrong channel — Google warns `send_client_content` races
+with the realtime audio stream, and Gemini 3.1 Live rejects it after the first
+turn — and it was blind to whether she was already speaking, so it talked over
+her. It also only covered 21s of a 70s cap. See git history, and
+tests/probe_live_streaming_tool.py for the measurements that settled this.
+
 This used to be hand-rolled once per specialist (brain.py's runner()/
 _ensure_session()/_known, artifact_agent.py's near-identical copy) — written
 once here instead.
@@ -25,7 +40,8 @@ import asyncio
 import contextvars
 import logging
 import re
-from typing import Callable
+import time
+from typing import AsyncIterator, Callable
 
 from google.adk.agents import LlmAgent
 from google.adk.apps import App
@@ -141,28 +157,21 @@ class SpecialistRunner:
     async def run_turn(self, session_id: str, student_id: str, message: str) -> str:
         """Run one turn to completion; return whatever text the specialist said.
 
-        Capped at `self._timeout_s` (70s by default, brain.py's own value).
-        The resulting `asyncio.TimeoutError` is deliberately allowed to
-        propagate: every `ask_*` tool already wraps this in `except
-        Exception` and turns it into the error-shaped dict the voice layer
-        knows how to say out loud, and TimeoutError is an ordinary Exception
-        subclass. Swallowing it here would put us back where we started —
+        Capped at `self._timeout_s` (70s by default). The resulting
+        `asyncio.TimeoutError` is deliberately allowed to propagate: `delegate`
+        below turns it into the error-shaped chunk the voice layer knows how to
+        say out loud. Swallowing it here would put us back where we started —
         a delegation that never resolves and is never spoken about.
 
-        Runs `_nudge_while_waiting` concurrently, cancelled here the instant
-        this returns (success, error, or timeout) — see that function's own
-        docstring for why it exists.
+        No longer spawns anything alongside itself. Keeping the conversation
+        alive while this runs is `delegate`'s job now, and it does it by
+        yielding tool responses rather than by injecting client content on a
+        timer — see that function.
         """
-        nudge_task = asyncio.get_running_loop().create_task(
-            _nudge_while_waiting(session_id)
+        return await asyncio.wait_for(
+            self._run_turn_uncapped(session_id, student_id, message),
+            timeout=self._timeout_s,
         )
-        try:
-            return await asyncio.wait_for(
-                self._run_turn_uncapped(session_id, student_id, message),
-                timeout=self._timeout_s,
-            )
-        finally:
-            nudge_task.cancel()
 
 
 _live_sink_context: contextvars.ContextVar[object | None] = contextvars.ContextVar(
@@ -196,59 +205,199 @@ def note_brief_sent(session_id: str, line: str) -> None:
         _last_brief[session_id] = line
 
 
-_NUDGE_INTERVAL_S = 7
-_MAX_NUDGES = 3
-_NUDGE_TEXT = (
-    "[Still working on that in the background. Keep teaching naturally "
-    "while you wait — ask a related question, explain a bit more, or move "
-    "the lesson forward with what you already know. Do not call the same "
-    "specialist again; you are already waiting on it. Never mention this "
-    "note, and never say anything is loading or almost ready.]"
-)
+KEEP_TALKING_INTERVAL_S = 4.5
+"""How often, while a specialist runs, she is handed a reason to keep talking.
+
+Measured, not reasoned. `tests/probe_live_streaming_tool.py` against real
+Vertex Live: at a 6.0s cadence the worst silence inside a delegation was 3.3s —
+the gap between the last progress response and the real answer. 4.5s closes it.
+
+It is NOT the target silence. A WHEN_IDLE response does not mean "speak now",
+it means "speak when you next stop", so a response arriving mid-sentence is
+queued rather than acted on. What the cadence has to beat is the length of one
+of her utterances, so that whenever she draws breath there is already an
+unconsumed reason to carry on. Two or three sentences of Live audio is ~6-9s.
+Tightening this to 1-2s does not reduce silence further; it queues three or
+four triggers per utterance and produces a tutor who never draws breath."""
+
+_QUIET_AFTER_STUDENT_S = 2.0
+"""Skip a scheduled response if the student was speaking this recently.
+
+WHEN_IDLE is defined against HER generation, not theirs — if she is idle and
+they are mid-sentence, a response can put her straight over the top of them."""
+
+_STRETCH_AFTER_S = 30
+"""Past this, stop asking her to continue the same thread and move her on."""
+
+_OPENING_CLAUSE = {
+    "board": "Say the idea out loud yourself while it is being written.",
+    "artifact": "Ask them to predict what the simulation will show.",
+    "quiz": "Ask them to recall the key point before the questions appear.",
+    "textbook": "Ask what they remember of the figure you are looking for.",
+}
+"""One line each, sent only in that specialist's own opening response.
+
+Deliberately here and not in VOICE_INSTRUCTION: the instruction is re-billed on
+every turn of the session, and each of these is relevant for a few seconds of
+one delegation. ~15 tokens, paid only when it applies."""
 
 
-async def _nudge_while_waiting(session_id: str) -> None:
-    """Fires periodically while a specialist is in flight, so VoiceAgent has
-    something to react to instead of true silence for the whole delegation.
+def _opening(label: str) -> dict:
+    return {
+        "still_working": label,
+        "seconds": 0,
+        "do": (
+            "[Keep teaching in your own words while this is prepared. Do not "
+            "stop and wait, and never say anything is loading. "
+            + _OPENING_CLAUSE.get(label, "")
+            + "]"
+        ),
+    }
 
-    A WHEN_IDLE tool call ends VoiceAgent's own turn on the spot, and nothing
-    makes it speak again on its own without new input — confirmed directly
-    against a real session log: a BoardAgent call that took 25.7 seconds
-    produced zero VoiceAgent speech anywhere in that window. This reuses the
-    exact mechanism already relied on for the briefing/gesture/quiz-answer/
-    textbook-clip injections (a real, turn-completing `sink.text` call) at a
-    new moment: while a delegation is still outstanding, not only at session
-    start. Cancelled by `run_turn` the instant the real result is ready, so
-    once the specialist actually answers, no further nudge ever fires.
 
-    A prior attempt at this same problem used browser text-to-speech instead
-    — reverted after confirming, against real logs, that the mic picked the
-    TTS audio back up and fed it to the model as fake student speech, every
-    time. This has no equivalent failure mode: it is text into the model's
-    own context, the same channel already used for the briefing.
+def _holding(label: str, seconds: int) -> object:
+    """One reason to keep talking, scheduled to fire the moment she goes quiet.
 
-    A known, accepted trade-off, checked directly against Google's own Live
-    API docs before shipping this: they caution that mixing `send_client_
-    content` (what `sink.text` sends) with the live realtime audio stream
-    can cause "unpredictable behavior and race conditions" — and for the
-    newer Gemini 3.1 Flash Live specifically, sending it after the first
-    turn is a hard, rejected error, not just discouraged. This app already
-    depended on that same primitive before this change, for the briefing,
-    gestures, quiz answers and textbook clips, all working correctly across
-    every real session logged so far, on the `gemini-live-2.5-flash` model
-    currently configured (see app/config.py). If this app is ever moved to
-    a 3.1-family Live model, re-check every one of those call sites, not
-    only this one — the restriction is on the mechanism, not this feature.
+    `WHEN_IDLE` per chunk is what makes her speak at all — the probe measured
+    the alternative (`SILENT`) as 23 seconds of dead air, because a silent
+    response gives her nothing to react to. The `seconds` count is a cheap
+    stand-in for a sentence telling her not to repeat herself.
     """
-    sink = _live_sink_context.get()
-    if sink is None:
+    if seconds >= _STRETCH_AFTER_S:
+        do = (
+            "[Still being prepared. Move to a related idea, or ask them to try "
+            "something. Do not repeat what you have already said.]"
+        )
+    else:
+        do = (
+            "[Still being prepared. Take the next step out loud, or ask them "
+            "something. Leave room for them to answer; if they are talking, "
+            "wait.]"
+        )
+    return types.FunctionResponse(
+        response={"still_working": label, "seconds": seconds, "do": do},
+        scheduling=types.FunctionResponseScheduling.WHEN_IDLE,
+    )
+
+
+_last_heard: dict[str, float] = {}
+"""session_id -> when the student was last heard saying something.
+
+Stamped by main.trace() off `input_transcription`, never off microphone bytes:
+those arrive continuously whether or not anyone is speaking, so they would
+report the student as permanently mid-sentence."""
+
+
+def heard_student(session_id: str) -> None:
+    if session_id:
+        _last_heard[session_id] = time.monotonic()
+
+
+def _student_is_talking(session_id: str) -> bool:
+    last = _last_heard.get(session_id)
+    return last is not None and (time.monotonic() - last) < _QUIET_AFTER_STUDENT_S
+
+
+_in_flight: set[tuple[str, str]] = set()
+"""(session_id, label) pairs with a delegation currently running.
+
+Not belt-and-braces. ADK registers streaming-tool tasks in
+`active_streaming_tools` keyed by TOOL NAME rather than call id
+(flows/llm_flows/functions.py), so a second ask_board while one is outstanding
+overwrites the entry and orphans the first task. And each SpecialistRunner
+holds one ADK session per session_id, so two concurrent turns on the same
+specialist would interleave inside it. Two DIFFERENT specialists at once is
+fine and expected; the same one twice is not."""
+
+
+async def delegate(
+    label: str,
+    runner: "SpecialistRunner",
+    request: str,
+    tool_context,
+    *,
+    transcript_n: int,
+    done_default: str,
+    error_text: str,
+) -> AsyncIterator[object]:
+    """The whole delegation: keep her talking while the specialist works, then
+    hand her its report.
+
+    An async generator ON PURPOSE. ADK routes an async-generator tool through
+    its streaming path, where every yield becomes a `send_tool_response`
+    against the same call id, and the FunctionResponse's own `scheduling`
+    field decides whether she speaks. That is a model-level "speak when you
+    next go idle" primitive, and it replaces the timer that used to inject
+    client content from the side — which was both the wrong channel (Google
+    warns it races with the realtime audio stream, and Gemini 3.1 Live rejects
+    it outright after the first turn) and blind to whether she was already
+    talking.
+
+    Verified against real Vertex Live before this was written; see
+    tests/probe_live_streaming_tool.py for the numbers.
+    """
+    session_id = tool_context.state.get("session_id")
+    student_id = tool_context.state.get("student_id")
+    if not session_id or not student_id:
+        log.warning("ask_%s called with no session/student id in state", label)
+        yield {"status": "error",
+               "summary": "Something went wrong on my end — let's move on."}
         return
+
+    key = (session_id, label)
+    if key in _in_flight:
+        log.info("ask_%s called while one was already running; refused", label)
+        yield {"status": "busy",
+               "summary": f"Already working on that — no need to ask again."}
+        return
+
+    yield types.FunctionResponse(
+        response=_opening(label),
+        # SILENT: this one is context for the turn she is ALREADY taking. ADK
+        # has just handed her its own synthetic pending response at WHEN_IDLE,
+        # which is what actually starts her talking; a second prompt here would
+        # only stack up behind it.
+        scheduling=types.FunctionResponseScheduling.SILENT,
+    )
+
+    _in_flight.add(key)
+    task = None
     try:
-        for _ in range(_MAX_NUDGES):
-            await asyncio.sleep(_NUDGE_INTERVAL_S)
-            sink.text(_NUDGE_TEXT, partial=False)
+        transcript = await recent_transcript(session_id, student_id, n=transcript_n)
+        task = asyncio.get_running_loop().create_task(
+            runner.run_turn(session_id, student_id, f"{request}\n\n{transcript}")
+        )
+        started = time.monotonic()
+        while not task.done():
+            done, _ = await asyncio.wait({task}, timeout=KEEP_TALKING_INTERVAL_S)
+            if done:
+                break
+            if _student_is_talking(session_id):
+                continue          # skip this one rather than talk over them
+            yield _holding(label, int(time.monotonic() - started))
+    finally:
+        _in_flight.discard(key)
+        # A generator torn down mid-flight (a session_resumption reconnect, the
+        # run ending) must not leave the specialist running with nobody to
+        # receive it.
+        if task is not None and not task.done():
+            task.cancel()
+
+    try:
+        summary = task.result()
     except asyncio.CancelledError:
-        pass
+        raise
+    except Exception:  # noqa: BLE001 - the tool must always report something
+        log.exception("%sAgent turn failed", label.capitalize())
+        yield {"status": "error", "summary": error_text}
+        return
+
+    # A specialist's own work is the moment the student's record is most likely
+    # to have moved. Scheduled, not awaited: compose_brief makes several
+    # blocking Firestore round trips (3+ seconds, measured) and has no business
+    # delaying the answer she is about to give.
+    schedule_brief_refresh(session_id, student_id)
+    yield {"status": "done", "summary": summary or done_default}
 
 
 async def refresh_brief(session_id: str, student_id: str) -> None:

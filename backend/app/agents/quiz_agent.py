@@ -22,11 +22,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config, sessions
-from app.agents.specialist_runner import (
-    SpecialistRunner,
-    recent_transcript,
-    schedule_brief_refresh,
-)
+from app.agents.specialist_runner import SpecialistRunner, delegate
 from app.canvas import doc as D
 from app.memory.tools import get_dpm, get_teaching_memory, search_grounding
 
@@ -168,39 +164,22 @@ def build_quiz_agent() -> LlmAgent:
 _RUNNER = SpecialistRunner("nityam-quiz", build_quiz_agent)
 
 
-async def ask_quiz(bridge: str, request: str, tool_context: ToolContext) -> dict:
-    """Set a checkpoint quiz for the student. Returns IMMEDIATELY — do not
-    wait for it. Keep teaching; you will be told when it is ready, at a
-    natural pause.
+async def ask_quiz(bridge: str, request: str, tool_context: ToolContext):
+    """Set a checkpoint quiz for the student.
+
+    Returns at once and keeps you talking while QuizAgent works — you will be
+    told when it is ready, at a natural pause. Do not announce the call, and do
+    not stop and wait.
 
     Args:
-        bridge: What you say RIGHT NOW, out loud, while it works.
-        request: What to test and which misconceptions to probe, in your
-            own words.
-
-    Returns:
-        dict with "status" and "summary".
+        bridge: One short sentence in your own voice, said as you call.
+        request: What to test and which misconceptions to probe, in your own
+            words.
     """
-    session_id = tool_context.state.get("session_id")
-    student_id = tool_context.state.get("student_id")
-    if not session_id or not student_id:
-        log.warning("ask_quiz called with no session/student id in state")
-        return {"status": "error", "summary": "Something went wrong on my end — let's move on."}
-
-    try:
-        transcript = await recent_transcript(session_id, student_id, n=20)
-        message = f"{request}\n\n{transcript}"
-        summary = await _RUNNER.run_turn(session_id, student_id, message)
-        # A specialist's own work is the moment the student's record is most
-        # likely to have moved, so re-brief the voice layer here. This is the
-        # trigger point precisely BECAUSE this function runs to completion —
-        # ADK yields no function_response event for a WHEN_IDLE tool, so the
-        # event-stream hook this replaces never fired once. Scheduled, not
-        # awaited: refresh_brief's own Firestore read (3+ seconds, measured)
-        # must not add to the silence VoiceAgent is already sitting through
-        # waiting on this call.
-        schedule_brief_refresh(session_id, student_id)
-        return {"status": "done", "summary": summary or "The checkpoint is up."}
-    except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
-        log.exception("QuizAgent turn failed")
-        return {"status": "error", "summary": "I couldn't set that checkpoint up this time."}
+    async for chunk in delegate(
+        "quiz", _RUNNER, request, tool_context,
+        transcript_n=20,
+        done_default="The checkpoint is up.",
+        error_text="I couldn't set that checkpoint up this time.",
+    ):
+        yield chunk

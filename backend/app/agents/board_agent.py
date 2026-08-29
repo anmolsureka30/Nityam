@@ -14,11 +14,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config
-from app.agents.specialist_runner import (
-    SpecialistRunner,
-    recent_transcript,
-    schedule_brief_refresh,
-)
+from app.agents.specialist_runner import SpecialistRunner, delegate
 from app.canvas.tools import BOARD_TOOLS
 from app.memory.tools import get_dpm, get_teaching_memory, list_concepts, search_grounding
 
@@ -92,42 +88,22 @@ def build_board_agent() -> LlmAgent:
 _RUNNER = SpecialistRunner("nityam-board", build_board_agent)
 
 
-async def ask_board(bridge: str, request: str, tool_context: ToolContext) -> dict:
-    """Get something written on the student's board. Returns IMMEDIATELY —
-    do not wait for it. Keep teaching; you will be told what was written
-    once BoardAgent finishes, at a natural pause.
+async def ask_board(bridge: str, request: str, tool_context: ToolContext):
+    """Get something written on the student's board.
+
+    Returns at once and keeps you talking while BoardAgent works — you will be
+    handed its report at a natural pause. Do not announce the call, and do not
+    stop and wait.
 
     Args:
-        bridge: What you say RIGHT NOW, out loud, while it works — one short
-            sentence, in your own voice.
-        request: What should be written, in your own words — the concept,
-            the specific doubt, and anything you noticed the student get
-            wrong. Be concrete.
-
-    Returns:
-        dict with "status" and "summary" — say the summary once you are
-        told it is ready.
+        bridge: One short sentence in your own voice, said as you call.
+        request: What should be written, in your own words — the concept, the
+            specific doubt, and anything you noticed the student get wrong.
     """
-    session_id = tool_context.state.get("session_id")
-    student_id = tool_context.state.get("student_id")
-    if not session_id or not student_id:
-        log.warning("ask_board called with no session/student id in state")
-        return {"status": "error", "summary": "Something went wrong on my end — let's move on."}
-
-    try:
-        transcript = await recent_transcript(session_id, student_id, n=10)
-        message = f"{request}\n\n{transcript}"
-        summary = await _RUNNER.run_turn(session_id, student_id, message)
-        # A specialist's own work is the moment the student's record is most
-        # likely to have moved, so re-brief the voice layer here. This is the
-        # trigger point precisely BECAUSE this function runs to completion —
-        # ADK yields no function_response event for a WHEN_IDLE tool, so the
-        # event-stream hook this replaces never fired once. Scheduled, not
-        # awaited: refresh_brief's own Firestore read (3+ seconds, measured)
-        # must not add to the silence VoiceAgent is already sitting through
-        # waiting on this call.
-        schedule_brief_refresh(session_id, student_id)
-        return {"status": "done", "summary": summary or "It's on the board now."}
-    except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
-        log.exception("BoardAgent turn failed")
-        return {"status": "error", "summary": "I couldn't get that written up this time."}
+    async for chunk in delegate(
+        "board", _RUNNER, request, tool_context,
+        transcript_n=10,
+        done_default="It's on the board now.",
+        error_text="I couldn't get that written up this time.",
+    ):
+        yield chunk

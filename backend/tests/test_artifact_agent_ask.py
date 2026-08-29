@@ -29,17 +29,29 @@ def check(name: str, ok: bool, extra: str = "") -> None:
     print(f"{'  ok  ' if ok else '  FAIL'} {name}{' — ' + extra if extra else ''}")
 
 
+async def _last(agen):
+    """Drain a delegation and return its OUTCOME chunk.
+
+    `ask_*` are async generators now, not coroutines: the earlier chunks are the
+    keep-talking responses that stop her going silent while the specialist
+    works, and the final one is the result. See
+    app/agents/specialist_runner.delegate.
+    """
+    chunks = [c async for c in agen]
+    return chunks[-1]
+
+
 async def run() -> None:
     session_id = f"test_artifact_ask_{uuid.uuid4().hex[:8]}"
     student_id = "demo_student"
     sessions.get(session_id, student_id=student_id)
     ctx = SimpleNamespace(state={"session_id": session_id, "student_id": student_id})
 
-    result = await ask_artifact(
+    result = await _last(ask_artifact(
         bridge="Let me build that for you.",
         request="An interactive simulation of projectile range vs launch angle.",
         tool_context=ctx,
-    )
+    ))
     check("ask_artifact returns a done status", result.get("status") == "done", repr(result))
     check("ask_artifact returns a summary", bool(result.get("summary")), repr(result))
 
@@ -47,7 +59,7 @@ async def run() -> None:
     check("an artifact block actually landed", any(b.kind == "artifact" for b in board.blocks()), repr([b.kind for b in board.blocks()]))
 
     broken_ctx = SimpleNamespace(state={})
-    result2 = await ask_artifact(bridge="ok", request="x", tool_context=broken_ctx)
+    result2 = await _last(ask_artifact(bridge="ok", request="x", tool_context=broken_ctx))
     check("ask_artifact degrades to an error result rather than raising", "status" in result2, repr(result2))
 
 

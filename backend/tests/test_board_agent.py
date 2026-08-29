@@ -29,17 +29,29 @@ def check(name: str, ok: bool, extra: str = "") -> None:
     print(f"{'  ok  ' if ok else '  FAIL'} {name}{' — ' + extra if extra else ''}")
 
 
+async def _last(agen):
+    """Drain a delegation and return its OUTCOME chunk.
+
+    `ask_*` are async generators now, not coroutines: the earlier chunks are the
+    keep-talking responses that stop her going silent while the specialist
+    works, and the final one is the result. See
+    app/agents/specialist_runner.delegate.
+    """
+    chunks = [c async for c in agen]
+    return chunks[-1]
+
+
 async def run() -> None:
     session_id = f"test_board_agent_{uuid.uuid4().hex[:8]}"
     student_id = "demo_student"
     sessions.get(session_id, student_id=student_id)
     ctx = SimpleNamespace(state={"session_id": session_id, "student_id": student_id})
 
-    result = await ask_board(
+    result = await _last(ask_board(
         bridge="Let's put that on the board.",
         request="Explain why maximum range happens at 45 degrees.",
         tool_context=ctx,
-    )
+    ))
     check("ask_board returns a done status", result.get("status") == "done", repr(result))
     check("ask_board returns a summary", bool(result.get("summary")), repr(result))
 
@@ -50,7 +62,7 @@ async def run() -> None:
     # degrade to an error-shaped result (WHEN_IDLE swallows a raised
     # exception with no delivery to the model at all).
     broken_ctx = SimpleNamespace(state={})  # no session_id/student_id at all
-    result2 = await ask_board(bridge="ok", request="x" * 10, tool_context=broken_ctx)
+    result2 = await _last(ask_board(bridge="ok", request="x" * 10, tool_context=broken_ctx))
     check("ask_board degrades to an error result rather than raising", "status" in result2, repr(result2))
 
 

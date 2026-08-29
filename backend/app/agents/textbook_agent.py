@@ -9,11 +9,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config
-from app.agents.specialist_runner import (
-    SpecialistRunner,
-    recent_transcript,
-    schedule_brief_refresh,
-)
+from app.agents.specialist_runner import SpecialistRunner, delegate
 from app.textbook import TEXTBOOK_TOOLS
 
 log = logging.getLogger("nityam.textbook_agent")
@@ -63,39 +59,22 @@ def build_textbook_agent() -> LlmAgent:
 _RUNNER = SpecialistRunner("nityam-textbook", build_textbook_agent)
 
 
-async def ask_textbook(bridge: str, request: str, tool_context: ToolContext) -> dict:
-    """Find or place something from the student's real textbook. Returns
-    IMMEDIATELY — do not wait for it. Keep teaching; you will be told the
-    result once TextbookAgent finishes, at a natural pause.
+async def ask_textbook(bridge: str, request: str, tool_context: ToolContext):
+    """Find or place something from the student's real textbook.
+
+    Returns at once and keeps you talking while TextbookAgent works — you will
+    be handed the result at a natural pause. Do not announce the call, and do
+    not stop and wait.
 
     Args:
-        bridge: What you say RIGHT NOW, out loud, while it works.
-        request: What the student asked for, in their own words — a page,
-            a figure number, or a topic to locate.
-
-    Returns:
-        dict with "status" and "summary".
+        bridge: One short sentence in your own voice, said as you call.
+        request: What the student asked for, in their own words — a page, a
+            figure number, or a topic to locate.
     """
-    session_id = tool_context.state.get("session_id")
-    student_id = tool_context.state.get("student_id")
-    if not session_id or not student_id:
-        log.warning("ask_textbook called with no session/student id in state")
-        return {"status": "error", "summary": "Something went wrong on my end — let's move on."}
-
-    try:
-        transcript = await recent_transcript(session_id, student_id, n=5)
-        message = f"{request}\n\n{transcript}"
-        summary = await _RUNNER.run_turn(session_id, student_id, message)
-        # A specialist's own work is the moment the student's record is most
-        # likely to have moved, so re-brief the voice layer here. This is the
-        # trigger point precisely BECAUSE this function runs to completion —
-        # ADK yields no function_response event for a WHEN_IDLE tool, so the
-        # event-stream hook this replaces never fired once. Scheduled, not
-        # awaited: refresh_brief's own Firestore read (3+ seconds, measured)
-        # must not add to the silence VoiceAgent is already sitting through
-        # waiting on this call.
-        schedule_brief_refresh(session_id, student_id)
-        return {"status": "done", "summary": summary or "Found it."}
-    except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
-        log.exception("TextbookAgent turn failed")
-        return {"status": "error", "summary": "I couldn't check the textbook just now."}
+    async for chunk in delegate(
+        "textbook", _RUNNER, request, tool_context,
+        transcript_n=5,
+        done_default="Found it.",
+        error_text="I couldn't check the textbook just now.",
+    ):
+        yield chunk

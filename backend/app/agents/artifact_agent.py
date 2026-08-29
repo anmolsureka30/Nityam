@@ -30,11 +30,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import artifacts_gcs, config, logs, sessions
-from app.agents.specialist_runner import (
-    SpecialistRunner,
-    recent_transcript,
-    schedule_brief_refresh,
-)
+from app.agents.specialist_runner import SpecialistRunner, delegate
 from app.canvas import doc as D
 from app.memory.tools import get_dpm, get_teaching_memory, log_artifact_evidence
 
@@ -240,42 +236,24 @@ def build_artifact_agent() -> LlmAgent:
 _RUNNER = SpecialistRunner("nityam-artifact", build_artifact_agent)
 
 
-async def ask_artifact(bridge: str, request: str, tool_context: ToolContext) -> dict:
-    """Commission one interactive artifact. Returns IMMEDIATELY — do not
-    wait for it. Keep teaching; you will be told when it lands, at a
-    natural pause.
+async def ask_artifact(bridge: str, request: str, tool_context: ToolContext):
+    """Commission one interactive artifact.
+
+    Returns at once and keeps you talking while ArtifactAgent builds it — you
+    will be told when it lands, at a natural pause. A build takes tens of
+    seconds; do not announce the call, and do not stop and wait.
 
     Args:
-        bridge: What you say RIGHT NOW, out loud, while it works — one
-            short sentence, in your own voice.
-        request: What the artifact is for, in your own words — the
-            pedagogical move it makes, the concept ids it targets, the one
-            thing the student should walk away understanding, and the
-            specific wrong belief it should surface. Be concrete.
-
-    Returns:
-        dict with "status" and "summary".
+        bridge: One short sentence in your own voice, said as you call.
+        request: What the artifact is for, in your own words — the pedagogical
+            move it makes, the concept ids it targets, the one thing the
+            student should walk away understanding, and the specific wrong
+            belief it should surface. Be concrete.
     """
-    session_id = tool_context.state.get("session_id")
-    student_id = tool_context.state.get("student_id")
-    if not session_id or not student_id:
-        log.warning("ask_artifact called with no session/student id in state")
-        return {"status": "error", "summary": "Something went wrong on my end — let's move on."}
-
-    try:
-        transcript = await recent_transcript(session_id, student_id, n=10)
-        message = f"{request}\n\n{transcript}"
-        summary = await _RUNNER.run_turn(session_id, student_id, message)
-        # A specialist's own work is the moment the student's record is most
-        # likely to have moved, so re-brief the voice layer here. This is the
-        # trigger point precisely BECAUSE this function runs to completion —
-        # ADK yields no function_response event for a WHEN_IDLE tool, so the
-        # event-stream hook this replaces never fired once. Scheduled, not
-        # awaited: refresh_brief's own Firestore read (3+ seconds, measured)
-        # must not add to the silence VoiceAgent is already sitting through
-        # waiting on this call.
-        schedule_brief_refresh(session_id, student_id)
-        return {"status": "done", "summary": summary or "The simulation is ready."}
-    except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
-        log.exception("ArtifactAgent turn failed")
-        return {"status": "error", "summary": "The simulation could not be built this time."}
+    async for chunk in delegate(
+        "artifact", _RUNNER, request, tool_context,
+        transcript_n=10,
+        done_default="The simulation is ready.",
+        error_text="The simulation could not be built this time.",
+    ):
+        yield chunk

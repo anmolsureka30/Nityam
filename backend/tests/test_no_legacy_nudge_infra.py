@@ -36,6 +36,21 @@ def main() -> int:
     check("tutor_agent.py is deleted", importlib.util.find_spec("app.agents.tutor_agent") is None)
     check("brain.py is deleted", importlib.util.find_spec("app.agents.brain") is None)
 
+    # The 7-second timer that used to cover a delegation's silence. Retired in
+    # favour of the streaming-tool responses in specialist_runner.delegate,
+    # which are causally tied to the delegation rather than to a clock, go over
+    # send_tool_response rather than the send_client_content channel Google
+    # warns races with realtime audio, and cover the whole 70s cap instead of
+    # the first 21s. Asserted gone because reinstating it "just as a backstop"
+    # would put two things in charge of when she talks.
+    from app.agents import specialist_runner
+    for name in ("_nudge_while_waiting", "_NUDGE_TEXT",
+                 "_NUDGE_INTERVAL_S", "_MAX_NUDGES"):
+        check(f"specialist_runner.{name} is gone",
+              not hasattr(specialist_runner, name))
+    check("delegate() replaced it",
+          hasattr(specialist_runner, "delegate"))
+
     return 1 if FAILED else 0
 
 
