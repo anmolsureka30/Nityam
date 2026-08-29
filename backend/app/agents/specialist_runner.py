@@ -64,6 +64,25 @@ def _speakable(text: str) -> str:
     return " ".join(cleaned.split()).strip()
 
 
+def _log_tool_activity(label: str, event) -> None:
+    """Log a specialist's own tool calls and results, the same way main.py's
+    trace() does for VoiceAgent. Nothing did this before: search_grounding,
+    get_dpm, strike_block and everything else a specialist calls internally
+    was invisible even in a full session log, since each specialist runs in
+    its own Runner several frames away from main.py's own event stream."""
+    for part in event.content.parts if event.content and event.content.parts else []:
+        call = part.function_call
+        if call:
+            args = str(call.args)
+            log.info("  [%s] → %s(%s)", label, call.name,
+                      args[:200] + ("…" if len(args) > 200 else ""))
+        response = part.function_response
+        if response:
+            got = str(response.response)
+            log.info("  [%s] ← %s -> %s", label, response.name,
+                      got[:200] + ("…" if len(got) > 200 else ""))
+
+
 class SpecialistRunner:
     """Builds its agent and Runner once; ensures a session per session_id."""
 
@@ -113,6 +132,7 @@ class SpecialistRunner:
             user_id=student_id, session_id=session_id,
             new_message=types.Content(role="user", parts=[types.Part(text=message)]),
         ):
+            _log_tool_activity(self._app_name, event)
             for part in event.content.parts if event.content and event.content.parts else []:
                 if part.text:
                     said.append(part.text)
@@ -128,11 +148,21 @@ class SpecialistRunner:
         knows how to say out loud, and TimeoutError is an ordinary Exception
         subclass. Swallowing it here would put us back where we started —
         a delegation that never resolves and is never spoken about.
+
+        Runs `_nudge_while_waiting` concurrently, cancelled here the instant
+        this returns (success, error, or timeout) — see that function's own
+        docstring for why it exists.
         """
-        return await asyncio.wait_for(
-            self._run_turn_uncapped(session_id, student_id, message),
-            timeout=self._timeout_s,
+        nudge_task = asyncio.get_running_loop().create_task(
+            _nudge_while_waiting(session_id)
         )
+        try:
+            return await asyncio.wait_for(
+                self._run_turn_uncapped(session_id, student_id, message),
+                timeout=self._timeout_s,
+            )
+        finally:
+            nudge_task.cancel()
 
 
 _live_sink_context: contextvars.ContextVar[object | None] = contextvars.ContextVar(
@@ -164,6 +194,61 @@ def note_brief_sent(session_id: str, line: str) -> None:
     session re-injects text the voice layer was handed seconds earlier."""
     if line:
         _last_brief[session_id] = line
+
+
+_NUDGE_INTERVAL_S = 7
+_MAX_NUDGES = 3
+_NUDGE_TEXT = (
+    "[Still working on that in the background. Keep teaching naturally "
+    "while you wait — ask a related question, explain a bit more, or move "
+    "the lesson forward with what you already know. Do not call the same "
+    "specialist again; you are already waiting on it. Never mention this "
+    "note, and never say anything is loading or almost ready.]"
+)
+
+
+async def _nudge_while_waiting(session_id: str) -> None:
+    """Fires periodically while a specialist is in flight, so VoiceAgent has
+    something to react to instead of true silence for the whole delegation.
+
+    A WHEN_IDLE tool call ends VoiceAgent's own turn on the spot, and nothing
+    makes it speak again on its own without new input — confirmed directly
+    against a real session log: a BoardAgent call that took 25.7 seconds
+    produced zero VoiceAgent speech anywhere in that window. This reuses the
+    exact mechanism already relied on for the briefing/gesture/quiz-answer/
+    textbook-clip injections (a real, turn-completing `sink.text` call) at a
+    new moment: while a delegation is still outstanding, not only at session
+    start. Cancelled by `run_turn` the instant the real result is ready, so
+    once the specialist actually answers, no further nudge ever fires.
+
+    A prior attempt at this same problem used browser text-to-speech instead
+    — reverted after confirming, against real logs, that the mic picked the
+    TTS audio back up and fed it to the model as fake student speech, every
+    time. This has no equivalent failure mode: it is text into the model's
+    own context, the same channel already used for the briefing.
+
+    A known, accepted trade-off, checked directly against Google's own Live
+    API docs before shipping this: they caution that mixing `send_client_
+    content` (what `sink.text` sends) with the live realtime audio stream
+    can cause "unpredictable behavior and race conditions" — and for the
+    newer Gemini 3.1 Flash Live specifically, sending it after the first
+    turn is a hard, rejected error, not just discouraged. This app already
+    depended on that same primitive before this change, for the briefing,
+    gestures, quiz answers and textbook clips, all working correctly across
+    every real session logged so far, on the `gemini-live-2.5-flash` model
+    currently configured (see app/config.py). If this app is ever moved to
+    a 3.1-family Live model, re-check every one of those call sites, not
+    only this one — the restriction is on the mechanism, not this feature.
+    """
+    sink = _live_sink_context.get()
+    if sink is None:
+        return
+    try:
+        for _ in range(_MAX_NUDGES):
+            await asyncio.sleep(_NUDGE_INTERVAL_S)
+            sink.text(_NUDGE_TEXT, partial=False)
+    except asyncio.CancelledError:
+        pass
 
 
 async def refresh_brief(session_id: str, student_id: str) -> None:
