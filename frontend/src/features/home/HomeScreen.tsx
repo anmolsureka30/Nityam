@@ -3,7 +3,10 @@ import { Shell } from "../../components/Shell";
 import {
   ActionCard, Choices, Chip, Label, MasteryInline, Panel,
 } from "../../components/ui";
-import { classRecap, concepts, daysToUnitTest, readinessPct, student } from "../../lib/data";
+import { useAuth } from "../../lib/auth/AuthContext";
+import { conceptName } from "../../lib/conceptCatalog";
+import { classRecap, concepts, daysToUnitTest, student } from "../../lib/data";
+import { masteryPct, useStudentMemory } from "../../lib/memory";
 import s from "./HomeScreen.module.css";
 
 function greetingFor(hour: number) {
@@ -15,14 +18,27 @@ function greetingFor(hour: number) {
 export default function HomeScreen() {
   const nav = useNavigate();
   const greeting = greetingFor(new Date().getHours());
+  const { user } = useAuth();
+  const memory = useStudentMemory(user?.uid);
 
-  // The three weakest examinable concepts, worst first — this is the list the
-  // student should act on, not an inventory of everything they have studied.
-  const weakest = [...concepts]
-    .filter((c) => c.examinable)
-    .sort((a, b) => a.mastery - b.mastery)
+  // Real weaknesses, worst first, when the tutor has actually recorded any —
+  // this is the one number on the whole dashboard that used to be a demo
+  // constant. A student with no sessions yet sees that honestly (below)
+  // rather than a fabricated mastery bar.
+  const realWeaknesses = memory.status === "ready"
+    ? Object.entries(memory.data.long_term.dpm_profile?.weaknesses ?? {})
+    : [];
+  const weakest = [...realWeaknesses]
+    .sort((a, b) => masteryPct(a[1]) - masteryPct(b[1]))
     .slice(0, 3);
+  const readinessPct = realWeaknesses.length
+    ? Math.round(realWeaknesses.reduce((sum, [, w]) => sum + masteryPct(w), 0) / realWeaknesses.length)
+    : null;
 
+  // "Revise today's class" still points at tonight's classRecap concept —
+  // that recap comes from Shruti's board/lecture capture (lib/data.ts's own
+  // header comment), which isn't wired into this dashboard yet. Real per-
+  // concept mastery above does not depend on that piece being done.
   const target = concepts.find((c) => c.id === "PHY-11-K2")!;
 
   return (
@@ -66,19 +82,30 @@ export default function HomeScreen() {
               onClick={() => nav("/session?mode=doubt")}
             />
             <ActionCard
-              eyebrow={`Readiness · ${readinessPct}%`}
+              eyebrow={readinessPct !== null ? `Readiness · ${readinessPct}%` : "Readiness"}
               title="Exam readiness"
-              body="Four concepts on the test. One is holding you back."
+              body={
+                readinessPct !== null
+                  ? `${realWeaknesses.length} concept${realWeaknesses.length === 1 ? "" : "s"} tracked so far.`
+                  : "Nothing tracked yet — your first session starts this."
+              }
               footer={
-                <span className={s.sparkline} title={`Readiness ${readinessPct}%`}>
-                  {concepts.map((c) => (
-                    <span
-                      key={c.id}
-                      className={`${s.spark} ${c.mastery < 50 ? s.sparkLow : c.mastery < 75 ? s.sparkMid : s.sparkHigh}`}
-                      style={{ height: `${Math.max(16, c.mastery)}%` }}
-                    />
-                  ))}
-                </span>
+                readinessPct !== null ? (
+                  <span className={s.sparkline} title={`Readiness ${readinessPct}%`}>
+                    {realWeaknesses.map(([id, w]) => {
+                      const pct = masteryPct(w);
+                      return (
+                        <span
+                          key={id}
+                          className={`${s.spark} ${pct < 50 ? s.sparkLow : pct < 75 ? s.sparkMid : s.sparkHigh}`}
+                          style={{ height: `${Math.max(16, pct)}%` }}
+                        />
+                      );
+                    })}
+                  </span>
+                ) : (
+                  <span className={s.rowMeta}>—</span>
+                )
               }
               onClick={() => nav("/readiness")}
             />
@@ -116,17 +143,27 @@ export default function HomeScreen() {
             <div className={s.weakHead}>
               <Label>Where you lose marks</Label>
             </div>
-            <ul className={s.weakList}>
-              {weakest.map((c) => (
-                <li key={c.id} className={s.weakRow}>
-                  <span className={s.weakName}>{c.name}</span>
-                  <MasteryInline pct={c.mastery} />
-                </li>
-              ))}
-            </ul>
-            <p className={s.weakNote}>
-              You solve these correctly when the angle is 45°. You stop when it isn't.
-            </p>
+            {weakest.length > 0 ? (
+              <>
+                <ul className={s.weakList}>
+                  {weakest.map(([conceptId, w]) => (
+                    <li key={conceptId} className={s.weakRow}>
+                      <span className={s.weakName}>{conceptName(conceptId)}</span>
+                      <MasteryInline pct={masteryPct(w)} />
+                    </li>
+                  ))}
+                </ul>
+                {weakest[0][1].evidence[0] && (
+                  <p className={s.weakNote}>{weakest[0][1].evidence[0]}</p>
+                )}
+              </>
+            ) : (
+              <p className={s.weakNote}>
+                {memory.status === "loading"
+                  ? "Loading…"
+                  : "Nothing here yet — this fills in after your first session."}
+              </p>
+            )}
           </Panel>
         </div>
       </section>
