@@ -208,7 +208,19 @@ export function useLiveSession(
          the call, never both, so the line it wanted to say is now part of the
          call and lands in the bubble the instant the delegation starts. Ten
          seconds of thinking with "achha, ek second" on screen is a tutor
-         working; ten seconds blank is a tutor who did not hear you. */
+         working; ten seconds blank is a tutor who did not hear you.
+
+         Deliberately text-only, not spoken via browser TTS: tried that once
+         and it played through the same speakers the mic listens on, and on
+         this machine the echo-cancellation that protects the model's own
+         voice did not reach speechSynthesis's audio — the mic picked up the
+         TTS line and it came back as a fake "student said" turn, EVERY time,
+         confirmed against real session logs (three separate delegations, all
+         three echoed back verbatim). A wrong voice reading the line would
+         have been merely jarring; this actively corrupted the conversation
+         and got written into permanent memory as something the student never
+         said. Caption-only until there is a way to do this that cannot leak
+         into the mic. */
       for (const part of event.content?.parts ?? []) {
         if (part.functionCall?.name?.startsWith("ask_")) {
           setThinking(true);
