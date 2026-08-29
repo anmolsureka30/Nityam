@@ -199,6 +199,19 @@ async def main() -> int:
               str(found))
 
     check("a figure that does not exist is not invented", not figure("figure 9.9"))
+
+    # A figure found by describing what it shows, not its number -- the
+    # printed caption is now indexed, so this doesn't require search_grounding
+    # or a vision model, just the caption text already on the page.
+    by_content = figure("resultant vector after multiplying")
+    check("a figure is found by its caption content, not just its number",
+          len(by_content) == 1 and by_content[0]["page"] == 3, str(by_content))
+
+    # A bare number query must never match a caption's text -- "3.14" is a
+    # substring of "Fig. 13.14 ...", so without a guard this returned two
+    # figures instead of one.
+    check("a bare number query doesn't false-match another figure's caption",
+          len(figure("3.14")) == 1, str(figure("3.14")))
     check("a section can be asked for by number too",
           any(h["kind"] == "section" and h["page"] == 12
               for h in search_textbook("section 3.9")["hits"]),

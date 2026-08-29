@@ -159,7 +159,8 @@
           "y": 0.1908,
           "w": 0.4347,
           "h": 0.2114
-        }
+        },
+        "caption": "Fig. 3.1 (a) Position and displacement vectors. (b) Displacement vector P Q and different courses of motion. It is important to note that displacement"
       },
       {
         "figure": "3.2",
@@ -169,7 +170,8 @@
           "y": 0.053,
           "w": 0.4904,
           "h": 0.2417
-        }
+        },
+        "caption": "Fig. 3.2 (a) Two equal vectors A and B . (b) Two and B ′ are unequal though they vectors A ′ are of the same length . as A = B . Note that in Fig. 3.2(b), vectors A ′ and"
       },
       {
         "figure": "3.3",
@@ -179,7 +181,8 @@
           "y": 0.6495,
           "w": 0.4904,
           "h": 0.2081
-        }
+        },
+        "caption": "Fig. 3.3 (a) Vector A and the resultant vector after multiplying A by a positive number 2. (b) Vector A and resultant vectors after multiplying it by a negative number – 1 and –1.5 ."
       },
       {
         "figure": "3.4",
@@ -189,7 +192,8 @@
           "y": 0.3571,
           "w": 0.3973,
           "h": 0.0781
-        }
+        },
+        "caption": "Fig. 3.4(b). Then, we join the tail of A to the head of B . This line O Q represents a vector R, that is, the sum of the vectors A and B . Since, in this procedure of vector addition, vectors are"
       },
       {
         "figure": "3.5",
@@ -199,7 +203,8 @@
           "y": 0.5307,
           "w": 0.4307,
           "h": 0.3269
-        }
+        },
+        "caption": "Fig. 3.5 (a) Two vectors A and B , – B is also shown. comparison, addition of vectors"
       },
       {
         "figure": "3.6",
@@ -209,7 +214,8 @@
           "y": 0.053,
           "w": 0.806,
           "h": 0.2664
-        }
+        },
+        "caption": "Fig. 3.6 (a) Two vectors A and B with their tails brought to a common origin. the parallelogram method. (c) The parallelogram method of vector addition is equivalent to the triangle method. ⊳"
       },
       {
         "figure": "3.7",
@@ -219,7 +225,8 @@
           "y": 0.4025,
           "w": 0.806,
           "h": 0.232
-        }
+        },
+        "caption": "Fig. 3.7 The velocity of the rain and the wind Answer are represented by the vectors v and v in Fig. r w 3.7 and are in the direction specified by the"
       },
       {
         "figure": "3.8",
@@ -233,7 +240,8 @@
           "y": 0.6495,
           "w": 0.5153,
           "h": 0.2114
-        }
+        },
+        "caption": "j Fig. 3.9 (a) Unit vectors , and lie along the x-, y-, and z-axes. k i components A and A along x-, and y- axes. x y"
       },
       {
         "figure": "3.10",
@@ -243,7 +251,8 @@
           "y": 0.1042,
           "w": 0.428,
           "h": 0.1693
-        }
+        },
+        "caption": "Fig. 3.10 Let OP and O Q represent the two vectors Answer A and B making an angle q (Fig. 3.10). using the parallelogram method of vector"
       },
       {
         "figure": "3.11",
@@ -253,7 +262,8 @@
           "y": 0.2691,
           "w": 0.3969,
           "h": 0.3505
-        }
+        },
+        "caption": "Fig. 3.11 We can obtain the magnitude of R using the Law of cosine : (3.24c)"
       },
       {
         "figure": "3.12",
@@ -263,7 +273,8 @@
           "y": 0.2047,
           "w": 0.6939,
           "h": 0.4582
-        }
+        },
+        "caption": "Fig. 3.12 (a) Position vector r . (b) Displacement ∆ r and average velocity v of a particle."
       },
       {
         "figure": "3.13",
@@ -273,7 +284,8 @@
           "y": 0.6604,
           "w": 0.6939,
           "h": 0.2006
-        }
+        },
+        "caption": "Fig. 3.13 As the time interval ∆ t approaches zero, the average velocity approaches the velocity is parallel to the line tangent to the path. of v"
       },
       {
         "figure": "3.14",
@@ -283,7 +295,8 @@
           "y": 0.1126,
           "w": 0.397,
           "h": 0.1477
-        }
+        },
+        "caption": "Fig. 3.14 The components v and v of velocity v and y x the angle θ it makes with x-axis. Note that v = v cos θ , v = v sin θ . x y"
       },
       {
         "figure": "3.15",
@@ -293,7 +306,8 @@
           "y": 0.053,
           "w": 0.5373,
           "h": 0.2583
-        }
+        },
+        "caption": "Fig. 3.15 The average acceleration for three time intervals limit ∆ t g 0, the average acceleration becomes the acceleration."
       },
       {
         "figure": "3.16",
@@ -303,7 +317,8 @@
           "y": 0.053,
           "w": 0.4904,
           "h": 0.2441
-        }
+        },
+        "caption": "Fig 3.16 Motion of an object projected with velocity v at angle θ . o 0 If we take the initial position to be the origin of the reference frame as shown in Fig. 3.16, we"
       },
       {
         "figure": "3.17",
@@ -313,7 +328,8 @@
           "y": 0.1455,
           "w": 0.3933,
           "h": 0.2891
-        }
+        },
+        "caption": "Fig. 3.17 The path of a projectile is a parabola. Time of maximum height How much time does the projectile take to reach the"
       },
       {
         "figure": "3.18",
@@ -323,7 +339,8 @@
           "y": 0.053,
           "w": 0.806,
           "h": 0.3076
-        }
+        },
+        "caption": "Fig. 3.18 Velocity and acceleration of an object in uniform circular motion. The time interval (a) to (c) where it is zero. The acceleration is directed, at each point of the path, towards the centre of the circle. Let r and r ′ be the position vectors and v and"
       },
       {
         "figure": "3.19",
@@ -333,7 +350,8 @@
           "y": 0.2643,
           "w": 0.3519,
           "h": 0.1486
-        }
+        },
+        "caption": "Fig. 3.19 length of P"
       },
       {
         "figure": "3.20",
@@ -343,7 +361,8 @@
           "y": 0.4511,
           "w": 0.7368,
           "h": 0.2538
-        }
+        },
+        "caption": "Fig. 3.20 3.10 On an open ground, a motorist follows a track that turns to his left by an angle of 60 after every 500 m. Starting from a given turn, specify the displacement of the motorist at the third, sixth and eighth turn. Compare the magnitude of the displacement with"
       }
     ]
   },
@@ -491,7 +510,8 @@
           "y": 0.2812,
           "w": 0.3973,
           "h": 0.1534
-        }
+        },
+        "caption": "Fig. 4.1(a) Another experiment by Galileo leading to the same conclusion involves a double inclined plane. A ball released from rest on one of the planes rolls"
       },
       {
         "figure": "4.2",
@@ -501,7 +521,8 @@
           "y": 0.544,
           "w": 0.4307,
           "h": 0.225
-        }
+        },
+        "caption": "Fig. 4.2 (a) a book at rest on the table, and moving with uniform velocity. The net force is zero in each case. Consider the motion of a car starting from"
       },
       {
         "figure": "4.3",
@@ -511,7 +532,8 @@
           "y": 0.3118,
           "w": 0.3774,
           "h": 0.2888
-        }
+        },
+        "caption": "Fig. 4.3 Force not only depends on the change in momentum but also on how fast the change is brought about. A seasoned cricketer draws in his hands during a catch, allowing greater time for the ball to stop and hence requires a"
       },
       {
         "figure": "4.4",
@@ -521,7 +543,8 @@
           "y": 0.3477,
           "w": 0.4307,
           "h": 0.3009
-        }
+        },
+        "caption": "Fig. 4.4 Force is necessary for changing the direction of momentum, even if its magnitude is constant. We can feel this while rotating a stone in a horizontal circle with uniform speed by means of a string."
       },
       {
         "figure": "4.5",
@@ -531,7 +554,8 @@
           "y": 0.3683,
           "w": 0.4904,
           "h": 0.2072
-        }
+        },
+        "caption": "Fig. 4.5 Acceleration at an instant is determined by the force at that instant. The moment after a stone is dropped out of an accelerated train, it has no horizontal acceleration or force, if air resistance is neglected. The stone carries"
       },
       {
         "figure": "4.6",
@@ -541,7 +565,8 @@
           "y": 0.2525,
           "w": 0.4904,
           "h": 0.2142
-        }
+        },
+        "caption": "Fig. 4.6 An instinctive answer to (i) might be Answer that the force on the wall in case (a) is normal to"
       },
       {
         "figure": "4.7",
@@ -551,7 +576,8 @@
           "y": 0.102,
           "w": 0.3973,
           "h": 0.1439
-        }
+        },
+        "caption": "Fig. 4.7 Equilibrium under concurrent forces. p ′ B In other words, the resultant of any two forces say F and F , obtained by the parallelogram 1 2 law of forces must be equal and opposite to the"
       },
       {
         "figure": "4.8",
@@ -561,7 +587,8 @@
           "y": 0.6165,
           "w": 0.3973,
           "h": 0.1739
-        }
+        },
+        "caption": "Fig. 4.8 (4.11)"
       },
       {
         "figure": "4.9",
@@ -571,7 +598,8 @@
           "y": 0.5975,
           "w": 0.8061,
           "h": 0.2601
-        }
+        },
+        "caption": "Fig. 4.9 Some examples of contact forces in mechanics. * We are not considering, for simplicity, charged and magnetic bodies. For these, besides gravity, there are electrical and magnetic non-contact forces."
       },
       {
         "figure": "4.10",
@@ -581,7 +609,8 @@
           "y": 0.6066,
           "w": 0.4307,
           "h": 0.1767
-        }
+        },
+        "caption": "Fig. 4.10 Static and sliding friction: (a) Impending motion of the body is opposed by static friction. When external force exceeds the maximum limit of static friction, the body begins to move. (b) Once the body is in"
       },
       {
         "figure": "4.11",
@@ -591,7 +620,8 @@
           "y": 0.7136,
           "w": 0.4904,
           "h": 0.1437
-        }
+        },
+        "caption": "Fig. 4.11"
       },
       {
         "figure": "4.12",
@@ -601,7 +631,8 @@
           "y": 0.4542,
           "w": 0.3972,
           "h": 0.0781
-        }
+        },
+        "caption": "Fig. 4.12(a), if the coefficient of kinetic friction between the trolley and the surface is 0.04? What is the tension in the string? (Take g = -2 10 m s ). Neglect the mass of the string."
       },
       {
         "figure": "4.13",
@@ -611,7 +642,8 @@
           "y": 0.5875,
           "w": 0.8064,
           "h": 0.2553
-        }
+        },
+        "caption": "Fig. 4.13 Some ways of reducing friction. (a) Ball bearings placed between moving parts of a machine. (b) Compressed cushion of air between surfaces in relative motion."
       },
       {
         "figure": "4.14",
@@ -621,7 +653,8 @@
           "y": 0.3054,
           "w": 0.6691,
           "h": 0.2474
-        }
+        },
+        "caption": "Fig. 4.14 Circular motion of a car on (a) a level road, (b) a banked road. gravitational force on the planet due to the sun."
       },
       {
         "figure": "4.15",
@@ -631,7 +664,8 @@
           "y": 0.3042,
           "w": 0.3976,
           "h": 0.3629
-        }
+        },
+        "caption": "Fig. 4.15 By the third law, the action of the system on the floor is equal to 267.3 N vertically downward. Action-reaction pairs"
       },
       {
         "figure": "4.16",
@@ -641,7 +675,8 @@
           "y": 0.6446,
           "w": 0.7172,
           "h": 0.2021
-        }
+        },
+        "caption": "Fig. 4.16 4.15 Two bodies of masses 10 kg and 20 kg respectively kept on a smooth, horizontal surface are tied to the ends of a light string. A horizontal force F = 600 N is applied to (i) A, (ii) B along the direction of string. What is the tension in the"
       }
     ]
   },
@@ -777,7 +812,8 @@
           "y": 0.085,
           "w": 0.4428,
           "h": 0.0681
-        }
+        },
+        "caption": "Fig. 13.1 shows some periodic motions. Suppose an insect climbs up a ramp and falls down, it comes back to the initial point and repeats the process identically. If you draw a graph of its"
       },
       {
         "figure": "13.2",
@@ -787,7 +823,8 @@
           "y": 0.1001,
           "w": 0.3976,
           "h": 0.219
-        }
+        },
+        "caption": "Fig. 13.2(a) A block attached to a spring, the other end of which is fixed to a rigid wall. The block moves on a frictionless surface. The motion of the block can be described in terms of its distance or displacement x"
       },
       {
         "figure": "13.3",
@@ -797,7 +834,8 @@
           "y": 0.5618,
           "w": 0.3976,
           "h": 0.1534
-        }
+        },
+        "caption": "Fig. 13.3 A particle vibrating back and forth about the origin of x-axis, between the limits +A and –A. where A , ω and φ are constants."
       },
       {
         "figure": "13.4",
@@ -807,7 +845,8 @@
           "y": 0.7429,
           "w": 0.3976,
           "h": 0.0781
-        }
+        },
+        "caption": "Fig. 13.4 shows the positions of a particle executing SHM at discrete value of time, each /4+2 π ) interval of time being T /4, where T is the period of motion. Fig. 13.5 plots the graph of x versus t ,"
       },
       {
         "figure": "13.5",
@@ -817,11 +856,13 @@
           "y": 0.5116,
           "w": 0.4904,
           "h": 0.1876
-        }
+        },
+        "caption": "Fig. 13.5 Displacement as a continuous function of time for simple harmonic motion."
       },
       {
         "figure": "13.6",
-        "page": 5
+        "page": 5,
+        "caption": "Fig. 13.6 The meaning of standard symbols in Eq. (13.4)"
       },
       {
         "figure": "13.7",
@@ -831,7 +872,8 @@
           "y": 0.6232,
           "w": 0.3977,
           "h": 0.2238
-        }
+        },
+        "caption": "Fig. 13.7 (b) A plot obtained from Eq. (13.4). The curves 3 and 4 are for φ = 0 and - π /4 respectively. The amplitude A is same for both the plots."
       },
       {
         "figure": "13.8",
@@ -841,7 +883,8 @@
           "y": 0.3967,
           "w": 0.4307,
           "h": 0.2308
-        }
+        },
+        "caption": "Fig. 13.8 Plots of Eq. (13.4) for φ = 0 for two different periods."
       },
       {
         "figure": "13.9",
@@ -851,7 +894,8 @@
           "y": 0.5325,
           "w": 0.3973,
           "h": 0.2087
-        }
+        },
+        "caption": "Fig. 13.9 Circular motion of a ball in a plane viewed edge-on is SHM. Fig. 13.10 describes the same situation"
       },
       {
         "figure": "13.10",
@@ -861,7 +905,8 @@
           "y": 0.7063,
           "w": 0.3973,
           "h": 0.0802
-        }
+        },
+        "caption": "Fig. 13.10 describes the same situation mathematically. Suppose a particle P is moving uniformly on a circle of radius A with angular speed ω . The sense of rotation is anticlockwise."
       },
       {
         "figure": "13.11",
@@ -871,7 +916,8 @@
           "y": 0.6616,
           "w": 0.4307,
           "h": 0.1924
-        }
+        },
+        "caption": "Fig. 13.11 The velocity, v (t), of the particle P the projection of the velocity v reference particle, P."
       },
       {
         "figure": "13.12",
@@ -881,7 +927,8 @@
           "y": 0.3644,
           "w": 0.3973,
           "h": 0.3318
-        }
+        },
+        "caption": "Fig. 13.12 The acceleration, a(t), of the particle P ′ is the projection of the acceleration a of the reference particle P. (13.9) Eq. (13.11) gives the acceleration of a particle"
       },
       {
         "figure": "13.13",
@@ -891,7 +938,8 @@
           "y": 0.2664,
           "w": 0.4904,
           "h": 0.3838
-        }
+        },
+        "caption": "Fig. 13.13 Displacement, velocity and acceleration of a particle in simple harmonic motion have the same period T, but they differ in phase u Example 13.5 A body oscillates with SHM"
       },
       {
         "figure": "13.14",
@@ -901,7 +949,8 @@
           "y": 0.0963,
           "w": 0.4307,
           "h": 0.15
-        }
+        },
+        "caption": "Fig. 13.14 Let the mass be displaced by a small Answer distance x to the right side of the equilibrium"
       },
       {
         "figure": "13.15",
@@ -911,7 +960,8 @@
           "y": 0.2746,
           "w": 0.4307,
           "h": 0.2284
-        }
+        },
+        "caption": "Fig. 13.15 elongated by a length equal to x and that on the right side gets compressed by the same"
       },
       {
         "figure": "13.16",
@@ -921,7 +971,8 @@
           "y": 0.4765,
           "w": 0.4904,
           "h": 0.3677
-        }
+        },
+        "caption": "Fig. 13.16 Kinetic energy, potential energy and total energy as a function of time [shown in (a)] and displacement [shown in (b)] of a particle in SHM. The kinetic energy and potential energy both repeat after a period T/2. The"
       },
       {
         "figure": "13.17",
@@ -931,11 +982,13 @@
           "y": 0.1316,
           "w": 0.3972,
           "h": 0.4808
-        }
+        },
+        "caption": "Fig. 13.17 (a) A bob oscillating about its mean θ position. (b) The radial force T-mg cos provides centripetal force but no torque about the support. The tangential force mg sin θ provides the restoring torque."
       },
       {
         "figure": "13.18",
-        "page": 16
+        "page": 16,
+        "caption": "13.3 Fig. 13.18 depicts four x-t represent periodic motion? What is the period of motion (in case of periodic motion) ?"
       },
       {
         "figure": "13.19",
@@ -945,7 +998,8 @@
           "y": 0.6238,
           "w": 0.746,
           "h": 0.2226
-        }
+        },
+        "caption": "Fig. 13.19 Determine (i) the frequency of oscillations, (ii) and (iii) the maximum speed of the mass."
       },
       {
         "figure": "13.20",
@@ -955,7 +1009,8 @@
           "y": 0.1113,
           "w": 0.3996,
           "h": 0.3321
-        }
+        },
+        "caption": "Fig. 13.20 x -projection of the radius"
       },
       {
         "figure": "13.21",
@@ -965,7 +1020,8 @@
           "y": 0.6208,
           "w": 0.3996,
           "h": 0.1966
-        }
+        },
+        "caption": "Fig. 13.21"
       },
       {
         "figure": "18.18",
@@ -975,7 +1031,8 @@
           "y": 0.3039,
           "w": 0.4271,
           "h": 0.551
-        }
+        },
+        "caption": "Fig. 18.18"
       }
     ]
   },
@@ -1123,7 +1180,8 @@
           "y": 0.1606,
           "w": 0.3973,
           "h": 0.1241
-        }
+        },
+        "caption": "Fig. 14.1 A collection of springs connected to each other. The end A is pulled suddenly generating a disturbance, which then propagates to the other end."
       },
       {
         "figure": "14.2",
@@ -1133,7 +1191,8 @@
           "y": 0.4,
           "w": 0.4307,
           "h": 0.063
-        }
+        },
+        "caption": "Fig.14.2 shows the propagation of a single pulse along a string, resulting from a single up and down jerk. If the string is very long compared"
       },
       {
         "figure": "14.3",
@@ -1143,7 +1202,8 @@
           "y": 0.1102,
           "w": 0.3973,
           "h": 0.1805
-        }
+        },
+        "caption": "Fig. 14.3 A harmonic (sinusoidal) wave travelling along a stretched string is an example of a transverse wave. An element of the string in the region of the wave oscillates about its equilibrium position perpendicular to the"
       },
       {
         "figure": "14.4",
@@ -1153,7 +1213,8 @@
           "y": 0.6129,
           "w": 0.3973,
           "h": 0.2432
-        }
+        },
+        "caption": "Fig. 14.4 Longitudinal waves (sound) generated in a pipe filled with air by moving the piston up and down. A volume element of air oscillates in the direction parallel to the direction of wave propagation."
       },
       {
         "figure": "14.5",
@@ -1163,7 +1224,8 @@
           "y": 0.4762,
           "w": 0.4307,
           "h": 0.0757
-        }
+        },
+        "caption": "Fig. 14.5 The meaning of standard symbols in Eq. (14.2) Fig. 14.6 shows the plots of Eq. (14.2) for"
       },
       {
         "figure": "14.6",
@@ -1173,7 +1235,8 @@
           "y": 0.5183,
           "w": 0.4307,
           "h": 0.079
-        }
+        },
+        "caption": "Fig. 14.6 shows the plots of Eq. (14.2) for different values of time differing by equal intervals of time. In a wave, the crest is the point of maximum positive displacement, the"
       },
       {
         "figure": "14.7",
@@ -1183,7 +1246,8 @@
           "y": 0.6165,
           "w": 0.8061,
           "h": 0.0705
-        }
+        },
+        "caption": "Fig. 14.7 shows again a sinusoidal plot. It describes not the shape of the wave at a certain instant but the displacement of an element (at any fixed location) of the medium as a function"
       },
       {
         "figure": "14.8",
@@ -1193,7 +1257,8 @@
           "y": 0.1455,
           "w": 0.3969,
           "h": 0.2057
-        }
+        },
+        "caption": "Fig. 14.8 Progression of a harmonic wave from time t to t + ∆ t. where ∆ t is a small interval. The wave pattern as a whole shifts to the right. The crest of the wave (or a point with any fixed phase) moves right by the distance"
       },
       {
         "figure": "14.9",
@@ -1203,7 +1268,8 @@
           "y": 0.1096,
           "w": 0.3973,
           "h": 0.3008
-        }
+        },
+        "caption": "Fig. 14.9 Two pulses having equal and opposite displacements moving in opposite directions. The overlapping pulses add up to zero displacement in curve (c)."
       },
       {
         "figure": "14.10",
@@ -1213,7 +1279,8 @@
           "y": 0.0993,
           "w": 0.3969,
           "h": 0.345
-        }
+        },
+        "caption": "Fig. 14.10 The resultant of two harmonic waves of equal amplitude and wavelength according to the principle of superposition. The amplitude of the resultant wave f , which depends on the phase difference"
       },
       {
         "figure": "14.11",
@@ -1223,11 +1290,13 @@
           "y": 0.2513,
           "w": 0.4904,
           "h": 0.0781
-        }
+        },
+        "caption": "Fig. 14.11 shows a pulse travelling along a stretched string and being reflected by the boundary. Assuming there is no absorption of energy by the boundary, the reflected wave has"
       },
       {
         "figure": "14.12",
-        "page": 13
+        "page": 13,
+        "caption": "largest are called antinodes. Fig. 14.12 shows a stationary wave pattern resulting from superposition of two travelling waves in (14.37) opposite directions."
       },
       {
         "figure": "14.13",
@@ -1237,7 +1306,8 @@
           "y": 0.1319,
           "w": 0.4065,
           "h": 0.079
-        }
+        },
+        "caption": "Fig. 14.13 shows the first six harmonics of a stretched string fixed at either end. A string need not vibrate in one of these modes only. Generally, the vibration of a string will be a"
       },
       {
         "figure": "14.14",
@@ -1247,7 +1317,8 @@
           "y": 0.6075,
           "w": 0.4307,
           "h": 0.0702
-        }
+        },
+        "caption": "Fig. 14.14 shows the first six odd harmonics of air column with one end closed and the other open. For a pipe open at both ends, each end is an antinode. It is then easily seen that an open"
       },
       {
         "figure": "14.15",
@@ -1257,7 +1328,8 @@
           "y": 0.414,
           "w": 0.3969,
           "h": 0.1011
-        }
+        },
+        "caption": "Fig. 14.15. –1 For L = 30.0 cm, v = 330 m s , (14.44) 1 − 330 (m s ) n –1 ν = = 550 n s n"
       },
       {
         "figure": "14.16",
@@ -1267,7 +1339,8 @@
           "y": 0.0926,
           "w": 0.3969,
           "h": 0.0941
-        }
+        },
+        "caption": "Fig. 14.16 illustrates the phenomenon of beats for two harmonic waves of frequencies 11 Hz and 9 Hz. The amplitude of the resultant wave shows beats at a frequency of 2 Hz."
       }
     ]
   }

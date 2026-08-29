@@ -52,7 +52,7 @@ const CAPTION = /^\s*Fig\.?\s*(\d{1,2}\.\d{1,2})\b/;
 function figureBox(items, W, H, num) {
   const escaped = num.replace(".", "\\.");
   const cap = items.find((i) => new RegExp(`^\\s*Fig\\.?\\s*${escaped}\\b`).test(i.str));
-  if (!cap) return null;
+  if (!cap) return { box: null, text: null };
 
   const cx = cap.transform[4];
   const cy = cap.transform[5];
@@ -61,7 +61,7 @@ function figureBox(items, W, H, num) {
   // Which column the caption is in, and how wide that column's text runs.
   const leftCol = cx < W / 2;
   const col = items.filter((i) => (i.transform[4] < W / 2) === leftCol);
-  if (!col.length) return null;
+  if (!col.length) return { box: null, text: cap.str.trim() };
 
   /* Column edges come from SUBSTANTIAL runs only. Equation numbers — "(3.30a)"
      and friends — are set hard against the gutter at almost exactly the page
@@ -103,17 +103,32 @@ function figureBox(items, W, H, num) {
   );
   const capBottom = capLines.length ? Math.min(...capLines.map((i) => i.transform[5])) : cy;
 
+  // The caption's own printed words, top line to bottom — the box answers
+  // "where is it", this answers "what does it show", so a student can find
+  // the figure by describing it rather than knowing its number.
+  const text = (capLines.length ? capLines : [cap])
+    .slice()
+    .sort((a, b) => b.transform[5] - a.transform[5])
+    .map((i) => i.str)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   const top = artTop - 4;
   const bottom = capBottom - 6;
   const h = (top - bottom) / H;
-  // Too thin to be a figure, or so tall it is really the whole page: decline.
-  if (h < 0.06 || h > 0.8) return null;
+  // Too thin to be a figure, or so tall it is really the whole page: decline
+  // the crop box, but the caption text is still good — keep it.
+  if (h < 0.06 || h > 0.8) return { box: null, text };
 
   return {
-    x: +Math.max(0, (colL - 6) / W).toFixed(4),
-    y: +Math.max(0, (H - top) / H).toFixed(4),
-    w: +Math.min(1, ((colR - colL) + 12) / W).toFixed(4),
-    h: +h.toFixed(4),
+    box: {
+      x: +Math.max(0, (colL - 6) / W).toFixed(4),
+      y: +Math.max(0, (H - top) / H).toFixed(4),
+      w: +Math.min(1, ((colR - colL) + 12) / W).toFixed(4),
+      h: +h.toFixed(4),
+    },
+    text,
   };
 }
 
@@ -126,7 +141,7 @@ for (const ch of CHAPTERS) {
   }
   const doc = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(path)) }).promise;
   const sections = [];
-  /** figure -> { page, box }. A caption always beats a mention. */
+  /** figure -> { page, box, text, hasCaption }. A caption always beats a mention. */
   const figures = new Map();
   /* Per-page keywords, so the tutor can find "friction" — which is discussed at
      length under a heading that never says the word. Headings alone make the
@@ -154,15 +169,15 @@ for (const ch of CHAPTERS) {
     for (const item of items) {
       const m = item.str.match(CAPTION);
       if (!m) continue;
-      const box = figureBox(items, W, H, m[1]);
+      const { box, text: capText } = figureBox(items, W, H, m[1]);
       const held = figures.get(m[1]);
-      if (!held || !held.caption || (!held.box && box)) {
-        figures.set(m[1], { page: n, box, caption: true });
+      if (!held || !held.hasCaption || (!held.box && box)) {
+        figures.set(m[1], { page: n, box, text: capText, hasCaption: true });
       }
     }
     // Mentions only fill gaps — a figure whose caption never parsed.
     for (const m of text.matchAll(FIGURE)) {
-      if (!figures.has(m[1])) figures.set(m[1], { page: n, box: null, caption: false });
+      if (!figures.has(m[1])) figures.set(m[1], { page: n, box: null, text: null, hasCaption: false });
     }
 
     const words = new Set(
@@ -181,8 +196,11 @@ for (const ch of CHAPTERS) {
     sections: sections.sort((a, b) => a.section.localeCompare(b.section, undefined, { numeric: true })),
     pageText,
     figures: [...figures.entries()]
-      .map(([figure, f]) => (f.box ? { figure, page: f.page, box: f.box }
-                                   : { figure, page: f.page }))
+      .map(([figure, f]) => ({
+        figure, page: f.page,
+        ...(f.box ? { box: f.box } : {}),
+        ...(f.text ? { caption: f.text } : {}),
+      }))
       .sort((a, b) => a.figure.localeCompare(b.figure, undefined, { numeric: true })),
   });
   console.log(`  ${ch.file}  ch ${ch.number} ${ch.title}: ${doc.numPages}p, ` +

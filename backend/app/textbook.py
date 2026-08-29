@@ -38,13 +38,16 @@ def _index() -> list[dict]:
 def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict:
     """Find where something is covered in the student's own NCERT textbook.
 
-    Search the section headings and figure numbers of the four Class XI Physics
-    chapters that are loaded. Use it before claiming the book says anything, and
-    to find the page a figure is on so you can put it on their board.
+    Search the section headings, figure numbers, and figure captions of the
+    four Class XI Physics chapters that are loaded — so a figure can be found
+    by what it shows ("the diagram with two vectors added") as well as by its
+    number. Use it before claiming the book says anything, and to find the
+    page a figure is on so you can put it on their board.
 
     Args:
-        query: A topic, section title or figure number — "projectile",
-            "friction", "13.3", "Fig 3.14".
+        query: A topic, section title, figure number, or a description of
+            what a figure shows — "projectile", "friction", "13.3",
+            "Fig 3.14", "diagram of two vectors being added".
 
     Returns:
         dict with "hits": chapters, sections and figures that match, each with
@@ -87,10 +90,19 @@ def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict
                     "in": label,
                 })
         for fig in ch["figures"]:
-            if number == fig["figure"]:
+            caption = fig.get("caption", "")
+            # A bare number query ("3.14") must only match that exact figure
+            # number, never a caption's text -- "3.14" is a substring of
+            # "Fig. 13.14 ...", so without this guard asking for one figure
+            # by number also matched an unrelated figure eleven pages away.
+            bare_number_query = q == number
+            if number == fig["figure"] or (not bare_number_query and q in caption.lower()):
+                title = f"Fig. {fig['figure']}"
+                if caption:
+                    title += f" — {caption[:100]}"
                 hits.append({
                     "kind": "figure", "chapter": ch["file"], "page": fig["page"],
-                    "title": f"Fig. {fig['figure']}", "in": label,
+                    "title": title, "in": label,
                 })
     result = {"hits": hits[:12], "found": len(hits)}
 
