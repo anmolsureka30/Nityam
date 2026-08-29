@@ -7,6 +7,7 @@ import { useAuth } from "../../lib/auth/AuthContext";
 import { conceptName } from "../../lib/conceptCatalog";
 import { classRecap, concepts, daysToUnitTest, student } from "../../lib/data";
 import { masteryPct, useStudentMemory } from "../../lib/memory";
+import ShrutiIngest from "./ShrutiIngest";
 import s from "./HomeScreen.module.css";
 
 function greetingFor(hour: number) {
@@ -110,6 +111,13 @@ export default function HomeScreen() {
               onClick={() => nav("/readiness")}
             />
           </Choices>
+        </div>
+      </section>
+
+      <section className={`ruled ${s.band}`}>
+        <div className="margin"><Label>From class</Label></div>
+        <div className="body">
+          <ShrutiIngest />
         </div>
       </section>
 
