@@ -229,7 +229,10 @@ export default function SessionScreen() {
     dispatch({ type: "scrolled" });
   }, [board.scrollTo, dispatch]);
 
-  const onCheckpointDone = useCallback(
+  // Fires the instant an option is picked, so the tutor's spoken reaction
+  // doesn't wait on the student also clicking "Show me why"/"Keep going" —
+  // see CheckpointModal's own doc comment for why that delay mattered.
+  const onCheckpointAnswer = useCallback(
     (correct: boolean, optionId: string, optionText: string) => {
       if (!checkpoint) return;
       send({
@@ -239,13 +242,22 @@ export default function SessionScreen() {
         optionText,
         correct,
       });
+    },
+    [checkpoint, send],
+  );
+
+  // Fires when the student is done reading (any rebuttal, if wrong) and
+  // continues — closes the modal and updates mastery. Deliberately not
+  // where the backend gets told the answer; see onCheckpointAnswer above.
+  const onCheckpointDone = useCallback(
+    (correct: boolean) => {
       dispatch({ type: "quiz_done" });
       if (correct) {
         setMastery((m) => Math.min(100, m + 8));
         setDelta((d) => (d ?? 0) + 8);
       }
     },
-    [checkpoint, dispatch, send],
+    [dispatch],
   );
 
   const planIndex = Math.min(
@@ -417,7 +429,11 @@ export default function SessionScreen() {
       )}
 
       {checkpoint && (
-        <CheckpointModal checkpoint={checkpoint} onDone={onCheckpointDone} />
+        <CheckpointModal
+          checkpoint={checkpoint}
+          onAnswer={onCheckpointAnswer}
+          onDone={onCheckpointDone}
+        />
       )}
     </div>
   );

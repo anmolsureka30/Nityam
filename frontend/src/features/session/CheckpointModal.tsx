@@ -10,10 +10,18 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
  * modal open, and the footnote says nobody else sees it. Guessing has to feel
  * safer than skipping, or the signal is worthless. */
 export default function CheckpointModal({
-  checkpoint, onDone,
+  checkpoint, onAnswer, onDone,
 }: {
   checkpoint: Checkpoint;
-  /** The chosen option travels with the verdict: the tutor answers about the
+  /** Fired the instant an option is picked — before any rebuttal is read,
+   *  before the continue button exists to click. This is what the tutor
+   *  reacts to out loud, so a wrong pick is told wrong right away instead of
+   *  waiting on an extra "Show me why" click first. Fires once, on the
+   *  first pick only — changing your mind afterward doesn't re-report. */
+  onAnswer: (correct: boolean, optionId: string, optionText: string) => void;
+  /** Fired when the student is done with this checkpoint — after reading
+   *  the rebuttal, if there was one. Closes the modal / advances mastery.
+   *  The chosen option travels with the verdict: the tutor answers about the
    *  specific wrong answer, so "correct: false" alone is not enough for it to
    *  say anything useful. */
   onDone: (correct: boolean, optionId: string, optionText: string) => void;
@@ -49,7 +57,11 @@ export default function CheckpointModal({
                     state === "wrong" && s.optionWrong,
                     state === "right" && s.optionRight,
                   )}
-                  onClick={() => setChosen(opt.id)}
+                  onClick={() => {
+                    if (chosen !== null) return; // already answered; changing your mind doesn't re-report
+                    setChosen(opt.id);
+                    onAnswer(opt.correct, opt.id, opt.text);
+                  }}
                 >
                   <span
                     className={cx(
