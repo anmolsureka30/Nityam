@@ -173,7 +173,13 @@ if [[ "$API_ONLY" == 1 ]]; then
 else
   FE=../frontend
   [[ -d "$FE/node_modules" ]] || (cd "$FE" && npm install)
-  spawn env -C "$FE" NITYAM_WEB_PORT="$WEB_PORT" NITYAM_API_PORT="$PORT" npm run dev
+  # VITE_LANDING_URL is the mirror of the landing page's own NEXT_PUBLIC_APP_URL
+  # below: a signed-out visitor at "/" is sent here (see src/App.tsx's RootGate).
+  # Set even when the landing page itself is skipped (--no-landing) — pointing
+  # at a port nothing is listening on just means that redirect 404s instead of
+  # silently landing on the wrong page, which is the honest failure mode.
+  spawn env -C "$FE" NITYAM_WEB_PORT="$WEB_PORT" NITYAM_API_PORT="$PORT" \
+    VITE_LANDING_URL="http://localhost:$LANDING_PORT" npm run dev
   echo "Open http://localhost:$WEB_PORT"
 fi
 
