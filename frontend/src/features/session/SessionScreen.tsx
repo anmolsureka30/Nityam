@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import SessionBriefing from "./SessionBriefing";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { UserChip } from "../../components/Shell";
 import { Label, MasteryBar } from "../../components/ui";
@@ -106,6 +107,15 @@ export default function SessionScreen() {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  /* The overlay lifts on her FIRST word and never returns. A plain
+     `!tutor.connected` would flash it back up on every reconnect mid-lesson,
+     and a plain `mood !== "speaking"` would put it back every time she
+     pauses for breath. */
+  const [heardHer, setHeardHer] = useState(false);
+  useEffect(() => {
+    if (tutor.mood === "speaking") setHeardHer(true);
+  }, [tutor.mood]);
 
   const checkpoint = board.quizQueue[0] ?? null;
 
@@ -426,6 +436,13 @@ export default function SessionScreen() {
           }}
         />
       )}
+
+      <SessionBriefing
+        studentId={userId}
+        topic={plannedConcept?.name ?? ""}
+        mode={mode}
+        open={!heardHer}
+      />
 
       {checkpoint && (
         <CheckpointModal

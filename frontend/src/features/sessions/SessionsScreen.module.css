@@ -1,0 +1,85 @@
+/* A list of sessions, as rows on ruled paper rather than as cards.
+   Cards would make every session look like a separate object; they are
+   entries in one continuing record, which is the whole point of them. */
+
+.subline { max-width: 54ch; }
+.muted { color: var(--ink-dim); margin: 0; font-size: var(--t-body); }
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.list > li { border-bottom: 1px solid var(--line); }
+
+.row {
+  display: block;
+  padding: 16px 4px 15px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.14s var(--ease);
+}
+.row:hover { background: var(--surface-quiet, rgba(0, 0, 0, 0.018)); }
+.row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--r-sheet);
+}
+
+.rowHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.topic {
+  font-family: var(--display);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.meta {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  color: var(--ink-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary {
+  margin: 7px 0 0;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--ink-mid, var(--ink-dim));
+  max-width: 74ch;
+}
+
+.rowFoot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.04em;
+}
+.when { color: var(--ink-dim); }
+
+/* The one thing on this screen worth looking at: that the session changed
+   what the tutor believes. Given the accent, and nothing else on the row is. */
+.changed {
+  color: var(--accent);
+  font-weight: 600;
+}
+.noRecap {
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .rowHead { gap: 4px; }
+  .meta { white-space: normal; }
+}

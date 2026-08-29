@@ -130,6 +130,19 @@ def put_session_log(conn: sqlite3.Connection, log: SessionLog) -> None:
     conn.commit()
 
 
+def list_session_logs(
+    conn: sqlite3.Connection, student_id: str, limit: int = 50
+) -> list[SessionLog]:
+    """Every session this student has had, newest first. Twin of the
+    Firestore one."""
+    rows = conn.execute(
+        "SELECT payload FROM session_log WHERE student_id = ? "
+        "ORDER BY json_extract(payload, '$.ended_at') DESC LIMIT ?",
+        (student_id, limit),
+    ).fetchall()
+    return [SessionLog.model_validate_json(r[0]) for r in rows]
+
+
 def latest_session_log(conn: sqlite3.Connection, student_id: str, with_summary: bool = False) -> SessionLog | None:
     """The student's most recently ended session. Twin of the Firestore one —
     see that docstring for why this is read at all."""

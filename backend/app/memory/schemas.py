@@ -109,3 +109,23 @@ class SessionLog(BaseModel):
     ended_at: Optional[datetime] = None
     turns: list[Turn] = Field(default_factory=list)
     summary: str = ""
+
+    # ── what the session was, and what it did to memory ──────────────────
+    # All optional, all defaulted: every log written before these existed
+    # still validates, and the UI simply shows less for those.
+    #
+    # The before/after snapshots are the point. "Dynamic memory" is a claim
+    # that is impossible to believe from prose alone — a reader has to SEE
+    # `misconceived -> partial` against a concept, next to the moment in the
+    # transcript that moved it. Storing both sides at close is the only way
+    # to show that later, because the live documents have already changed.
+    topic: str = ""
+    mode: str = ""
+    dpm_before: Optional["DPMProfile"] = None
+    dpm_after: Optional["DPMProfile"] = None
+    teaching_before: Optional["TeachingMemory"] = None
+    teaching_after: Optional["TeachingMemory"] = None
+    operations: list[dict] = Field(default_factory=list)
+    """What Reflect proposed, in order, each tagged with whether it applied.
+    A dropped operation is as informative as an accepted one — it is the
+    validation gate visibly doing its job."""

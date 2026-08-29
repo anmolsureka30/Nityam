@@ -1,0 +1,141 @@
+/* The curtain over the board while she connects.
+   Paper on a dimmed room: the card is the student's own sheet, and what is on
+   it is what the tutor has been told about them. */
+
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--ground) 88%, transparent);
+  backdrop-filter: blur(3px);
+  transition: opacity 0.45s var(--ease), visibility 0.45s var(--ease);
+}
+.veilOpen { opacity: 1; visibility: visible; }
+/* Lifts rather than vanishes — she has started talking, and the board behind
+   is what matters now. */
+.veilGone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.card {
+  width: min(560px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--paper, #fff);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sheet, 3px);
+  box-shadow: 0 18px 60px rgba(18, 21, 28, 0.16);
+  padding: 30px 32px 26px;
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.25, 1) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.kicker {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin: 0 0 8px;
+}
+.topic {
+  font-family: var(--display);
+  font-size: clamp(24px, 3.4vw, 31px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0 0 22px;
+  text-wrap: balance;
+}
+
+.block { margin: 0 0 18px; }
+.label {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin: 0 0 6px;
+}
+
+.last {
+  margin: 0;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--ink-mid, var(--ink));
+  border-left: 2px solid var(--line-hard);
+  padding-left: 12px;
+}
+
+.weak { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.weak li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+.weakName { font-weight: 600; font-size: var(--t-body); }
+/* The honest bit, and the reason this screen is worth showing: it names what
+   you are weak on rather than what you will "learn". */
+.weakState {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.doubts { margin: 0; padding-left: 17px; display: grid; gap: 5px; }
+.doubts li {
+  font-size: var(--t-small, 14px);
+  line-height: 1.5;
+  color: var(--ink-mid, var(--ink-dim));
+}
+
+.covered {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  color: var(--ink-dim);
+  line-height: 1.6;
+}
+
+.waiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+}
+.dots { display: inline-flex; gap: 4px; }
+.dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.25s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: 0.16s; }
+.dots i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes pulse {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .dots i { animation: none; opacity: 0.6; }
+}
+@media (max-width: 560px) {
+  .card { padding: 22px 20px 20px; }
+}

@@ -183,13 +183,22 @@ def close_session(
     started_at: datetime,
     buffer: list[dict],
     client: genai.Client,
+    topic: str = "",
+    mode: str = "",
 ) -> SessionLog:
     instrumentation.set_session_context(session_id)
     log = build_session_log(session_id, student_id, started_at, buffer)
+    log.topic, log.mode = topic, mode
     store.put_session_log(conn, log)
 
     profile = store.get_dpm(conn, student_id) or DPMProfile(student_id=student_id)
     memory = store.get_teaching_memory(conn, student_id) or TeachingMemory(student_id=student_id)
+
+    # Deep copies, taken BEFORE apply_operations mutates them in place. This
+    # is the whole recap: without a snapshot of the far side there is nothing
+    # to compare against later, because the live documents have moved on.
+    log.dpm_before = profile.model_copy(deep=True)
+    log.teaching_before = memory.model_copy(deep=True)
 
     result = reflect(client, log)
     profile, memory = apply_operations(profile, memory, result, session_id)
@@ -197,12 +206,47 @@ def close_session(
     # Keep the summary reflect() already produced. It was being discarded:
     # SessionLog.summary has existed all along, every log written by this
     # function had it empty, and the next session's brief therefore had
-    # nothing to say about where the last one got to. The only place a
-    # non-empty one existed was the seed script.
+    # nothing to say about where the last one got to.
     if result.summary and not log.summary:
         log.summary = result.summary.strip()
-        store.put_session_log(conn, log)
+
+    log.dpm_after = profile.model_copy(deep=True)
+    log.teaching_after = memory.model_copy(deep=True)
+    log.operations = _describe_operations(result, log.dpm_before, profile)
+    store.put_session_log(conn, log)
 
     store.put_dpm(conn, profile)
     store.put_teaching_memory(conn, memory)
     return log
+
+
+def _describe_operations(
+    result: ReflectResult, before: DPMProfile, after: DPMProfile
+) -> list[dict]:
+    """Every operation Reflect proposed, and whether it survived.
+
+    A DROPPED operation is as worth showing as an accepted one — it is the
+    validation gate visibly doing its job, and "the model asked to mark this
+    durable and the rules refused" is a more convincing demonstration of a
+    memory layer than a list of writes that all succeeded.
+
+    Applied-ness is inferred by comparing the two snapshots rather than
+    instrumented inside apply_operations, which drops ops silently by design
+    and should keep doing so.
+    """
+    described: list[dict] = []
+    for operation in result.operations:
+        concept = (operation.args or {}).get("concept_id", "")
+        applied = True
+        if operation.op == "set_mastery" and concept:
+            was = before.weaknesses.get(concept)
+            now = after.weaknesses.get(concept)
+            applied = now is not None and (was is None or was != now)
+        described.append({
+            "op": operation.op,
+            "concept_id": concept,
+            "args": {k: v for k, v in (operation.args or {}).items()
+                     if k != "concept_id"},
+            "applied": applied,
+        })
+    return described

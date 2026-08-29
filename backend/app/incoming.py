@@ -330,7 +330,10 @@ def describe_grounding_pack(plan, brief: str, chunks: list[dict]) -> str:
             text = " ".join((chunk.get("text") or "").split())
             if len(text) > MAX_CHUNK:
                 text = text[:MAX_CHUNK].rstrip() + "…"
-            lines.append(f'  · ({where}) “{text}”')
+            # No quotation marks around the chunk. She mirrors the shape of
+            # what she is shown, and wrapped quotes came back as the literal
+            # word "quote" spoken aloud, over and over, in a real session.
+            lines.append(f"  · ({where}) {text}")
         lines.append(
             "Those quotes are raw transcript and contain LaTeX like "
             "\\frac and \\sin. NEVER read that out. Say it in words — "

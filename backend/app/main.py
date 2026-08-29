@@ -322,6 +322,8 @@ async def _flush_session_memory(session_id: str, student_id: str) -> None:
             client = genai.Client()
             _close_session_memory(
                 conn, session_id, student_id, state.started_at, buffer, client,
+                topic=state.plan.concept_name or state.plan.concept,
+                mode=state.plan.mode,
             )
 
         await asyncio.to_thread(_flush)

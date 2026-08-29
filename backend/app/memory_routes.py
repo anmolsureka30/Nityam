@@ -10,6 +10,7 @@ every WebSocket teardown -- there's no missing trigger to add.
 from __future__ import annotations
 
 import functools
+from types import SimpleNamespace
 
 import redis as redis_sync
 from fastapi import APIRouter
@@ -61,3 +62,182 @@ async def session_events_endpoint(session_id: str, student_id: str, trace_id: st
     if trace_id:
         events = [e for e in events if e.trace_id == trace_id]
     return {"events": [e.model_dump(mode="json") for e in events]}
+
+
+# ─────────────────────────────────────────────── what the student can see
+#
+# Everything below exists so the memory layer is VISIBLE. A tutor that claims
+# to remember you is not believable from prose; it is believable when you can
+# open the session you had on Tuesday and see `misconceived -> partial` against
+# a concept, next to the sentence that moved it.
+
+
+def _mastery_map(profile) -> dict[str, dict]:
+    if profile is None:
+        return {}
+    return {
+        cid: {"mastery": w.mastery, "strength": w.strength,
+              "evidence": list(w.evidence)}
+        for cid, w in profile.weaknesses.items()
+    }
+
+
+def _doubt_map(memory) -> dict[str, dict]:
+    if memory is None:
+        return {}
+    return {
+        d.concept_id: {"doubt": d.doubt, "status": d.status,
+                       "correct_understanding": d.correct_understanding}
+        for d in memory.open_doubts
+    }
+
+
+def _changes(before, after, before_tm, after_tm) -> list[dict]:
+    """What actually moved, as a flat list the UI can render without thinking.
+
+    Computed here rather than in the browser because "what changed" is a
+    property of the memory model, and two clients disagreeing about it would
+    be worse than one place being wrong.
+    """
+    was, now = _mastery_map(before), _mastery_map(after)
+    out: list[dict] = []
+    for cid in sorted(set(was) | set(now)):
+        a, b = was.get(cid), now.get(cid)
+        if a == b:
+            continue
+        out.append({
+            "kind": "mastery", "concept_id": cid,
+            "from": a["mastery"] if a else None,
+            "to": b["mastery"] if b else None,
+            "strength": b["strength"] if b else None,
+        })
+
+    was_d, now_d = _doubt_map(before_tm), _doubt_map(after_tm)
+    for cid in sorted(set(was_d) | set(now_d)):
+        a, b = was_d.get(cid), now_d.get(cid)
+        if a == b:
+            continue
+        out.append({
+            "kind": "doubt", "concept_id": cid,
+            "from": a["status"] if a else None,
+            "to": b["status"] if b else "removed",
+            "doubt": (b or a or {}).get("doubt", ""),
+        })
+    return out
+
+
+@router.get("/students/{student_id}/sessions")
+async def list_sessions_endpoint(student_id: str):
+    """Every session this student has had — the dashboard's list."""
+    conn = _firestore_client()
+    logs = store.list_session_logs(conn, student_id)
+    return {
+        "sessions": [
+            {
+                "session_id": entry.session_id,
+                "topic": entry.topic,
+                "mode": entry.mode,
+                "started_at": entry.started_at,
+                "ended_at": entry.ended_at,
+                "summary": entry.summary,
+                "turns": len(entry.turns),
+                # So the list can show "3 things changed" without shipping
+                # every snapshot to render a row.
+                "changed": len(_changes(entry.dpm_before, entry.dpm_after,
+                                        entry.teaching_before,
+                                        entry.teaching_after)),
+                # Sessions that closed before recaps existed have no snapshots
+                # and the UI should say so rather than render an empty diff.
+                "has_recap": entry.dpm_after is not None,
+            }
+            for entry in logs
+        ]
+    }
+
+
+@router.get("/students/{student_id}/sessions/{session_id}")
+async def session_recap_endpoint(student_id: str, session_id: str):
+    """One session in full: what was said, what changed, and what Reflect
+    proposed — including the operations that were rejected."""
+    conn = _firestore_client()
+    entry = store.get_session_log(conn, session_id)
+    if entry is None or entry.student_id != student_id:
+        return {"found": False}
+    return {
+        "found": True,
+        "session_id": entry.session_id,
+        "topic": entry.topic,
+        "mode": entry.mode,
+        "started_at": entry.started_at,
+        "ended_at": entry.ended_at,
+        "summary": entry.summary,
+        "turns": [t.model_dump(mode="json") for t in entry.turns],
+        "has_recap": entry.dpm_after is not None,
+        "before": {
+            "mastery": _mastery_map(entry.dpm_before),
+            "doubts": _doubt_map(entry.teaching_before),
+        },
+        "after": {
+            "mastery": _mastery_map(entry.dpm_after),
+            "doubts": _doubt_map(entry.teaching_after),
+        },
+        "changes": _changes(entry.dpm_before, entry.dpm_after,
+                            entry.teaching_before, entry.teaching_after),
+        "operations": entry.operations,
+    }
+
+
+@router.get("/students/{student_id}/briefing")
+async def briefing_preview_endpoint(
+    student_id: str, concept: str = "", conceptName: str = "", mode: str = "revision"
+):
+    """What this session is about to cover, for the overlay shown while the
+    Live model connects.
+
+    Same source as the tutor's own briefing — `briefing.resolve_concepts` and
+    the real record — so the overlay cannot promise something she was never
+    told. It is deliberately NOT the brief text itself: that is written for a
+    model, in square brackets, and reads like stage directions.
+    """
+    from app import briefing as briefing_mod
+
+    conn, dpm, memory = briefing_mod.load_record(student_id)
+    plan = SimpleNamespace(concept=concept, concept_name=conceptName, mode=mode)
+    concept_ids = briefing_mod.resolve_concepts(plan, conn, dpm, memory)
+
+    weak = []
+    if dpm is not None:
+        order = {"misconceived": 0, "unknown": 1, "partial": 2,
+                 "known": 3, "durable": 4}
+        for cid, w in sorted(dpm.weaknesses.items(),
+                             key=lambda kv: order.get(kv[1].mastery, 9)):
+            if w.mastery in ("misconceived", "unknown", "partial"):
+                weak.append({"concept_id": cid, "mastery": w.mastery})
+
+    doubts = []
+    if memory is not None:
+        doubts = [
+            {"concept_id": d.concept_id, "doubt": d.doubt}
+            for d in memory.open_doubts if d.status != "resolved"
+        ]
+
+    last = ""
+    if conn is not None and store.latest_session_log is not None:
+        try:
+            previous = store.latest_session_log(conn, student_id, with_summary=True)
+            last = (previous.summary or "").strip() if previous else ""
+        except Exception:  # noqa: BLE001 - an overlay must never block a lesson
+            last = ""
+
+    return {
+        "topic": conceptName or concept,
+        "mode": mode,
+        "concepts": concept_ids[:6],
+        "weak_points": weak[:4],
+        "open_doubts": doubts[:3],
+        "last_session": last,
+        "covered": sorted(
+            c for c, v in (memory.covered if memory else {}).items()
+            if v.status == "covered"
+        )[:6],
+    }

@@ -179,6 +179,34 @@ def put_session_log(db: firestore.Client, log: SessionLog) -> None:
     db.collection("session_logs").document(log.session_id).set(log.model_dump(mode="json"))
 
 
+def list_session_logs(
+    db: firestore.Client, student_id: str, limit: int = 50
+) -> list[SessionLog]:
+    """Every session this student has had, newest first.
+
+    No order_by for the same reason latest_session_log has none: pairing a
+    student_id filter with an ended_at sort is a composite index, and an
+    uncreated one is a hard failure with a console link. A student has tens of
+    sessions, so the sort is free here.
+    """
+    try:
+        logs = [
+            SessionLog.model_validate(doc.to_dict())
+            for doc in db.collection("session_logs")
+            .where(filter=FieldFilter("student_id", "==", student_id))
+            .stream()
+        ]
+    except Exception:  # noqa: BLE001
+        log.warning("could not list session logs", exc_info=True)
+        return []
+    logs.sort(
+        key=lambda e: e.ended_at or e.started_at or datetime.min.replace(
+            tzinfo=timezone.utc),
+        reverse=True,
+    )
+    return logs[:limit]
+
+
 def latest_session_log(db: firestore.Client, student_id: str, with_summary: bool = False) -> SessionLog | None:
     """The student's most recently ENDED session, for the continuity line.
 
