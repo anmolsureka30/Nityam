@@ -281,6 +281,9 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
                 await _flush_session_memory(session_id, user_id)
         finally:
             # Prints the turn timeline to the terminal and appends it to the file.
+            specialist_runner.forget_session(session_id)
+            for key in [k for k in _evidence_seen if k[0] == session_id]:
+                del _evidence_seen[key]
             logs.close_session(session_id)
 
 
@@ -404,6 +407,15 @@ async def outbound(ws: WebSocket, session_id: str) -> None:
 
 # --------------------------------------------------------- shared upstream
 
+EVIDENCE_REPEAT_S = 20.0
+"""How long the same artifact event is ignored after being reported once."""
+
+_evidence_seen: dict[tuple[str, str], float] = {}
+"""(session_id, event) -> when it was last passed on. Keyed by session as well
+as event: two students exploring the same artifact must not silence each
+other."""
+
+
 async def read_client(ws: WebSocket, session_id: str, sink) -> None:
     """browser -> `sink`, which is whatever can accept text/audio this run.
 
@@ -502,17 +514,38 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             sink.text(line)
 
         elif kind == "artifact_evidence" and payload.get("event"):
-            line = incoming.describe_artifact_evidence(payload)
-            # CONTEXT, not a turn. Seven of these arrived in twelve seconds in
-            # one session — one per slider drag — and because each completed a
-            # turn, each provoked a reply that the next one cut off. She
-            # announced the same simulation three times in three seconds, was
-            # interrupted four times, and ended up speaking a full turn behind.
-            # A discovery still deserves a real turn; ordinary fiddling does not.
             event = str(payload.get("event") or "")
+            # The page fires one of these per interaction. Six IDENTICAL
+            # "explored" events arrived in 25 seconds in one session; repeating
+            # the same sentence into her context that many times tells her
+            # nothing new and crowds out what does.
+            now = asyncio.get_running_loop().time()
+            seen_key = (session_id, event)
+            if now - _evidence_seen.get(seen_key, -1e9) < EVIDENCE_REPEAT_S:
+                log.debug("evidence (dropped, repeat): %s", event)
+                continue
+            _evidence_seen[seen_key] = now
+
+            line = incoming.describe_artifact_evidence(payload)
+            # CONTEXT, not a turn, for ordinary fiddling. Seven of these
+            # arrived in twelve seconds in one session — one per slider drag —
+            # and because each completed a turn, each provoked a reply the next
+            # one cut off. She announced the same simulation three times in
+            # three seconds and ended up a full turn behind.
             worth_saying = "discover" in event or "misconception" in event
-            log.info("evidence (%s): %s",
-                     "turn" if worth_saying else "context", line[:150])
+            # A real discovery still earns a turn — but NOT while she is
+            # waiting on an answer she just asked for. That produced the
+            # incoherence: she asked "did you find what that angle is?", the
+            # student was still answering, and a discovered_optimum event 14s
+            # later made her ask the same question again in different words.
+            # It arrives as context instead, and she mentions it when she next
+            # speaks for a reason of her own.
+            if worth_saying and specialist_runner.mid_exchange(session_id):
+                log.info("evidence (context, mid-exchange): %s", line[:120])
+                worth_saying = False
+            else:
+                log.info("evidence (%s): %s",
+                         "turn" if worth_saying else "context", line[:150])
             sink.text(line, partial=not worth_saying)
 
         elif kind == "quiz_answer":
@@ -711,6 +744,12 @@ def trace(event) -> None:
         said = event.output_transcription.text.strip()
         if said:
             logs.spoke(said)
+            # The other half of the conversation clock. Read by the
+            # artifact-evidence branch to tell "she is waiting on an answer"
+            # apart from "she is between things".
+            _sid = (_recording_context.get() or (None, None))[0]
+            if _sid:
+                specialist_runner.she_spoke(_sid)
             log.info('  %s says: "%s"', who, said)
             _record_turn("tutor", said)
     if event.input_transcription and event.partial is False:

@@ -291,14 +291,60 @@ those arrive continuously whether or not anyone is speaking, so they would
 report the student as permanently mid-sentence."""
 
 
+_last_spoke: dict[str, float] = {}
+"""session_id -> when SHE last finished saying something.
+
+Same source as _last_heard, the other side of it: main.trace() off
+`output_transcription`. Used to decide whether she is mid-exchange, and so
+whether an event from the page should be allowed to make her talk."""
+
+_MID_EXCHANGE_S = 10.0
+"""How long after she speaks she is still considered mid-exchange.
+
+She asks a question and then waits; the student takes several seconds to
+answer. An event arriving in that gap must not make her speak, or she talks
+into her own unanswered question. Measured against the real case: she asked
+"did you find what that angle is?" and an artifact event 14s later made her
+ask the same thing again, in different words, before the student had
+answered."""
+
+
 def heard_student(session_id: str) -> None:
     if session_id:
         _last_heard[session_id] = time.monotonic()
 
 
+def she_spoke(session_id: str) -> None:
+    if session_id:
+        _last_spoke[session_id] = time.monotonic()
+
+
 def _student_is_talking(session_id: str) -> bool:
     last = _last_heard.get(session_id)
     return last is not None and (time.monotonic() - last) < _QUIET_AFTER_STUDENT_S
+
+
+def mid_exchange(session_id: str) -> bool:
+    """True while she is waiting on an answer she has just asked for.
+
+    Read by main.py before letting a page event complete a turn. An event that
+    merely reports what the student is doing is never worth interrupting an
+    exchange for — it can arrive as context and be mentioned when she next
+    speaks naturally.
+    """
+    spoke = _last_spoke.get(session_id)
+    heard = _last_heard.get(session_id)
+    if spoke is None:
+        return False
+    if heard is not None and heard > spoke:
+        return False        # they have answered; the exchange has moved on
+    return (time.monotonic() - spoke) < _MID_EXCHANGE_S
+
+
+def forget_session(session_id: str) -> None:
+    """Drop a closed session's conversation timings."""
+    _last_heard.pop(session_id, None)
+    _last_spoke.pop(session_id, None)
 
 
 _in_flight: set[tuple[str, str]] = set()
