@@ -288,6 +288,58 @@ async def run_no_talking_over_the_student() -> None:
         specialist_runner._last_heard.pop(session_id, None)
 
 
+async def run_no_prompting_while_she_talks() -> None:
+    """She must not be prompted to speak while she is already speaking.
+
+    The regression this guards. Keep-talking chunks fired on a pure timer, so
+    an 11-second delegation produced five of them and each is an instruction
+    to say something. With nothing new to say she asked the same question five
+    times in five phrasings — from one real session:
+
+        "...which side of the triangle is adjacent to this angle?"
+        "...which side of the triangle is next to that angle?"
+        "...Which side of the triangle is adjacent to this angle?"
+
+    A prompt is only ever needed into SILENCE. If she spoke a moment ago the
+    delegation is producing a lesson, not dead air.
+    """
+    from google.genai import types
+
+    from app.agents import board_agent, specialist_runner
+
+    real_interval = specialist_runner.KEEP_TALKING_INTERVAL_S
+    specialist_runner.KEEP_TALKING_INTERVAL_S = 0.05
+    session_id = f"test_talky_{uuid.uuid4().hex[:8]}"
+
+    async def _slow(session_id_: str, student_id: str, message: str) -> str:
+        # Keep "she just spoke" true for the whole delegation, the way a tutor
+        # mid-explanation would.
+        for _ in range(6):
+            specialist_runner.she_spoke(session_id)
+            await asyncio.sleep(0.05)
+        return "acknowledged."
+
+    real_uncapped = board_agent._RUNNER._run_turn_uncapped
+    board_agent._RUNNER._run_turn_uncapped = _slow  # type: ignore[method-assign]
+    try:
+        ctx = SimpleNamespace(
+            state={"session_id": session_id, "student_id": "demo_student"}
+        )
+        chunks = [c async for c in board_agent.ask_board("write something", ctx)]
+        prompting = [c for c in chunks
+                     if isinstance(c, types.FunctionResponse)
+                     and c.scheduling
+                     == types.FunctionResponseScheduling.WHEN_IDLE]
+        check("nothing prompts her to speak while she is already talking",
+              not prompting, f"{len(prompting)} chunk(s) would have")
+        check("and the real result still arrives",
+              chunks[-1].get("status") == "done", repr(chunks[-1]))
+    finally:
+        board_agent._RUNNER._run_turn_uncapped = real_uncapped
+        specialist_runner.KEEP_TALKING_INTERVAL_S = real_interval
+        specialist_runner.forget_session(session_id)
+
+
 async def run_no_double_delegation() -> None:
     """The same specialist twice while one is outstanding must be refused.
 
@@ -318,6 +370,7 @@ def main() -> int:
     asyncio.run(run_tracing())
     asyncio.run(run_keep_talking())
     asyncio.run(run_no_talking_over_the_student())
+    asyncio.run(run_no_prompting_while_she_talks())
     asyncio.run(run_no_double_delegation())
     return 1 if FAILED else 0
 

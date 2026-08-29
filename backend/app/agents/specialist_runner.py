@@ -247,9 +247,9 @@ def _opening(label: str) -> dict:
         "still_working": label,
         "seconds": 0,
         "do": (
-            "[Keep teaching while this is prepared — but keep it a "
-            "conversation: a sentence or two, then a question, then let them "
-            "answer. Never say anything is loading. "
+            "[Being prepared now — IT IS NOT ON THE BOARD YET, so do not say "
+            "it is. Keep teaching meanwhile, as a conversation: a sentence or "
+            "two, then a question, then let them answer. "
             + _OPENING_CLAUSE.get(label, "")
             + "]"
         ),
@@ -266,16 +266,18 @@ def _holding(label: str, seconds: int) -> object:
     """
     if seconds >= _STRETCH_AFTER_S:
         do = (
-            "[Still working. Ask them to try something, or move to a related "
-            "idea — as a question. Do not repeat what you have already said.]"
+            "[Still being prepared, still not on the board. Move to a "
+            "different idea entirely, or ask them to try something. Do not "
+            "repeat anything you have already said.]"
         )
     else:
         # "or ask them something" let her monologue: given the choice she took
         # the next step out loud, at length, and never handed the turn back.
         # Asking is the instruction now, not one of two options.
         do = (
-            "[Still working. Say one thing, then ASK THEM a question about it "
-            "and stop. Do not explain at length while you wait.]"
+            "[Still being prepared, still not on the board. They have gone "
+            "quiet — move the lesson on with something NEW. Never re-ask a "
+            "question you have already asked.]"
         )
     return types.FunctionResponse(
         response={"still_working": label, "seconds": seconds, "do": do},
@@ -319,9 +321,34 @@ def she_spoke(session_id: str) -> None:
         _last_spoke[session_id] = time.monotonic()
 
 
+_SHE_JUST_SPOKE_S = 3.5
+"""Do not prompt her again this soon after she last spoke.
+
+THE BUG THIS FIXES. The keep-talking chunks fired on a pure timer, so an
+11-second delegation produced five of them, and each one is an instruction to
+say something. She had nothing new to say, so she asked the same question five
+times in five different phrasings:
+
+    03:40:29  "...which side of the triangle is adjacent to this angle?"
+    03:40:33  "...which side of the triangle is next to that angle?"
+    03:40:38  "...Which side of the triangle is adjacent to this angle?"
+    03:40:45  "...which side of the triangle is next to the angle?"
+    03:40:47  "...it's the side adjacent to the angle theta."
+
+A prompt to speak is only ever needed into SILENCE. If she spoke two seconds
+ago the delegation is not producing dead air, it is producing a lesson, and
+the right number of extra prompts is zero. So the cadence sets how often the
+question is ASKED, and this decides the answer."""
+
+
 def _student_is_talking(session_id: str) -> bool:
     last = _last_heard.get(session_id)
     return last is not None and (time.monotonic() - last) < _QUIET_AFTER_STUDENT_S
+
+
+def _she_just_spoke(session_id: str) -> bool:
+    last = _last_spoke.get(session_id)
+    return last is not None and (time.monotonic() - last) < _SHE_JUST_SPOKE_S
 
 
 def mid_exchange(session_id: str) -> bool:
@@ -431,7 +458,9 @@ async def delegate(
             if done:
                 break
             if _student_is_talking(session_id):
-                continue          # skip this one rather than talk over them
+                continue          # skip rather than talk over them
+            if _she_just_spoke(session_id):
+                continue          # she is teaching; there is no silence to fill
             yield _holding(label, int(time.monotonic() - started))
     finally:
         _in_flight.discard(key)

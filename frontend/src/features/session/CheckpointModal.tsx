@@ -26,7 +26,23 @@ export default function CheckpointModal({
    *  say anything useful. */
   onDone: (correct: boolean, optionId: string, optionText: string) => void;
 }) {
-  const [chosen, setChosen] = useState<string | null>(null);
+  /* Keyed by checkpoint, not just the option.
+   *
+   * This was `useState<string | null>` holding the option id alone, and React
+   * reuses this component across questions rather than remounting it — so on
+   * question two `chosen` still held question one's answer. That id is not in
+   * the new question's options, so `picked` was null, `answered` was false,
+   * the continue button stayed disabled, AND the guard below
+   * (`if (chosen !== null) return`) swallowed every click. The whole modal
+   * went dead after the first answer with no way out of it.
+   *
+   * Storing which checkpoint the answer belongs to makes the reset automatic:
+   * a new question has a new id, so `chosen` is null again without an effect
+   * to forget to write. */
+  const [answer, setAnswer] = useState<{ checkpoint: string; option: string } | null>(null);
+  const chosen = answer?.checkpoint === checkpoint.id ? answer.option : null;
+  const setChosen = (option: string) =>
+    setAnswer({ checkpoint: checkpoint.id, option });
   const picked = checkpoint.options.find((o) => o.id === chosen) ?? null;
   const answered = picked !== null;
   const correct = picked?.correct ?? false;
