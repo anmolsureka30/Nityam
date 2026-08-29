@@ -3,6 +3,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginScreen from "./features/auth/LoginScreen";
 import HomeScreen from "./features/home/HomeScreen";
 import IntensityScreen from "./features/intensity/IntensityScreen";
+import ProfileScreen from "./features/profile/ProfileScreen";
 import SessionScreen from "./features/session/SessionScreen";
 import ReadinessScreen from "./features/readiness/ReadinessScreen";
 import SummaryScreen from "./features/summary/SummaryScreen";
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
       <Route path="/intensity/:conceptId" element={<ProtectedRoute><IntensityScreen /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
       <Route path="/session" element={<ProtectedRoute><SessionScreen /></ProtectedRoute>} />
       <Route path="/readiness" element={<ProtectedRoute><ReadinessScreen /></ProtectedRoute>} />
       <Route path="/summary" element={<ProtectedRoute><SummaryScreen /></ProtectedRoute>} />

@@ -19,6 +19,8 @@ export default defineConfig({
     proxy: {
       '/ws': { target: `ws://127.0.0.1:${API}`, ws: true },
       '/health': { target: `http://127.0.0.1:${API}` },
+      '/memory': { target: `http://127.0.0.1:${API}` },
+      '/shruti': { target: `http://127.0.0.1:${API}` },
     },
   },
   preview: {
@@ -27,6 +29,8 @@ export default defineConfig({
     proxy: {
       '/ws': { target: `ws://127.0.0.1:${API}`, ws: true },
       '/health': { target: `http://127.0.0.1:${API}` },
+      '/memory': { target: `http://127.0.0.1:${API}` },
+      '/shruti': { target: `http://127.0.0.1:${API}` },
     },
   },
 })

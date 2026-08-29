@@ -55,6 +55,7 @@ export function Shell({
           </Link>
           <div className={s.right}>
             <RoleSwitch />
+            <Link to="/profile" className={s.profileLink}>My profile</Link>
             <span className={s.clock}>{clock}</span>
             <UserChip />
           </div>

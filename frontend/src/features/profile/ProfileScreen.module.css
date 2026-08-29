@@ -1,0 +1,91 @@
+/* Same rhythm as HomeScreen: bands down one rule, not cards in a grid. */
+.band {
+  padding-bottom: var(--s-8);
+}
+.band:last-child { padding-bottom: 0; }
+
+.subline { margin-top: var(--s-5); }
+
+.muted {
+  margin: 0;
+  padding: var(--s-5);
+  font-size: var(--t-small);
+  color: var(--ink-mid);
+  line-height: 1.55;
+}
+
+.interests {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.hint {
+  margin: var(--s-4) 0 0;
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 14;
+  font-size: var(--t-body);
+  color: var(--ink-mid);
+  line-height: 1.55;
+  max-width: 56ch;
+}
+
+.masteryList { list-style: none; margin: 0; padding: 0; }
+.masteryRow {
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--line-cool-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.masteryRow:last-child { border-bottom: 0; }
+.masteryHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.masteryName { font-size: var(--t-small); color: var(--ink); font-weight: 500; }
+.masteryState {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.evidence {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  line-height: 1.5;
+}
+
+.doubtList, .noteList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-4); }
+.doubtRow {
+  padding: var(--s-4) var(--s-5);
+  background: var(--paper);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--e-flat);
+}
+.doubtText {
+  margin: 0 0 var(--s-2);
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 16;
+  font-size: 1.0625rem;
+  color: var(--ink-strong);
+  line-height: 1.5;
+}
+.doubtAnswer {
+  margin: 0;
+  font-size: var(--t-small);
+  color: var(--ink-mid);
+  line-height: 1.55;
+}
+
+.noteRow {
+  padding: var(--s-3) var(--s-5);
+  font-size: var(--t-small);
+  color: var(--ink-mid);
+  line-height: 1.55;
+  border-left: 2px solid var(--accent-tint);
+}
