@@ -115,12 +115,19 @@ def _changes(before, after, before_tm, after_tm) -> list[dict]:
     was_d, now_d = _doubt_map(before_tm), _doubt_map(after_tm)
     for cid in sorted(set(was_d) | set(now_d)):
         a, b = was_d.get(cid), now_d.get(cid)
-        if a == b:
+        before_status = a["status"] if a else None
+        after_status = b["status"] if b else "removed"
+        # Only a change of STATE counts. Comparing the whole doubt meant a
+        # reworded one — the tutor sharpening how it describes the same
+        # misconception — rendered as "active -> active", an arrow pointing at
+        # itself. That is noise on a screen whose entire job is showing what
+        # actually moved.
+        if before_status == after_status:
             continue
         out.append({
             "kind": "doubt", "concept_id": cid,
-            "from": a["status"] if a else None,
-            "to": b["status"] if b else "removed",
+            "from": before_status,
+            "to": after_status,
             "doubt": (b or a or {}).get("doubt", ""),
         })
     return out

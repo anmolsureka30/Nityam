@@ -116,6 +116,10 @@ get_session_log = instrumentation.emit_memory_event(
 #: reflect()/close_session structured-output schema fix — see
 #: app/session_close.py's own docstring). Check both when touching
 #: memory-layer code.
+delete_session_logs = instrumentation.emit_memory_event(
+    "episodic", "session_log", "write", _ids_student_from_arg1,
+)(_impl.delete_session_logs)
+
 list_session_logs = instrumentation.emit_memory_event(
     "episodic", "session_log", "read", _ids_student_from_arg1,
 )(_impl.list_session_logs)

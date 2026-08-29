@@ -130,6 +130,13 @@ def put_session_log(conn: sqlite3.Connection, log: SessionLog) -> None:
     conn.commit()
 
 
+def delete_session_logs(conn: sqlite3.Connection, student_id: str) -> int:
+    """Twin of the Firestore one — seed script only."""
+    cur = conn.execute("DELETE FROM session_log WHERE student_id = ?", (student_id,))
+    conn.commit()
+    return cur.rowcount
+
+
 def list_session_logs(
     conn: sqlite3.Connection, student_id: str, limit: int = 50
 ) -> list[SessionLog]:

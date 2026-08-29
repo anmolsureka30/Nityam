@@ -179,6 +179,25 @@ def put_session_log(db: firestore.Client, log: SessionLog) -> None:
     db.collection("session_logs").document(log.session_id).set(log.model_dump(mode="json"))
 
 
+def delete_session_logs(db: firestore.Client, student_id: str) -> int:
+    """Remove every session log for one student. Returns how many went.
+
+    Only the seed script calls this. Nothing in the running app deletes a
+    session log — the episodic tier is append-only by design, because every
+    evidence pointer in dpm_profile resolves against a turn in one of these
+    and a deleted log turns a citation into a dangling reference.
+    """
+    gone = 0
+    for doc in (
+        db.collection("session_logs")
+        .where(filter=FieldFilter("student_id", "==", student_id))
+        .stream()
+    ):
+        doc.reference.delete()
+        gone += 1
+    return gone
+
+
 def list_session_logs(
     db: firestore.Client, student_id: str, limit: int = 50
 ) -> list[SessionLog]:
