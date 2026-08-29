@@ -1,5 +1,5 @@
 import { Shell } from "../../components/Shell";
-import { Chip, Label, MasteryInline, Panel } from "../../components/ui";
+import { Chip, Label, MasteryInline, Panel, Stat, StatStrip } from "../../components/ui";
 import { conceptName } from "../../lib/conceptCatalog";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { masteryPct, useStudentMemory, type Weakness } from "../../lib/memory";
@@ -93,8 +93,29 @@ function ReadyProfile({ data }: { data: import("../../lib/memory").StudentMemory
     );
   }
 
+  const solid = sorted.filter(([, w]) => w.mastery === "known" || w.mastery === "durable").length;
+  const shaky = sorted.filter(
+    ([, w]) => w.mastery === "misconceived" || w.mastery === "unknown" || w.mastery === "partial",
+  ).length;
+
   return (
     <>
+      {/* The shape of the record before any of the detail. Someone looking at
+          this for the first time — a parent, a teacher, a judge — should be
+          able to read the state of things in one glance and then decide
+          whether to read further. */}
+      <section className={`ruled ${s.band}`}>
+        <div className="margin" />
+        <div className="body">
+          <StatStrip>
+            <Stat label="Concepts tracked" value={sorted.length} />
+            <Stat label="Solid" value={solid} note="known or durable" />
+            <Stat label="Needs work" value={shaky} note="where I'll start" />
+            <Stat label="Open doubts" value={doubts.length} note="still unresolved" />
+          </StatStrip>
+        </div>
+      </section>
+
       {interests.length > 0 && (
         <section className={`ruled ${s.band}`}>
           <div className="margin"><Label>Your interests</Label></div>
@@ -125,7 +146,17 @@ function ReadyProfile({ data }: { data: import("../../lib/memory").StudentMemory
                       <span className={s.masteryState}>{MASTERY_LABEL[w.mastery]}</span>
                     </div>
                     <MasteryInline pct={masteryPct(w)} />
-                    {w.evidence[0] && <p className={s.evidence}>{w.evidence[0]}</p>}
+                    {w.evidence.length > 0 && (
+                      /* Evidence pointers are `session_id#turn`, which is
+                         exactly right in the store — every claim resolves
+                         back to a moment that happened — and meaningless on
+                         screen. Count them instead, and say what they are. */
+                      <p className={s.evidence}>
+                        {w.evidence.length === 1
+                          ? "Based on one moment in a session"
+                          : `Based on ${w.evidence.length} moments across your sessions`}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -138,10 +169,20 @@ function ReadyProfile({ data }: { data: import("../../lib/memory").StudentMemory
         <section className={`ruled ${s.band}`}>
           <div className="margin"><Label>Open doubts</Label></div>
           <div className="body">
+            {/* Two bare paragraphs, one after the other, with nothing saying
+                which was the mistake and which the correction — that is what
+                made this read as raw text. Each half is labelled now, and the
+                concept is named above them. */}
             <ul className={s.doubtList}>
               {doubts.map((d) => (
                 <li key={d.concept_id} className={s.doubtRow}>
+                  <div className={s.doubtHead}>
+                    <span className={s.doubtConcept}>{conceptName(d.concept_id)}</span>
+                    <Chip>{d.status === "remediating" ? "Working on it" : "Still open"}</Chip>
+                  </div>
+                  <p className={s.doubtLabel}>What happens</p>
                   <p className={s.doubtText}>{d.doubt}</p>
+                  <p className={s.doubtLabel}>What's actually true</p>
                   <p className={s.doubtAnswer}>{d.correct_understanding}</p>
                 </li>
               ))}
