@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { MarkTool } from "../../lib/types";
+import type { Specialist } from "../../lib/live/specialists";
+import { thinkingLine } from "../../lib/live/specialists";
 import s from "./SessionControls.module.css";
 
 const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ");
@@ -12,7 +14,7 @@ const TOOLS: { id: MarkTool; glyph: string; label: string }[] = [
 
 export default function SessionControls({
   tool, onTool, onClear, hasMarks,
-  onSend, onEnd, thinking, bridge,
+  onSend, onEnd, thinking, bridge, specialist,
 }: {
   tool: MarkTool | null;
   onTool: (t: MarkTool | null) => void;
@@ -29,6 +31,11 @@ export default function SessionControls({
    *  "Certainly, I can show you the derivation of the range formula" — was
    *  sitting unused in the tool call. */
   bridge?: string;
+  /** Which specialist she has delegated to, when known. Picks the fallback
+   *  phrase in thinkingLine() below when `bridge` is absent — `null`/absent
+   *  means either she isn't thinking, or an unrecognized delegate tool was
+   *  reached (never breaks the UI, just loses the enrichment). */
+  specialist?: Specialist | null;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -43,7 +50,7 @@ export default function SessionControls({
           <span className={s.thinking}>
             <i /><i /><i />
             <span className={s.thinkingText}>
-              {bridge?.trim() || "Looking that up for you…"}
+              {thinkingLine(bridge, specialist ?? null)}
             </span>
           </span>
         </div>
