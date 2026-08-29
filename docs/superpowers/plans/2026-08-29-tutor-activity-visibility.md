@@ -681,13 +681,15 @@ Modify `frontend/src/features/session/SessionScreen.tsx:348` — the existing `<
       />
 ```
 
-- [ ] **Step 8: Type-check and run the full automated suite**
+- [ ] **Step 8: Type-check and run the automated suite**
 
 Run: `cd frontend && npm run build`
 Expected: succeeds with no new TypeScript errors.
 
-Run: `cd frontend && npm test`
-Expected: all six scripts (`contract`, `kernels`, `grounding`, `reducer`, `ui`, `specialists`) print `all passed`. (`ui.mjs` builds and drives the real app against the backend in mock mode — this is the point at which a regression in the stage/textbook/concept markup would surface, since it exercises the same DOM this task just changed.)
+Run: `cd frontend && node tests/contract.mjs && node tests/kernels.mjs && node tests/grounding.mjs && node tests/reducer.mjs && node tests/specialists.mjs`
+Expected: all five scripts print `all passed`.
+
+Also attempt: `cd frontend && node tests/ui.mjs`. **Known pre-existing issue, ruled on during Task 2's review (see the ledger):** this worktree's Node v26.7.0 makes `ui.mjs` throw `TypeError: Illegal invocation` (a native-WebSocket brand-check strictness issue interacting with the file's own `WebSocket.prototype.send` monkey-patch at `tests/ui.mjs:156-157`) — confirmed pre-existing and unrelated to this sub-project by Task 2's implementer, who reproduced the identical failure with this branch's entire diff stashed out. If it still fails with exactly that error, at that same location, do not treat it as a regression — Step 9's manual mock-mode QA is what actually verifies the new visual cues, since `ui.mjs` doesn't exercise them regardless. If `ui.mjs` fails differently than this known signature, or a Node-version fix is trivially available (e.g. `nvm use` a Node LTS this repo is known to work with, if one is configured), treat that as a new, reportable finding instead of assuming it's the same pre-existing issue.
 
 - [ ] **Step 9: Manual verification in mock mode**
 
