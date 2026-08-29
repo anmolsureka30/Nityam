@@ -205,6 +205,26 @@ async def refresh_brief(session_id: str, student_id: str) -> None:
         log.warning("brief refresh failed", exc_info=True)
 
 
+def schedule_brief_refresh(session_id: str, student_id: str) -> None:
+    """Fire-and-forget `refresh_brief`, so its own Firestore-backed compose
+    (3+ seconds, measured) never sits on a specialist's own return to
+    VoiceAgent. That return is already the entire reason a delegation feels
+    slow to the student; the brief refresh is a nice-to-have layered on top
+    of it, not part of the answer itself, and has no business adding to the
+    same silence VoiceAgent is sitting through.
+
+    Tracked via `sessions.track` — asyncio holds only a weak reference to an
+    unawaited task, so without this it can be garbage collected mid-flight
+    and simply never finish, with no error anywhere.
+    """
+    task = asyncio.get_running_loop().create_task(
+        refresh_brief(session_id, student_id)
+    )
+    from app import sessions
+
+    sessions.track(session_id, task)
+
+
 async def recent_transcript(session_id: str, student_id: str, n: int) -> str:
     """The last n recorded turns, formatted for a specialist's prompt."""
     buffer = await short_term.get_turn_buffer(session_id, student_id)

@@ -12,7 +12,7 @@ from app import config
 from app.agents.specialist_runner import (
     SpecialistRunner,
     recent_transcript,
-    refresh_brief,
+    schedule_brief_refresh,
 )
 from app.textbook import TEXTBOOK_TOOLS
 
@@ -90,10 +90,11 @@ async def ask_textbook(bridge: str, request: str, tool_context: ToolContext) -> 
         # likely to have moved, so re-brief the voice layer here. This is the
         # trigger point precisely BECAUSE this function runs to completion —
         # ADK yields no function_response event for a WHEN_IDLE tool, so the
-        # event-stream hook this replaces never fired once. refresh_brief
-        # swallows its own failures, so it cannot turn a good answer into an
-        # error, and no-ops entirely when no live sink is set.
-        await refresh_brief(session_id, student_id)
+        # event-stream hook this replaces never fired once. Scheduled, not
+        # awaited: refresh_brief's own Firestore read (3+ seconds, measured)
+        # must not add to the silence VoiceAgent is already sitting through
+        # waiting on this call.
+        schedule_brief_refresh(session_id, student_id)
         return {"status": "done", "summary": summary or "Found it."}
     except Exception:  # noqa: BLE001 - WHEN_IDLE delivers nothing at all if this raises
         log.exception("TextbookAgent turn failed")
