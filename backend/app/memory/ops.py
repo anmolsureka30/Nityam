@@ -30,9 +30,23 @@ def open_doubt(memory: TeachingMemory, concept_id: str, doubt: str, correct_unde
     return memory
 
 
-def close_doubt(memory: TeachingMemory, concept_id: str) -> TeachingMemory:
-    """Only call this after evidence of a SPACED re-check — never on one
-    correct answer in the same session (memory_layer.md §2.3).
+def close_doubt(
+    memory: TeachingMemory, concept_id: str, session_id: str | None = None
+) -> TeachingMemory:
+    """Resolve a doubt — but only on a SPACED re-check, and that is now
+    enforced rather than requested.
+
+    The rule (memory_layer.md §2.3) is that one correct answer in the same
+    session is not evidence a misconception is gone; getting it right ten
+    minutes after being told is what a misconception looks like on its way
+    back. Until now the rule lived in this docstring and in the reflect
+    prompt, and nothing stopped the model closing a doubt it had opened forty
+    minutes earlier in the same conversation — which silently erases the one
+    thing the next session most needed to know.
+
+    So: a doubt whose evidence all points at THIS session is left open, and
+    `session_id` is passed by the only caller that has one. Every other memory
+    rule is schema-enforced; this one had been on the honour system.
 
     Rebuilds each matching doubt via the OpenDoubt constructor rather than
     mutating `doubt.status` in place, for the same reason update_coverage
@@ -45,12 +59,25 @@ def close_doubt(memory: TeachingMemory, concept_id: str) -> TeachingMemory:
     would not actually provide that guarantee — the constructor is used
     instead.
     """
-    memory.open_doubts = [
-        OpenDoubt(**{**doubt.model_dump(), "status": "resolved"})
-        if doubt.concept_id == concept_id and doubt.status != "resolved"
-        else doubt
-        for doubt in memory.open_doubts
-    ]
+    def _same_session_only(doubt: OpenDoubt) -> bool:
+        """Every citation is from the session being closed, so nothing here
+        is a re-check — it is the same conversation agreeing with itself."""
+        if not session_id or not doubt.evidence:
+            return False
+        return all(str(e).startswith(f"{session_id}#") for e in doubt.evidence)
+
+    kept = []
+    for doubt in memory.open_doubts:
+        closeable = (
+            doubt.concept_id == concept_id
+            and doubt.status != "resolved"
+            and not _same_session_only(doubt)
+        )
+        kept.append(
+            OpenDoubt(**{**doubt.model_dump(), "status": "resolved"})
+            if closeable else doubt
+        )
+    memory.open_doubts = kept
     return memory
 
 

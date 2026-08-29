@@ -119,6 +119,9 @@ def publish_quiz_question(
     except (sessions.PatchRejected, ValueError) as exc:
         return {"error": str(exc)}
 
+    # So the answer can be filed against the right concept without the
+    # reflection model having to work out what the question was about.
+    state.quiz_concepts[checkpoint_id] = concept_id.strip()
     log.info("quiz %s/%s published: %s", checkpoint.index, checkpoint.total, checkpoint_id)
     return {"checkpoint_id": checkpoint_id, "index": checkpoint.index, "total": checkpoint.total}
 

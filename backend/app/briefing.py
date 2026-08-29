@@ -29,13 +29,21 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timezone
 
 from app import incoming, sessions
 from app.memory import store
 
 log = logging.getLogger("nityam.briefing")
 
-MAX_CHUNKS = 6
+MAX_CHUNKS = 12
+"""How many lecture excerpts reach the voice layer.
+
+Raised from 6. The Live API re-bills all of it every turn, so this is a real
+cost — but the explicit priority for the demo is latency and how it feels, and
+every chunk that is NOT here is a question she has to delegate and wait nine
+seconds to answer. `_rank` below is what makes the extra six worth their
+tokens rather than just louder."""
 
 # Words that match half the syllabus and so tell us nothing about which concept
 # the student pressed.
@@ -120,6 +128,78 @@ def resolve_concepts(plan, conn, dpm, memory) -> list[str]:
     return list(dict.fromkeys(wanted))  # de-duplicated, order preserved
 
 
+def _rank(chunks: list[dict], plan) -> list[dict]:
+    """The best chunks for tonight's topic, near-duplicates removed.
+
+    `search_grounding` returns whatever matched, in whatever order the store
+    produced. Two problems with taking the first N of that:
+
+      * The corpus is machine-ingested lecture transcript and genuinely
+        repeats itself — the same "highest vertical point attained by a
+        projectile" paragraph came back twice in one real brief, under two
+        different concept ids, costing double for one idea.
+      * Some of it is OCR noise. One chunk's entire board content was
+        `Pü! 244.064-0`.
+
+    So: score by word overlap with the topic, drop anything that repeats an
+    earlier chunk's opening, and prefer chunks that carry a real citation.
+    Cheap, local, and no model — this runs on the session-start path.
+    """
+    topic = _tokens(f"{plan.concept_name} {plan.concept}")
+    seen: set[str] = set()
+    scored: list[tuple[float, int, dict]] = []
+
+    for i, chunk in enumerate(chunks):
+        text = " ".join((chunk.get("text") or "").split())
+        if len(text) < 40:
+            continue                      # a fragment teaches nothing
+        # Near-duplicate: the transcript repeats whole paragraphs verbatim
+        # across concepts, and the first eighty characters are enough to
+        # recognise that without a similarity metric.
+        head = text[:80].lower()
+        if head in seen:
+            continue
+        seen.add(head)
+
+        score = len(topic & _tokens(text)) / (len(topic) or 1)
+        if chunk.get("location"):
+            score += 0.15                 # a citable moment beats a floating one
+        scored.append((score, -i, chunk))
+
+    scored.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    return [c for _, _, c in scored[:MAX_CHUNKS]]
+
+
+def _last_time(conn, student_id: str) -> str:
+    """One line about the previous session, or "".
+
+    Session logs have been written since the memory layer existed and never
+    read back. The distilled record says what the student knows; only this
+    says where they actually stopped, which is what "last time we got as far
+    as…" is made of.
+    """
+    if conn is None or store.latest_session_log is None:
+        return ""
+    try:
+        # The latest session that actually SAYS something, not simply the
+        # latest. Sessions written before close_session kept reflect()'s
+        # summary have empty ones, and a run of those would otherwise hide a
+        # perfectly good summary sitting just behind them.
+        previous = store.latest_session_log(conn, student_id, with_summary=True)
+    except Exception:  # noqa: BLE001 - never block a lesson on continuity
+        log.warning("could not read the previous session", exc_info=True)
+        return ""
+    if previous is None or not (previous.summary or "").strip():
+        return ""
+    when = ""
+    if previous.ended_at:
+        days = (datetime.now(timezone.utc) - previous.ended_at).days
+        when = "Earlier today" if days <= 0 else (
+            "Yesterday" if days == 1 else f"{days} days ago")
+        when += ", "
+    return f"{when}last session: {' '.join(previous.summary.split())}"
+
+
 def _student_brief(dpm, memory) -> str:
     """This student's record, as prose. Moved here from the retired
     TutorAgent — see git history for the original if needed.
@@ -183,11 +263,14 @@ def compose_brief(session_id: str, student_id: str) -> str:
         try:
             from app.memory.tools import search_grounding
 
-            chunks = search_grounding(concept_ids)["chunks"][:MAX_CHUNKS]
+            chunks = _rank(search_grounding(concept_ids)["chunks"], state.plan)
         except Exception:  # noqa: BLE001
             log.warning("grounding lookup failed; briefing without it", exc_info=True)
 
     brief = _student_brief(dpm, memory)
+    last = _last_time(conn, student_id)
+    if last:
+        brief = f"{brief}\n- {last}"
 
     line = incoming.describe_grounding_pack(state.plan, brief, chunks)
     log.info(

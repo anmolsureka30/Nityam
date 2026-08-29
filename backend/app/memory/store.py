@@ -116,6 +116,10 @@ get_session_log = instrumentation.emit_memory_event(
 #: reflect()/close_session structured-output schema fix — see
 #: app/session_close.py's own docstring). Check both when touching
 #: memory-layer code.
+latest_session_log = instrumentation.emit_memory_event(
+    "episodic", "session_log", "read", _ids_student_from_arg1,
+)(_impl.latest_session_log)
+
 search_grounding_semantic = getattr(_impl, "search_grounding_semantic", None)
 list_concept_ids = getattr(_impl, "list_concept_ids", None)
 

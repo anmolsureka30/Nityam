@@ -130,6 +130,22 @@ def put_session_log(conn: sqlite3.Connection, log: SessionLog) -> None:
     conn.commit()
 
 
+def latest_session_log(conn: sqlite3.Connection, student_id: str, with_summary: bool = False) -> SessionLog | None:
+    """The student's most recently ended session. Twin of the Firestore one —
+    see that docstring for why this is read at all."""
+    sql = ("SELECT payload FROM session_log WHERE student_id = ? "
+           "ORDER BY json_extract(payload, '$.ended_at') DESC LIMIT 1")
+    if with_summary:
+        # Sessions written before close_session kept reflect()'s summary have
+        # an empty one, and a run of those would hide a good summary behind
+        # them.
+        sql = ("SELECT payload FROM session_log WHERE student_id = ? "
+               "AND COALESCE(json_extract(payload, '$.summary'), '') != '' "
+               "ORDER BY json_extract(payload, '$.ended_at') DESC LIMIT 1")
+    row = conn.execute(sql, (student_id,)).fetchone()
+    return SessionLog.model_validate_json(row[0]) if row else None
+
+
 def get_session_log(conn: sqlite3.Connection, session_id: str) -> SessionLog | None:
     row = conn.execute(
         "SELECT payload FROM session_log WHERE session_id = ?", (session_id,)

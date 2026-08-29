@@ -8,7 +8,9 @@ project_documentation/memory_nityam_architecture/google_cloud_storage_integratio
 """
 from __future__ import annotations
 
+import logging
 import re
+from datetime import datetime, timezone
 
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -17,6 +19,8 @@ from google.cloud.firestore_v1.vector import Vector
 
 from app import config
 from app.memory.schemas import DPMProfile, GroundingChunk, SessionLog, TeachingMemory
+
+log = logging.getLogger("nityam.store")
 
 _STOPWORDS = {"of", "the", "a", "an", "in", "on", "for", "to", "and"}
 
@@ -173,6 +177,43 @@ def put_teaching_memory(db: firestore.Client, memory: TeachingMemory) -> None:
 
 def put_session_log(db: firestore.Client, log: SessionLog) -> None:
     db.collection("session_logs").document(log.session_id).set(log.model_dump(mode="json"))
+
+
+def latest_session_log(db: firestore.Client, student_id: str, with_summary: bool = False) -> SessionLog | None:
+    """The student's most recently ENDED session, for the continuity line.
+
+    Session logs have been written since the memory layer existed and never
+    read back — the tutor knew a student's distilled mastery but not that they
+    had stopped halfway through a derivation last time, which is most of what
+    "last time we…" is made of.
+
+    Ordered by ended_at rather than started_at: a session that ran long is the
+    later one regardless of when it opened.
+    """
+    # NO order_by. Filtering on student_id and ordering by ended_at is a
+    # composite index in Firestore, and an uncreated one is a hard
+    # FAILED_PRECONDITION with a console link — a manual setup step standing
+    # between a fresh project and a working continuity line. One student has
+    # tens of sessions, not thousands, so the sort is free in Python and the
+    # single-field index this needs is created automatically.
+    try:
+        logs = [
+            SessionLog.model_validate(doc.to_dict())
+            for doc in db.collection("session_logs")
+            .where(filter=FieldFilter("student_id", "==", student_id))
+            .stream()
+        ]
+    except Exception:  # noqa: BLE001 - never block a lesson on continuity
+        log.warning("could not read this student's session logs", exc_info=True)
+        return None
+    if with_summary:
+        logs = [entry for entry in logs if (entry.summary or "").strip()]
+    if not logs:
+        return None
+    # ended_at is optional on the schema; a log without one sorts oldest
+    # rather than crashing the comparison.
+    return max(logs, key=lambda entry: entry.ended_at or datetime.min.replace(
+        tzinfo=timezone.utc))
 
 
 def get_session_log(db: firestore.Client, session_id: str) -> SessionLog | None:

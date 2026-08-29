@@ -89,6 +89,15 @@ class SessionState:
     """Background work in flight. Held only so the event loop does not garbage
     collect a task nobody is awaiting."""
     started_at: datetime
+    quiz_concepts: dict = field(default_factory=dict)
+    """checkpoint_id -> concept_id, recorded when the question is published.
+
+    A quiz answer is the strongest signal this app ever gets about a student:
+    a known question, a known correct answer, a known concept. The browser's
+    `quiz_answer` frame carries none of the last one, so without this the only
+    trace is a sentence in the transcript and the end-of-session reflection has
+    to INFER what was being tested. It is knowable exactly, so it is recorded
+    exactly."""
 
     def mint(self, prefix: str) -> str:
         return self.minter.next(prefix)

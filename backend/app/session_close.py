@@ -136,14 +136,21 @@ def reflect(client: genai.Client, log: SessionLog) -> ReflectResult:
     )
 
 
-def apply_operations(profile: DPMProfile, memory: TeachingMemory, result: ReflectResult) -> tuple[DPMProfile, TeachingMemory]:
+def apply_operations(
+    profile: DPMProfile,
+    memory: TeachingMemory,
+    result: ReflectResult,
+    session_id: str | None = None,
+) -> tuple[DPMProfile, TeachingMemory]:
     """Validated ops only — an unknown op name or malformed args is dropped,
     never raised (memory_layer.md §4)."""
     handlers = {
         "set_mastery": lambda a: ops.set_mastery(profile, **a),
         "append_self_reflection": lambda a: ops.append_self_reflection(profile, **a),
         "open_doubt": lambda a: ops.open_doubt(memory, **a),
-        "close_doubt": lambda a: ops.close_doubt(memory, **a),
+        # session_id, so close_doubt can refuse to resolve a doubt whose
+        # only evidence is this same conversation — see its docstring.
+        "close_doubt": lambda a: ops.close_doubt(memory, session_id=session_id, **a),
         "update_coverage": lambda a: ops.update_coverage(memory, **a),
     }
     for operation in result.operations:
@@ -185,7 +192,16 @@ def close_session(
     memory = store.get_teaching_memory(conn, student_id) or TeachingMemory(student_id=student_id)
 
     result = reflect(client, log)
-    profile, memory = apply_operations(profile, memory, result)
+    profile, memory = apply_operations(profile, memory, result, session_id)
+
+    # Keep the summary reflect() already produced. It was being discarded:
+    # SessionLog.summary has existed all along, every log written by this
+    # function had it empty, and the next session's brief therefore had
+    # nothing to say about where the last one got to. The only place a
+    # non-empty one existed was the seed script.
+    if result.summary and not log.summary:
+        log.summary = result.summary.strip()
+        store.put_session_log(conn, log)
 
     store.put_dpm(conn, profile)
     store.put_teaching_memory(conn, memory)

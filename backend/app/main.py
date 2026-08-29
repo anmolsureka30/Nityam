@@ -549,11 +549,28 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             sink.text(line, partial=not worth_saying)
 
         elif kind == "quiz_answer":
+            checkpoint_id = payload.get("checkpointId")
+            correct = bool(payload.get("correct"))
             state.screen.quiz = {
-                "checkpointId": payload.get("checkpointId"),
+                "checkpointId": checkpoint_id,
                 "answered": True,
-                "correct": bool(payload.get("correct")),
+                "correct": correct,
             }
+            # A quiz answer is the least ambiguous evidence this app ever
+            # collects — a known question, a known right answer, a known
+            # concept — and until now its only trace was a sentence in the
+            # transcript that the end-of-session reflection had to interpret
+            # like any other chat. Record the fact plainly instead, so
+            # reflect() is deciding what it MEANS rather than detecting that
+            # it happened.
+            concept = state.quiz_concepts.get(checkpoint_id or "")
+            _record_turn(
+                "student",
+                f"[CHECKPOINT] answered "
+                f"{'CORRECTLY' if correct else 'INCORRECTLY'}"
+                + (f" on {concept}" if concept else "")
+                + f": chose \"{payload.get('optionText') or ''}\"",
+            )
             sink.text(incoming.describe_quiz_answer(payload))
 
 
