@@ -1,34 +1,16 @@
 import type { ReactNode } from "react";
+import AccountMenu from "./AccountMenu";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import s from "./Shell.module.css";
 import { teacher } from "../lib/data";
-import { useAuth } from "../lib/auth/AuthContext";
 
 const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ");
 
-/** Real signed-in user, replacing the old hardcoded avatar initial. Doubles
- *  as the sign-out control — clicking it signs out and returns to /login. */
+/** The header avatar. Kept as a named export because the shells reference it
+ *  by this name; the behaviour lives in AccountMenu, which opens a menu rather
+ *  than signing you out on a single unconfirmed click. */
 export function UserChip() {
-  const { user, signOut } = useAuth();
-  const nav = useNavigate();
-  const label = user?.email ?? "";
-  const initial = label ? label[0]!.toUpperCase() : "?";
-
-  async function handleClick() {
-    await signOut();
-    nav("/login", { replace: true });
-  }
-
-  return (
-    <button
-      type="button"
-      className={s.avatarChip}
-      title={label ? `Sign out (${label})` : "Sign out"}
-      onClick={handleClick}
-    >
-      {initial}
-    </button>
-  );
+  return <AccountMenu />;
 }
 
 function useClock() {

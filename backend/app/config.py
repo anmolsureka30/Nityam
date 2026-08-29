@@ -102,3 +102,21 @@ GCS_BUCKET = os.environ.get("GCS_BUCKET", "")
 # time for anyone who copied .env.example to .env verbatim.
 REDIS_HOST = os.environ.get("REDIS_HOST") or "localhost"
 REDIS_PORT = int(os.environ.get("REDIS_PORT") or "6379")
+
+
+SEED_NEW_STUDENTS = (
+    os.getenv("NITYAM_SEED_NEW_STUDENTS", "1").strip().lower()
+    in ("1", "true", "yes")
+)
+"""Give a brand-new sign-in the demo starting record on their first session.
+
+ON by default, because the thing this product is FOR is a tutor that already
+knows you, and a judge who signs in with their own Google account and meets a
+blank slate sees none of it — no weak points in the opening overlay, no
+continuity line, an empty profile and an empty session list. The record they
+get is the same one scripts/seed_student.py writes.
+
+Turn it off (NITYAM_SEED_NEW_STUDENTS=0) for anything resembling real use: a
+real student's first session should start empty, because everything in that
+record is a claim about a person, and seeding it makes the tutor believe things
+about them that never happened."""

@@ -9,15 +9,19 @@ every WebSocket teardown -- there's no missing trigger to add.
 """
 from __future__ import annotations
 
+import asyncio
 import functools
+import logging
 from types import SimpleNamespace
 
 import redis as redis_sync
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException
 
-from app import config
+from app import config, seeding, user_auth
 from app.memory import short_term, store
 from app.memory.instrumentation import MemoryEvent
+
+log = logging.getLogger("nityam.memory_routes")
 
 router = APIRouter(prefix="/memory")
 
@@ -248,3 +252,39 @@ async def briefing_preview_endpoint(
             if v.status == "covered"
         )[:6],
     }
+
+
+@router.post("/students/{student_id}/reset")
+async def reset_student_endpoint(
+    student_id: str, authorization: str = Header(default=""),
+):
+    """Wipe this student's memory and lay the demo starting record back down.
+
+    THE ONLY DESTRUCTIVE ENDPOINT IN THIS FILE, and the only one that
+    authenticates. Everything else here is a read, and reads were left open
+    because the Observatory proxies them. This one deletes a student's entire
+    history, so it verifies the caller's Firebase ID token and refuses unless
+    the token's uid IS the student being reset — a path parameter is not proof
+    of anything, and without this check any signed-in user could erase anyone
+    else's record by guessing a uid.
+
+    Verification goes through the same app/user_auth path the WebSocket uses:
+    Google's public certificates, no ADC, no privileged credential.
+    """
+    token = ""
+    if authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="sign in first")
+    try:
+        claims = await asyncio.to_thread(user_auth.verify_token, token)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("reset refused: %s: %s", exc.__class__.__name__, exc)
+        raise HTTPException(status_code=401, detail="your sign-in has expired") from None
+    if claims.get("uid") != student_id:
+        log.warning("reset refused: %r tried to reset %r", claims.get("uid"), student_id)
+        raise HTTPException(status_code=403, detail="you can only reset your own account")
+
+    outcome = await asyncio.to_thread(seeding.reset, _firestore_client(), student_id)
+    log.info("reset %s: %s", student_id, outcome)
+    return {"ok": True, **outcome}

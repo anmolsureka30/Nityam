@@ -230,6 +230,13 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
         await ws.close(code=4401)
         return
 
+    # A brand-new sign-in gets the demo starting record, once, before the
+    # briefing is composed — otherwise their first session opens with an empty
+    # overlay and an empty profile, which is the one thing this product is
+    # supposed not to do. Off with NITYAM_SEED_NEW_STUDENTS=0; see config.
+    if MODE != "mock" and config.SEED_NEW_STUDENTS:
+        await _seed_if_new(user_id)
+
     # First thing, before any other log line: opens backend/logs/<...>.log and
     # sets the ContextVar every task under this connection inherits. Everything
     # from here on is recorded in full, per session, whatever else it prints.
@@ -285,6 +292,30 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
             for key in [k for k in _evidence_seen if k[0] == session_id]:
                 del _evidence_seen[key]
             logs.close_session(session_id)
+
+
+async def _seed_if_new(student_id: str) -> None:
+    """Lay down the demo starting record for a student who has never had one.
+
+    In a thread: this is several blocking Firestore round trips and it runs
+    before the first turn, on the same event loop as every other student's
+    audio. Never raises — a seeding failure must cost a richer first session,
+    not the session itself.
+    """
+    from app import seeding
+
+    def _work() -> bool:
+        conn = store.connect()
+        if seeding.has_record(conn, student_id):
+            return False
+        seeding.reset(conn, student_id)
+        return True
+
+    try:
+        if await asyncio.to_thread(_work):
+            log.info("new student %s — seeded the demo record", student_id)
+    except Exception:  # noqa: BLE001
+        log.warning("could not seed new student %s", student_id, exc_info=True)
 
 
 async def _flush_session_memory(session_id: str, student_id: str) -> None:
