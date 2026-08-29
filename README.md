@@ -44,6 +44,11 @@ cp .env.example .env        # then fill in credentials, or set NITYAM_AUTH=mock
 ./run.sh                    # backend + frontend dev server
 ```
 
+Redis and Google Cloud credentials (ADC) are both needed beyond what's in
+`.env` — see `backend/README.md`'s **Prerequisites** section before assuming
+a filled-in `.env` is enough on a new machine; it isn't, on its own, for
+Firestore or sign-in.
+
 See `backend/README.md` for the full picture — the agent topology, mock mode, and the
 `scripts/drive.py` smoke test ("the one to reach for when the tutor stops writing on the board").
 

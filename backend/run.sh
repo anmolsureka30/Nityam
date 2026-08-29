@@ -116,7 +116,9 @@ if [[ "$SKIP_OBSERVATORY" == 0 ]]; then
   if command -v redis-cli >/dev/null 2>&1 && redis-cli ping >/dev/null 2>&1; then
     echo "  [ ok ] Redis is reachable — Working-memory tier will show live data"
   else
-    echo "  [warn] Redis not reachable — start it with: redis-server --daemonize yes"
+    echo "  [warn] Redis not reachable — start it with one of:"
+    echo "           docker compose up -d redis    (recommended — see docker-compose.yml)"
+    echo "           redis-server --daemonize yes  (native install)"
     echo "         Without it, the Working-memory tier stays empty."
   fi
   if grep -qE '^NITYAM_STORE=firestore' .env 2>/dev/null; then

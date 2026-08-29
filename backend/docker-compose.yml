@@ -1,0 +1,27 @@
+# Redis for the working-memory tier (app/memory/short_term.py).
+#
+# Optional if you already run Redis natively — this exists so a fresh
+# machine doesn't need a system-wide install just to try the tutor.
+#
+#   docker compose up -d redis     # start it
+#   docker compose down            # stop it (add -v to also drop its data)
+#
+# Matches REDIS_HOST=localhost / REDIS_PORT=6379, the defaults in
+# app/config.py and .env.example — nothing else to configure.
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: nityam-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - nityam-redis-data:/data
+    command: ["redis-server", "--save", "60", "1"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  nityam-redis-data:

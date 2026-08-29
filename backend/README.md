@@ -1,7 +1,7 @@
 # backend
 
-The tutor: a Gemini Live voice loop, three reasoning agents, and a shared board
-the tutor writes on and the student points at.
+The tutor: a Gemini Live voice loop, four reasoning specialists, and a shared
+board the tutor writes on and the student points at.
 
 ```
 browser ──PCM16@16k──┐
@@ -13,10 +13,53 @@ ContextPacket ───────┘                                 │
 board outbox ──────────────────────────────────────────────────────────────────► canvas patches
 ```
 
-Three concurrent tasks per connection. The third one is why the tutor can write
-on the page at all: board tools run several frames deep inside a
-`mode='single_turn'` sub-agent invocation with no reference to the socket, so
-they publish to a per-session queue and `outbound()` delivers it.
+Five concurrent tasks per connection (`read_client`, `downstream`, `outbound`,
+`heartbeat`, `_transcript_writer` — see `app/main.py`'s own docstring). The
+board patch path is why the tutor can write on the page at all: board tools
+run several frames deep inside their own specialist's `Runner`, with no
+reference to the socket, so they publish to a per-session queue and
+`outbound()` delivers it.
+
+## Prerequisites
+
+**Redis** (the working-memory tier, `app/memory/short_term.py`) — either:
+
+```bash
+docker compose up -d redis     # recommended — see docker-compose.yml
+# or, without Docker:
+redis-server --daemonize yes --port 6379
+```
+
+**Google Cloud credentials** — needed for two things, and neither is covered
+by anything in `.env`: verifying a student's Firebase sign-in
+(`app/user_auth.py`, required for *every* real connection, regardless of
+`NITYAM_AUTH`) and Firestore (`app/memory/store_firestore.py`, only if
+`NITYAM_STORE=firestore`). Both use **Application Default Credentials
+(ADC)** — a machine-level credential, not a `.env` value. Copying `.env` to
+a different machine, with every value filled in, will still not make
+sign-in or Firestore work there without this step. Pick one:
+
+- **You have access to the GCP project** (the one named in
+  `GOOGLE_CLOUD_PROJECT`):
+  ```bash
+  gcloud auth application-default login
+  ```
+  One-time, per machine.
+
+- **You don't** (e.g. a friend trying this out without project access): ask
+  whoever owns the project for a service account key covering Firestore,
+  Firebase Auth verification, and the GCS bucket, then:
+  ```bash
+  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/the-key.json
+  ```
+  Put that line in `.env` (or a shell profile) so it's set every time. Treat
+  the key file like a password — it grants real access, so it belongs
+  nowhere near a commit.
+
+Set `NITYAM_STORE=sqlite` in `.env` to skip Firestore's credential
+requirement entirely — memory becomes a local file
+(`backend/data/memory.db`), no project access needed. Sign-in verification
+still needs ADC either way; it isn't gated by `NITYAM_STORE`.
 
 ## Run it
 
