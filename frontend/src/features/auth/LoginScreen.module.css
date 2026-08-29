@@ -4,11 +4,25 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
+  /* The one entrance on the app's first screen — considered rather than
+     decorative, and the reduced-motion query in base.css already zeroes it. */
+  animation: n-rise 0.45s var(--ease-out) both;
 }
 
-.brand { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 22px; }
+.brand { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 4px; }
 .mark { width: 20px; height: 20px; border-radius: var(--r-chip); background: var(--accent); }
 .wordmark { font-family: var(--prose); font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+
+/* The one line of personality the form itself stays too austere to carry. */
+.tagline {
+  margin: 0 0 22px;
+  text-align: center;
+  font-family: var(--prose);
+  font-variation-settings: "opsz" 14;
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--ink-dim);
+}
 
 .tabs {
   display: flex;
@@ -32,14 +46,39 @@
 
 .form { display: flex; flex-direction: column; gap: 14px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
+
+/* An underline that draws in on focus, in the same accent used for the
+   exercise-book margin rule — a pen underlining the field you're writing in,
+   rather than a generic focus-ring glow. `<input>` can't carry its own
+   ::after (replaced elements don't render pseudo-content reliably), so the
+   wrapper carries it and answers to :focus-within instead. */
+.inputWrap { position: relative; display: block; }
+.inputWrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s var(--ease-out);
+  pointer-events: none;
+}
+.inputWrap:focus-within::after { transform: scaleX(1); }
+
 .input {
+  width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--r-slab);
   padding: 10px 12px;
   font-size: 14.5px;
   background: var(--paper);
+  transition: border-color 0.15s var(--ease);
 }
-.input:focus-visible { border-color: var(--accent); }
+.input:focus-visible { border-color: var(--accent); outline: none; }
 
 .error { color: var(--danger); font-size: 13px; margin: 0; }
 .notice { color: var(--good); font-size: 13px; margin: 0; }

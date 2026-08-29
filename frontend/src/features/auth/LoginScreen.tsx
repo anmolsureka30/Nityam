@@ -88,6 +88,7 @@ export default function LoginScreen() {
           <span className={s.mark} />
           <span className={s.wordmark}>Nityam</span>
         </div>
+        <p className={s.tagline}>Learn the Way You Want</p>
 
         <div className={s.tabs} role="tablist" aria-label="Sign in or create an account">
           <button
@@ -113,26 +114,31 @@ export default function LoginScreen() {
         <form className={s.form} onSubmit={submit}>
           <label className={s.field}>
             <Label>Email</Label>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={s.input}
-            />
+            <span className={s.inputWrap}>
+              <input
+                type="email"
+                required
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={s.input}
+              />
+            </span>
           </label>
           <label className={s.field}>
             <Label>Password</Label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={s.input}
-            />
+            <span className={s.inputWrap}>
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={s.input}
+              />
+            </span>
           </label>
 
           {error && <p className={s.error}>{error}</p>}
