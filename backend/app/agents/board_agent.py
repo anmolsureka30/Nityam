@@ -20,7 +20,7 @@ from app.agents.specialist_runner import (
     schedule_brief_refresh,
 )
 from app.canvas.tools import BOARD_TOOLS
-from app.memory.tools import list_concepts, search_grounding
+from app.memory.tools import get_dpm, get_teaching_memory, list_concepts, search_grounding
 
 log = logging.getLogger("nityam.board")
 
@@ -50,6 +50,13 @@ make sense, if it was already covered out loud and is not on the board yet.
 The board is the student's real, lasting record of the lesson, not a bare
 answer to an isolated question.
 
+## Teach to this student, not a generic one
+
+Call `get_dpm` and `get_teaching_memory` when knowing more about this
+student would change what you write — a misconception already on record
+for this concept, a note about what has worked before, their pace. Ask for
+it in the same message as the writing it informs, same as grounding above.
+
 ## Write well, in one call
 
 `write_lesson` is the tool you use for anything longer than one block — a
@@ -78,7 +85,7 @@ def build_board_agent() -> LlmAgent:
             "writes it, grounded in their own teacher's material."
         ),
         instruction=BOARD_INSTRUCTION,
-        tools=[search_grounding, list_concepts, *BOARD_TOOLS],
+        tools=[search_grounding, list_concepts, get_dpm, get_teaching_memory, *BOARD_TOOLS],
     )
 
 

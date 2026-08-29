@@ -52,6 +52,12 @@ rejected and the whole operation is dropped:
     strength must be exactly one of: weak, strong
 
   open_doubt(concept_id, doubt, correct_understanding, evidence)
+    doubt: how the confusion actually showed up — quote or closely
+    paraphrase what the student said or did. Not a generic label like
+    "confused about signs".
+    correct_understanding: the specific idea that resolves it, detailed
+    enough that a tutor reading only this, next session, knows exactly
+    what to say. Not a one-line label either.
 
   close_doubt(concept_id)   -- only if the log shows a SPACED re-check succeeding,
                                never from one correct answer in this same session
@@ -61,6 +67,10 @@ rejected and the whole operation is dropped:
     status must be exactly one of: in_progress, covered
 
   append_self_reflection(note, evidence)
+    note: one specific, concrete observation about what worked or didn't
+    for THIS student in THIS session. "Showed the area model before the
+    algebra and it landed immediately" is useful. "Explain things clearly"
+    or "be patient" is not — it says nothing a tutor didn't already know.
 
 Every evidence value must cite a real turn number from the session log
 above, written literally as "{session_id}#" followed by the turn number,
