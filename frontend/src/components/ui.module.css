@@ -143,23 +143,31 @@
   font-weight: 500;
   letter-spacing: -0.003em;
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
-              color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+              color 0.15s var(--ease), box-shadow 0.15s var(--ease),
+              transform 0.15s var(--ease);
 }
-.btn:hover { border-color: var(--ink-dim); box-shadow: var(--e-flat); }
+.btn:hover { border-color: var(--ink-dim); box-shadow: var(--e-flat); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
 
 /* Square-ish rather than a pill: the old --r-pill on every button made a
    submit and a filter look like the same kind of thing. Pills are reserved
-   for genuinely pill-shaped controls (the role switch, status chips). */
+   for genuinely pill-shaped controls (the role switch, status chips).
+   The primary fill is the gradient pair rather than a flat wash — the one
+   button on a screen allowed a second colour, so it reads as the button
+   that matters rather than a coloured rectangle among many. */
 .btnPrimary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--accent-gradient);
+  border-color: transparent;
   color: #fff;
-}
-.btnPrimary:hover {
-  background: var(--accent-deep);
-  border-color: var(--accent-deep);
   box-shadow: var(--e-accent);
 }
+.btnPrimary:hover {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: 0 8px 20px -4px rgba(217, 45, 104, 0.46), 0 24px 48px -14px rgba(184, 114, 15, 0.34);
+  transform: translateY(-1.5px);
+}
+.btnPrimary:active { transform: translateY(-0.5px); }
 
 .btnGhost { background: transparent; border-color: transparent; color: var(--ink-mid); }
 .btnGhost:hover { background: var(--cream); color: var(--ink); border-color: transparent; box-shadow: none; }

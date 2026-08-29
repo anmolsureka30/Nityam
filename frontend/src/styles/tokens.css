@@ -75,6 +75,17 @@
   --accent-wash: #FCF2F6;
   --accent-rule: #E8B4C8;   /* the margin rule: present, never loud */
 
+  /* A second, warm accent — marigold, not indigo. Two brand colours reading
+     as a considered jewel-tone pair (magenta + gold) rather than the
+     purple-to-pink gradient that is the single most recognisable AI-generic
+     tell; spent sparingly, on the rare hero moment that wants two colours
+     instead of one (a gradient CTA, an avatar ring), never on body text. */
+  --accent-2:      #B8720F;
+  --accent-2-deep: #8F5A0C;
+  --accent-2-tint: #F0DBB0;
+  --accent-2-wash: #FCF6EA;
+  --accent-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+
   /* --- semantic ------------------------------------------------------
      State, not brand. Three real steps for mastery, so a bar's colour is
      information rather than decoration. */
@@ -96,9 +107,12 @@
 
   /* A real scale, and Source Serif 4's optical-size axis actually used — it
      was being loaded with `opsz 8..60` and then never set, so display type
-     was rendered with text-size letterforms. */
-  --t-display: 3.1rem;   /* 49.6px */
-  --t-title:   1.9rem;   /* 30.4px */
+     was rendered with text-size letterforms. Display bumped again — 3.1rem
+     read safe rather than confident once the rest of the system got richer;
+     a first line the size of a real headline is what makes a page feel
+     designed rather than assembled from a component library's defaults. */
+  --t-display: 3.6rem;   /* 57.6px */
+  --t-title:   2.05rem;  /* 32.8px */
   --t-head:    1.3rem;   /* 20.8px */
   --t-lede:    1.1875rem;/* 19px   */
   --t-body:    0.96rem;  /* 15.4px */
@@ -126,23 +140,31 @@
   --s-9: 96px;
 
   /* --- shape ---------------------------------------------------------
-     Radii are now differentiated by surface rather than uniform. Paper is
-     nearly square (a sheet has corners); instruments are slightly rounded;
-     only genuinely pill-shaped things are pills. */
-  --r-sheet: 3px;
-  --r-panel: 7px;
-  --r-slab:  5px;
-  --r-chip:  5px;
+     Radii are now differentiated by surface rather than uniform, and each
+     step is a notch softer than before — a sheet still has real corners
+     rather than reading as a pill, but 3px on a large surface photographed
+     as "unfinished" once the shadows below got richer; 6px keeps the
+     paper-with-corners idea while feeling considered rather than austere. */
+  --r-sheet: 6px;
+  --r-panel: 12px;
+  --r-slab:  9px;
+  --r-chip:  8px;
   --r-pill:  99px;
   --r-tick:  2px;
 
   /* Elevation says how far off the ground something sits. Paper barely
-     lifts; a dialog lifts a lot. */
-  --e-flat:  0 1px 0 rgba(18, 21, 28, 0.03);
-  --e-sheet: 0 1px 2px rgba(18, 21, 28, 0.05), 0 8px 24px -12px rgba(18, 21, 28, 0.09);
-  --e-lift:  0 2px 4px rgba(18, 21, 28, 0.05), 0 16px 40px -16px rgba(18, 21, 28, 0.14);
-  --e-modal: 0 32px 80px -24px rgba(18, 21, 28, 0.3);
-  --e-accent:0 10px 30px -10px rgba(217, 45, 104, 0.42);
+     lifts; a dialog lifts a lot. Each step now layers a tight neutral
+     contact shadow under a large, soft, brand-tinted ambient one — the
+     technique behind most premium 2025-26 product UI's sense of depth,
+     versus a single flat drop-shadow reading as a generated default. */
+  --e-flat:  0 1px 0 rgba(18, 21, 28, 0.04);
+  --e-sheet: 0 1px 2px rgba(18, 21, 28, 0.06), 0 14px 32px -16px rgba(18, 21, 28, 0.16),
+             0 28px 56px -36px rgba(217, 45, 104, 0.10);
+  --e-lift:  0 4px 10px rgba(18, 21, 28, 0.09), 0 24px 56px -20px rgba(18, 21, 28, 0.22),
+             0 36px 72px -32px rgba(217, 45, 104, 0.14);
+  --e-modal: 0 16px 40px -16px rgba(18, 21, 28, 0.24), 0 56px 120px -32px rgba(18, 21, 28, 0.4);
+  --e-accent:0 6px 16px -4px rgba(217, 45, 104, 0.38), 0 20px 44px -12px rgba(217, 45, 104, 0.32);
+  --e-accent2:0 6px 16px -4px rgba(184, 114, 15, 0.35), 0 20px 44px -12px rgba(184, 114, 15, 0.28);
 
   /* --- layout --------------------------------------------------------
      The margin is the layout. --margin-w is the exercise-book margin: wide

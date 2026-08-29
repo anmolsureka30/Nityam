@@ -17,6 +17,23 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-feature-settings: "kern" 1, "liga" 1;
+  position: relative;
+}
+
+/* A near-imperceptible paper grain over the whole app — the tactile detail
+   that separates "flat colour" from "considered surface." Pure SVG turbulence
+   as a data URI, no image request, no dependency; opacity is low enough that
+   it reads as texture rather than noise, and pointer-events:none plus a fixed
+   position mean it can never intercept a click or shift under scroll. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  opacity: 0.022;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 button { font: inherit; color: inherit; cursor: pointer; }
