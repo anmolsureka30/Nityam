@@ -30,6 +30,17 @@
 .peek:hover { transform: translateX(-50%) translateY(-2px); box-shadow: var(--e-lift); }
 .peek:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
+/* Tutor activity visibility: a brief glow while TextbookAgent is the one
+   currently delegated to — reuses the same lift shadow as the existing hover
+   state, so it reads as an extension of an interaction that already exists. */
+.peekActive {
+  animation: n-peek-glow 1.6s ease-in-out infinite;
+}
+@keyframes n-peek-glow {
+  0%, 100% { box-shadow: var(--e-sheet), 0 0 0 2px var(--accent-tint); }
+  50%      { box-shadow: var(--e-lift), 0 0 0 2px var(--accent); }
+}
+
 .head {
   display: flex;
   align-items: flex-start;
@@ -185,4 +196,5 @@
 @media (prefers-reduced-motion: reduce) {
   .peek:hover { transform: translateX(-50%); }
   .skeleton { animation: none; }
+  .peekActive { animation: none; box-shadow: var(--e-lift), 0 0 0 2px var(--accent); }
 }

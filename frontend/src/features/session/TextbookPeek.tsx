@@ -4,6 +4,8 @@ import catalogue from "../../lib/textbook.json";
 import type { Place } from "../../lib/textbookPlace";
 import s from "./TextbookPeek.module.css";
 
+const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ");
+
 interface Chapter {
   file: string;
   number: number;
@@ -28,10 +30,13 @@ const SCALE = 0.7;
  * opening it is a click on the page itself. It also follows the tutor: when she
  * puts a page on the board, the book turns to it. */
 export default function TextbookPeek({
-  place, onOpen,
+  place, onOpen, active,
 }: {
   place: Place;
   onOpen: () => void;
+  /** True while TextbookAgent is the one currently delegated to — a brief
+   *  glow says "watch this" without a second floating indicator. */
+  active?: boolean;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [ready, setReady] = useState(false);
@@ -109,7 +114,7 @@ export default function TextbookPeek({
   return (
     <button
       type="button"
-      className={s.peek}
+      className={cx(s.peek, active && s.peekActive)}
       onClick={onOpen}
       title="Open your textbook"
       aria-label={`Open textbook — chapter ${chapter.number}, ${chapter.title}, page ${place.page}`}

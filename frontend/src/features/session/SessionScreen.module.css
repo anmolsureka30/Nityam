@@ -116,6 +116,7 @@
    the board looking like a card floating in an empty field, which was most
    of what made this screen feel unfinished. */
 .stage {
+  position: relative;
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -127,6 +128,33 @@
    in front of the page and the page gets its scroll clearance back. */
 @media (max-width: 1240px) {
   .stage { padding-right: var(--s-4); }
+}
+
+/* Tutor activity visibility: a brief glow on the stage while BoardAgent or
+   ArtifactAgent is the one she has delegated to. An inset ring on a
+   pseudo-element, never a border, so it can never shift the board's layout. */
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--r-sheet);
+  opacity: 0;
+  transition: opacity 0.2s var(--ease);
+}
+.stageBoardActive::after {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px var(--accent-tint), inset 0 0 48px -20px var(--accent);
+  animation: n-stage-pulse 1.6s ease-in-out infinite;
+}
+.stageArtifactActive::after {
+  opacity: 1;
+  box-shadow: inset 0 0 0 2px var(--sim), inset 0 0 48px -20px var(--sim);
+  animation: n-stage-pulse 1.6s ease-in-out infinite;
+}
+@keyframes n-stage-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
 }
 
 /* progress through tonight, in the strip rather than a panel */
@@ -155,8 +183,39 @@
 .planNow .planTick { border-color: var(--accent); background: var(--accent); color: #fff; }
 .planStep { font-size: var(--t-small); }
 
+/* Tutor activity visibility: a brief chip while QuizAgent is preparing a
+   checkpoint question, so the concept strip says so instead of the plan
+   steps silently going quiet. */
+.quizPrep {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: var(--s-3);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--accent-wash);
+  border: 1px solid var(--accent-tint);
+  color: var(--accent-deep);
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+  animation: n-quiz-in 0.2s var(--ease) both;
+}
+@keyframes n-quiz-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 1180px) { .plan { display: none; } }
 @media (max-width: 900px) {
   .screen { height: auto; overflow: visible; }
   .stage { padding: 12px 12px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stageBoardActive::after,
+  .stageArtifactActive::after { animation: none; opacity: 0.85; }
+  .quizPrep { animation: none; }
 }

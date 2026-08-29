@@ -5,6 +5,7 @@ import { Label, MasteryBar } from "../../components/ui";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { concepts, intensities, student } from "../../lib/data";
 import { useLiveSession } from "../../lib/live/useLiveSession";
+import { SPECIALIST_COPY } from "../../lib/live/specialists";
 import type { ContextPacket, MarkTool } from "../../lib/types";
 import type { Stroke } from "./AnnotationLayer";
 import CheckpointModal from "./CheckpointModal";
@@ -306,9 +307,21 @@ export default function SessionScreen() {
             </span>
           ))}
         </div>
+
+        {tutor.specialist === "quiz" && (
+          <span className={s.quizPrep}>
+            {SPECIALIST_COPY.quiz.glyph} {SPECIALIST_COPY.quiz.verb}
+          </span>
+        )}
       </div>
 
-      <main className={s.stage}>
+      <main
+        className={cx(
+          s.stage,
+          tutor.specialist === "board" && s.stageBoardActive,
+          tutor.specialist === "artifact" && s.stageArtifactActive,
+        )}
+      >
         <Notebook
           doc={board.doc}
           hostRef={hostRef}
@@ -345,7 +358,11 @@ export default function SessionScreen() {
       {/* The book, open on the desk beside her. Top of her rail, above the
           speech bubble's slot, so the column reads: your book, what she is
           saying, her. */}
-      <TextbookPeek place={place} onOpen={() => setBookOpen(true)} />
+      <TextbookPeek
+        place={place}
+        onOpen={() => setBookOpen(true)}
+        active={tutor.specialist === "textbook"}
+      />
 
       {/* She points at what she is talking about. Driven entirely by the
           existing point_at signal — no new protocol, no new tool. */}
