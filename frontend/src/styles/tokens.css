@@ -157,7 +157,7 @@
      reads as one column instead of three things shoved against the window
      edge. Every consumer derives from these two values, so the page width and
      the rail cannot drift apart. */
-  --page-col:   920px;
+  --page-col:   1000px;
   --stage-pad:  32px;
   --rail-mid:   calc((var(--stage-pad) + var(--page-col) + 100vw) / 2);
   --measure:    64ch;      /* prose line length, ~66 characters */

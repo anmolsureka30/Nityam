@@ -14,7 +14,7 @@
   left: var(--rail-mid);
   transform: translateX(-50%);
   z-index: 22;
-  width: 232px;
+  width: 288px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -88,11 +88,11 @@
 .paper {
   position: relative;
   display: block;
-  /* Taller. At 168px the preview showed a chapter heading and a band of colour
-     and stopped — enough to know which page it was, not enough to recognise a
-     figure on it, which is what a glance at the book is for. The rail has the
-     room. */
-  height: 268px;
+  /* Taller still. At 268px a figure was recognisable but often cropped mid-
+     caption, which is exactly the content a physics page needs whole. The
+     rail has the room, and the wider frame (288px) keeps the extra height
+     from making the page look narrow and stretched. */
+  height: 340px;
   overflow: hidden;
   background: #fff;
   border-top: 1px solid var(--line-soft);

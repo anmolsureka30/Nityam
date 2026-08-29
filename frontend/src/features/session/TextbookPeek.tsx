@@ -16,8 +16,10 @@ interface Chapter {
 
 const CHAPTERS = catalogue as Chapter[];
 
-/** Small enough to be cheap, large enough that a figure is recognisable. */
-const SCALE = 0.7;
+/** Small enough to be cheap, large enough that a figure is recognisable.
+ *  Matches the wider peek frame below — bumped from 0.7 so text stays crisp
+ *  at the larger display width rather than being a small render stretched up. */
+const SCALE = 0.9;
 
 /* The book, left open on the desk beside her.
  *
