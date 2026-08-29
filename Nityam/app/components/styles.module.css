@@ -1,0 +1,710 @@
+/* ---------- Header ---------- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 32px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logoGroup {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.logoMark {
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.logoDevanagari {
+  font-family: var(--font-gochi), cursive;
+  font-size: 16px;
+  color: var(--orange);
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.headerLink {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+.headerLink:hover { color: var(--indigo); }
+
+.btnPrimary {
+  display: inline-block;
+  padding: 11px 22px;
+  background: var(--indigo);
+  color: var(--cream);
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btnPrimary:hover {
+  background: var(--indigo-dark);
+  color: var(--cream);
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  padding: 104px 32px 88px;
+  background: var(--cream);
+  background-image: radial-gradient(
+      circle at 18% 12%,
+      rgba(214, 244, 91, 0.55),
+      transparent 46%
+    ),
+    radial-gradient(circle at 88% 8%, rgba(139, 123, 232, 0.22), transparent 44%);
+}
+
+.heroInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  text-align: center;
+  animation: nt-rise 0.6s ease both;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 15px;
+  border: 1px solid var(--border-pill);
+  border-radius: 100px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--muted-2);
+  background: #ffffff;
+  margin-bottom: 30px;
+}
+
+.badgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lime);
+  display: inline-block;
+}
+
+.heroTitle {
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 800;
+  font-size: 78px;
+  line-height: 0.98;
+  letter-spacing: -0.038em;
+  margin: 0 auto 26px;
+  max-width: 960px;
+  text-wrap: balance;
+}
+
+/* The platform tagline, in the same handwritten voice as the mock card's
+   "Today on the board" note — a margin comment beside the headline rather
+   than competing with it for the same kind of attention. */
+.heroTagline {
+  font-family: var(--font-gochi), cursive;
+  font-size: 22px;
+  color: var(--orange);
+  margin: 0 auto 18px;
+  text-align: center;
+}
+
+.heroSubtitle {
+  font-size: 20px;
+  line-height: 1.6;
+  max-width: 660px;
+  margin: 0 auto 36px;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.heroCtas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 64px;
+}
+
+.btnLime {
+  display: inline-block;
+  padding: 16px 32px;
+  background: var(--lime);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(180, 214, 60, 0.45);
+  transition: background-color 0.15s ease;
+}
+
+.btnLime:hover {
+  background: var(--lime-hover);
+  color: var(--ink);
+}
+
+.btnOutline {
+  display: inline-block;
+  padding: 16px 28px;
+  color: var(--indigo);
+  font-weight: 600;
+  font-size: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: #ffffff;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.btnOutline:hover {
+  border-color: var(--indigo);
+  color: var(--indigo);
+}
+
+/* ---------- Hero mock card ---------- */
+.mockCard {
+  max-width: 960px;
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(36, 31, 78, 0.1);
+  text-align: left;
+}
+
+.mockCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.mockCardDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lavender);
+}
+
+.mockCardLabel {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-4);
+}
+
+.mockCardGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+}
+
+.mockCardHandwritten {
+  font-family: var(--font-gochi), cursive;
+  font-size: 30px;
+  line-height: 1.3;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+
+.mockCardCaption {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted-2);
+}
+
+.progressList {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.progressRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--muted-3);
+  margin-bottom: 6px;
+}
+
+.progressTrack {
+  height: 8px;
+  border-radius: 99px;
+  background: #edeaf7;
+}
+
+.progressFill {
+  height: 8px;
+  border-radius: 99px;
+}
+
+/* ---------- Problem stats ---------- */
+.section {
+  padding: 88px 32px;
+}
+
+.sectionInner {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.sectionInnerWide {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.h2 {
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 800;
+  font-size: 48px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  margin: 0 0 20px;
+  max-width: 820px;
+  text-wrap: balance;
+}
+
+.sectionLede {
+  font-size: 19px;
+  line-height: 1.65;
+  max-width: 760px;
+  color: var(--muted);
+  margin: 0 0 44px;
+  text-wrap: pretty;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.card {
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px;
+}
+
+.statNumber {
+  font-family: var(--font-bricolage), sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--orange);
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.statCaption {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- How it works ---------- */
+.howGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.howCard {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px;
+}
+
+.howNum {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--lime);
+  color: var(--ink);
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.h3 {
+  font-family: var(--font-bricolage), sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: -0.02em;
+}
+
+.bodyText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- Audience split ---------- */
+.audienceGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.panel {
+  border-radius: 18px;
+  padding: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panelLight {
+  background: #ffffff;
+  border: 1px solid var(--border);
+}
+
+.panelDark {
+  background: var(--indigo);
+  color: #f6f4ff;
+  border: 1px solid var(--indigo);
+}
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.eyebrowOrange {
+  color: var(--orange);
+}
+
+.eyebrowLime {
+  color: var(--lime);
+}
+
+.panelTitle {
+  font-family: var(--font-bricolage), sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+  line-height: 1.06;
+}
+
+.panelBody {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.panelBodyLight {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* ---------- Beliefs ---------- */
+.beliefsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+.beliefItem {
+  border-top: 2px solid var(--ink);
+  padding-top: 18px;
+}
+
+/* ---------- Mission ---------- */
+.missionQuoteMark {
+  font-family: var(--font-gochi), cursive;
+  font-size: 24px;
+  color: var(--orange);
+  margin-bottom: 22px;
+}
+
+.missionQuote {
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 700;
+  font-size: 50px;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  margin: 0 0 26px;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+.missionBody {
+  font-size: 19px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0 auto;
+  max-width: 640px;
+  text-wrap: pretty;
+}
+
+/* ---------- Waitlist ---------- */
+.waitlistSection {
+  padding: 96px 32px;
+  background: var(--lime);
+}
+
+.waitlistInner {
+  max-width: 820px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.waitlistTitle {
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 800;
+  font-size: 54px;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  margin: 0 0 16px;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.waitlistLede {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #3e4a1c;
+  margin: 0 auto 34px;
+  max-width: 560px;
+}
+
+.successCard {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 34px;
+  box-shadow: 0 14px 34px rgba(36, 31, 78, 0.16);
+}
+
+.successTitle {
+  font-family: var(--font-bricolage), sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--ink);
+}
+
+.successBody {
+  margin: 0;
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  max-width: 660px;
+  margin: 0 auto;
+}
+
+.input {
+  flex: 1 1 180px;
+  padding: 16px 18px;
+  font-size: 16px;
+  font-family: var(--font-instrument), sans-serif;
+  background: #ffffff;
+  border: 1px solid #bfd94f;
+  border-radius: 10px;
+  color: var(--ink);
+  outline: none;
+}
+
+.inputEmail {
+  flex: 1 1 240px;
+}
+
+.submitBtn {
+  flex: 0 0 auto;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-instrument), sans-serif;
+  background: var(--indigo-dark);
+  color: var(--cream);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.submitBtn:hover {
+  background: #1a1638;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.formError {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #3e4a1c;
+  min-height: 20px;
+}
+
+.waitlistAside {
+  margin: 28px 0 0;
+  font-size: 15px;
+  color: #3e4a1c;
+}
+.waitlistAside a {
+  font-weight: 700;
+  color: var(--indigo-dark);
+}
+.waitlistAside a:hover {
+  color: var(--ink);
+}
+
+/* ---------- Footer ---------- */
+.footer {
+  background: var(--cream);
+  color: var(--muted-2);
+  padding: 40px 32px;
+  border-top: 1px solid var(--border);
+}
+
+.footerInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.footerLogo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--ink);
+}
+
+.footerLogoMark {
+  font-family: var(--font-bricolage), sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.footerLogoDevanagari {
+  font-family: var(--font-gochi), cursive;
+  font-size: 15px;
+  color: var(--orange);
+}
+
+/* ---------- Backgrounds shared across sections ---------- */
+.bgCream {
+  background: var(--cream);
+}
+
+.bgWhite {
+  background: #ffffff;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.bgPanel {
+  background: var(--panel-purple);
+}
+
+.bgWhiteTop {
+  background: #ffffff;
+  border-top: 1px solid var(--border);
+}
+
+.textCenter {
+  text-align: center;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 860px) {
+  .heroTitle {
+    font-size: 46px;
+  }
+
+  .heroSubtitle {
+    font-size: 17px;
+  }
+
+  .h2 {
+    font-size: 34px;
+  }
+
+  .missionQuote {
+    font-size: 34px;
+  }
+
+  .waitlistTitle {
+    font-size: 38px;
+  }
+
+  .mockCardGrid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .statsGrid,
+  .howGrid,
+  .audienceGrid,
+  .beliefsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding: 72px 20px 56px;
+  }
+
+  .section {
+    padding: 64px 20px;
+  }
+
+  .waitlistSection {
+    padding: 64px 20px;
+  }
+
+  .header {
+    padding: 14px 20px;
+  }
+
+  .headerLink {
+    display: none;
+  }
+}

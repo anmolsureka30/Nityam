@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# Starts the Nityam backend, its frontend, and the Observatory (the live
-# memory-visualization pair in ../smriti-observatory) — one command, four
-# processes.
-#   ./run.sh                  everything: backend + frontend + Observatory
-#   ./run.sh --no-observatory backend + frontend only, no Observatory
+# Starts the Nityam backend, its frontend, the Observatory (the live
+# memory-visualization pair in ../smriti-observatory), and the marketing
+# landing page (../Nityam) — one command, five processes.
+#   ./run.sh                  everything: backend + frontend + Observatory + landing
+#   ./run.sh --no-observatory backend + frontend + landing, no Observatory
+#   ./run.sh --no-landing     backend + frontend + Observatory, no landing page
 #   ./run.sh --api-only       backend only, nothing browser-facing
 set -euo pipefail
 cd "$(dirname "$0")"
 
 API_ONLY=0
 NO_OBSERVATORY=0
+NO_LANDING=0
 for arg in "$@"; do
   case "$arg" in
     --api-only) API_ONLY=1 ;;
     --no-observatory) NO_OBSERVATORY=1 ;;
+    --no-landing) NO_LANDING=1 ;;
   esac
 done
 SKIP_OBSERVATORY=$(( API_ONLY || NO_OBSERVATORY ))
+SKIP_LANDING=$(( API_ONLY || NO_LANDING ))
 
 PY=.venv/bin/python
 
@@ -78,6 +82,9 @@ WEB_PORT="${NITYAM_WEB_PORT:-5173}"
 # 3000 is the only other origin the Observatory backend will actually answer.
 OBS_PORT="${NITYAM_OBSERVATORY_PORT:-8100}"
 OBS_WEB_PORT="${NITYAM_OBSERVATORY_WEB_PORT:-3000}"
+# 3001, not 3000: the Observatory frontend already claims 3000 (see above),
+# and Next.js's own default of 3000 would collide with it silently.
+LANDING_PORT="${NITYAM_LANDING_PORT:-3001}"
 busy() {
   local port="$1" what="$2" var="$3" alt="$4"
   lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 || return 0
@@ -100,6 +107,7 @@ busy() {
 # another port, which is the right call but needs saying clearly.
 busy "$PORT" "backend API" NITYAM_API_PORT "$((PORT + 1))"
 [[ "$API_ONLY" == 1 ]] || busy "$WEB_PORT" "frontend dev server" NITYAM_WEB_PORT "$((WEB_PORT + 1))"
+[[ "$SKIP_LANDING" == 1 ]] || busy "$LANDING_PORT" "landing page" NITYAM_LANDING_PORT "$((LANDING_PORT + 1))"
 if [[ "$SKIP_OBSERVATORY" == 0 ]]; then
   busy "$OBS_PORT" "Observatory API" NITYAM_OBSERVATORY_PORT "$((OBS_PORT + 1))"
   busy "$OBS_WEB_PORT" "Observatory frontend" NITYAM_OBSERVATORY_WEB_PORT "$((OBS_WEB_PORT + 1))"
@@ -142,10 +150,10 @@ cleanup() {
     kill -TERM "$pid" 2>/dev/null || true
   done
   for _ in 1 2 3 4 5 6; do
-    [[ -n "$(port_holder "$PORT")$(port_holder "$WEB_PORT")$(port_holder "$OBS_PORT")$(port_holder "$OBS_WEB_PORT")" ]] || break
+    [[ -n "$(port_holder "$PORT")$(port_holder "$WEB_PORT")$(port_holder "$OBS_PORT")$(port_holder "$OBS_WEB_PORT")$(port_holder "$LANDING_PORT")" ]] || break
     sleep 0.5
   done
-  for port in "$PORT" "$WEB_PORT" "$OBS_PORT" "$OBS_WEB_PORT"; do
+  for port in "$PORT" "$WEB_PORT" "$OBS_PORT" "$OBS_WEB_PORT" "$LANDING_PORT"; do
     for pid in $(port_holder "$port"); do
       kill -KILL "$pid" 2>/dev/null || true
     done
@@ -167,6 +175,16 @@ else
   [[ -d "$FE/node_modules" ]] || (cd "$FE" && npm install)
   spawn env -C "$FE" NITYAM_WEB_PORT="$WEB_PORT" NITYAM_API_PORT="$PORT" npm run dev
   echo "Open http://localhost:$WEB_PORT"
+fi
+
+if [[ "$SKIP_LANDING" == 0 ]]; then
+  LANDING=../Nityam
+  [[ -d "$LANDING/node_modules" ]] || (cd "$LANDING" && npm install)
+  # Points the landing page's "Sign in" / "Start learning" CTAs at wherever
+  # the real app's dev server actually ended up (see Nityam/app/lib/config.ts).
+  spawn env -C "$LANDING" NEXT_PUBLIC_APP_URL="http://localhost:$WEB_PORT" \
+    npm run dev -- --port "$LANDING_PORT"
+  echo "Landing page on http://localhost:$LANDING_PORT"
 fi
 
 if [[ "$SKIP_OBSERVATORY" == 0 ]]; then
