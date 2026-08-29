@@ -48,7 +48,6 @@ async def run() -> None:
     ctx = SimpleNamespace(state={"session_id": session_id, "student_id": student_id})
 
     result = await _last(ask_board(
-        bridge="Let's put that on the board.",
         request="Explain why maximum range happens at 45 degrees.",
         tool_context=ctx,
     ))
@@ -62,7 +61,7 @@ async def run() -> None:
     # degrade to an error-shaped result (WHEN_IDLE swallows a raised
     # exception with no delivery to the model at all).
     broken_ctx = SimpleNamespace(state={})  # no session_id/student_id at all
-    result2 = await _last(ask_board(bridge="ok", request="x" * 10, tool_context=broken_ctx))
+    result2 = await _last(ask_board(request="x" * 10, tool_context=broken_ctx))
     check("ask_board degrades to an error result rather than raising", "status" in result2, repr(result2))
 
 

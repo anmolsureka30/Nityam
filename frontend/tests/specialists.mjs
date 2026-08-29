@@ -45,18 +45,16 @@ for (const key of ["board", "artifact", "quiz", "textbook"]) {
 }
 
 // ------------------------------------------------------------------ thinkingLine
-check("a real bridge line always wins over the specialist fallback",
-      thinkingLine("Certainly, let's look at the range formula", "board")
-        === "Certainly, let's look at the range formula");
-check("a whitespace-only bridge is treated as absent",
-      thinkingLine("   ", "quiz") === `${SPECIALIST_COPY.quiz.glyph} ${SPECIALIST_COPY.quiz.verb}`);
-check("no bridge, known specialist: glyph + verb",
-      thinkingLine(undefined, "textbook")
+/* The bridge argument is gone: she speaks throughout a delegation herself, so
+   her words go to the bubble and this is purely a status line now. */
+check("a known specialist: glyph + verb",
+      thinkingLine("textbook")
         === `${SPECIALIST_COPY.textbook.glyph} ${SPECIALIST_COPY.textbook.verb}`);
-check("no bridge, no specialist: the original generic line",
-      thinkingLine(undefined, null) === "Looking that up for you…");
-check("no bridge, unrecognized specialist: the original generic line",
-      thinkingLine(undefined, null) === "Looking that up for you…");
+check("each specialist reads differently, so the wait is named not generic",
+      new Set(Object.keys(SPECIALIST_COPY).map((k) => thinkingLine(k))).size
+        === Object.keys(SPECIALIST_COPY).length);
+check("no specialist yet: the generic line rather than a crash",
+      thinkingLine(null) === "Looking that up for you…");
 
 console.log();
 console.log(failed ? `${failed} failed` : "all passed");

@@ -205,6 +205,9 @@ rare case where the request is too thin to configure an artifact at all —
 every call you make is another few seconds before the build even starts, and
 you have already been given the recent conversation and the request itself.
 
+You are also told what is already on the board. If a simulation of the same
+thing is already there, say so instead of building a second one.
+
 Then report back a short, plain-language line about what landed — the
 title and what the student can do with it, as if telling a colleague. Do
 not describe the artifact in exhaustive detail — the visual IS the
@@ -236,7 +239,7 @@ def build_artifact_agent() -> LlmAgent:
 _RUNNER = SpecialistRunner("nityam-artifact", build_artifact_agent)
 
 
-async def ask_artifact(bridge: str, request: str, tool_context: ToolContext):
+async def ask_artifact(request: str, tool_context: ToolContext):
     """Commission one interactive artifact.
 
     Returns at once and keeps you talking while ArtifactAgent builds it — you
@@ -244,7 +247,6 @@ async def ask_artifact(bridge: str, request: str, tool_context: ToolContext):
     seconds; do not announce the call, and do not stop and wait.
 
     Args:
-        bridge: One short sentence in your own voice, said as you call.
         request: What the artifact is for, in your own words — the pedagogical
             move it makes, the concept ids it targets, the one thing the
             student should walk away understanding, and the specific wrong

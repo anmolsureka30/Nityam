@@ -141,7 +141,7 @@ async def run_timeout() -> None:
                    "student_id": "demo_student"}
         )
         chunks = [c async for c in
-                  board_agent.ask_board("one sec", "write something", ctx)]
+                  board_agent.ask_board("write something", ctx)]
         # The LAST chunk is the outcome; the earlier ones are the keep-talking
         # responses. An escaping exception here would be delivered to the
         # student as nothing at all, so a timeout has to arrive as something
@@ -217,7 +217,7 @@ async def run_keep_talking() -> None:
                    "student_id": "demo_student"}
         )
         chunks = [c async for c in
-                  board_agent.ask_board("one sec", "write something", ctx)]
+                  board_agent.ask_board("write something", ctx)]
 
         check("a slow turn still ends with the real result",
               "acknowledged" in str(chunks[-1].get("summary", "")), repr(chunks[-1]))
@@ -273,7 +273,7 @@ async def run_no_talking_over_the_student() -> None:
             state={"session_id": session_id, "student_id": "demo_student"}
         )
         chunks = [c async for c in
-                  board_agent.ask_board("one sec", "write something", ctx)]
+                  board_agent.ask_board("write something", ctx)]
         prompting = [c for c in chunks
                      if isinstance(c, types.FunctionResponse)
                      and c.scheduling
@@ -303,7 +303,7 @@ async def run_no_double_delegation() -> None:
         ctx = SimpleNamespace(
             state={"session_id": session_id, "student_id": "demo_student"}
         )
-        chunks = [c async for c in board_agent.ask_board("x", "again", ctx)]
+        chunks = [c async for c in board_agent.ask_board("again", ctx)]
         check("a second concurrent ask_board is refused",
               chunks[-1].get("status") == "busy", repr(chunks[-1]))
         check("and says something rather than nothing",

@@ -99,6 +99,35 @@ def _publish(tool_context: ToolContext, patch, **extra) -> dict:
 # ------------------------------------------------------------------ reading
 
 
+def board_digest(session_id: str) -> str:
+    """What is on the board, as a few lines of prose for a specialist's prompt.
+
+    Every specialist gets this with its request. `read_screen` already exists
+    and returns richer data, but it is a TOOL — the specialist has to think to
+    call it, and mostly does not. So BoardAgent would write a paragraph
+    describing a figure TextbookAgent had placed seconds earlier, because
+    nothing told it the figure was there. The board is the shared artefact;
+    not seeing it was the anomaly.
+
+    Pure and cheap: no model, no I/O, just the in-memory document.
+    """
+    board = sessions.get(session_id).board
+    blocks = board.blocks()
+    if len(blocks) <= 1:
+        return "The board is empty."
+
+    lines = []
+    for b in blocks:
+        text = " ".join(D.block_text(b).split())[:70]
+        anchors = [a.id for a in D.block_anchors(b)]
+        lines.append(
+            f"  {b.id} ({b.kind}){' STRUCK' if b.struck else ''}: {text}"
+            + (f" [anchors: {', '.join(anchors)}]" if anchors else "")
+        )
+    return ("Already on the board — do not write any of this again:\n"
+            + "\n".join(lines))
+
+
 def read_screen(tool_context: ToolContext) -> dict:
     """Read what is on the student's screen right now, before you change it.
 

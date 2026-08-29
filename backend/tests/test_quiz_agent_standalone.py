@@ -47,7 +47,6 @@ async def run() -> None:
     ctx = SimpleNamespace(state={"session_id": session_id, "student_id": student_id})
 
     result = await _last(ask_quiz(
-        bridge="Let's check what you've got.",
         request="Quiz them on why 45 degrees maximises range.",
         tool_context=ctx,
     ))
@@ -57,7 +56,7 @@ async def run() -> None:
     check("a checkpoint actually landed", any(b.kind == "checkpoint" for b in board.blocks()) or True, "checkpoints render via ShowQuiz, not a board block — see screen state instead")
 
     broken_ctx = SimpleNamespace(state={})
-    result2 = await _last(ask_quiz(bridge="ok", request="x", tool_context=broken_ctx))
+    result2 = await _last(ask_quiz(request="x", tool_context=broken_ctx))
     check("ask_quiz degrades to an error result rather than raising", "status" in result2, repr(result2))
 
 

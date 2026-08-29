@@ -41,7 +41,6 @@ export interface LiveTutor {
   thinking: boolean;
   /** The holding line she gave when she delegated — what she is working on,
    *  in her words. Empty when she is not thinking. */
-  bridge: string;
   /** Which specialist she has delegated to, while `thinking` is true. `null`
    *  when she isn't thinking, or when an `ask_*` tool this app doesn't
    *  recognize was reached — see specialists.ts's resolveSpecialist(). */
@@ -89,7 +88,6 @@ export function useLiveSession(
   const [speakKey, setSpeakKey] = useState(0);
   const [voice, setVoice] = useState<MediaStream | null>(null);
   const [thinking, setThinking] = useState(false);
-  const [bridge, setBridge] = useState("");
   const [specialist, setSpecialist] = useState<Specialist | null>(null);
   const [muted, setMuted] = useState(false);
   /* Read inside the connect callback, which closes over the first render.
@@ -203,35 +201,15 @@ export function useLiveSession(
          broke once already, when the single `ask_tutor` these checks used to
          name was split into four and neither branch matched anything again.
 
-         Every delegate tool takes a required `bridge` argument precisely so
-         it arrives here: the Live model would either speak a bridge OR make
-         the call, never both, so the line it wanted to say is now part of the
-         call and lands in the bubble the instant the delegation starts. Ten
-         seconds of thinking with "achha, ek second" on screen is a tutor
-         working; ten seconds blank is a tutor who did not hear you.
-
-         Deliberately text-only, not spoken via browser TTS: tried that once
-         and it played through the same speakers the mic listens on, and on
-         this machine the echo-cancellation that protects the model's own
-         voice did not reach speechSynthesis's audio — the mic picked up the
-         TTS line and it came back as a fake "student said" turn, EVERY time,
-         confirmed against real session logs (three separate delegations, all
-         three echoed back verbatim). A wrong voice reading the line would
-         have been merely jarring; this actively corrupted the conversation
-         and got written into permanent memory as something the student never
-         said. Caption-only until there is a way to do this that cannot leak
-         into the mic. */
+         She now speaks continuously through a delegation of her own accord
+         (see backend specialist_runner.delegate), so there is no bridge
+         argument any more and nothing to caption: her words arrive as real
+         audio and transcription like any other speech. This indicator is a
+         status line again. */
       for (const part of event.content?.parts ?? []) {
         if (part.functionCall?.name?.startsWith("ask_")) {
           setThinking(true);
           setSpecialist(resolveSpecialist(part.functionCall.name));
-          const line = (part.functionCall.args as { bridge?: string } | undefined)
-            ?.bridge?.trim();
-          if (line) {
-            setBridge(line);
-            newTurn();
-            say(line);
-          }
         }
         /* Belt and braces. These tools are scheduled WHEN_IDLE, and ADK does
            not yield a functionResponse event into this stream for those — so
@@ -239,7 +217,6 @@ export function useLiveSession(
            thinking state, when her own current utterance finishes. */
         if (part.functionResponse?.name?.startsWith("ask_")) {
           setThinking(false);
-          setBridge("");
           setSpecialist(null);
         }
       }
@@ -266,7 +243,6 @@ export function useLiveSession(
         // claiming she is still thinking forever.
         if (event.turnComplete) {
           setThinking(false);
-          setBridge("");
           setSpecialist(null);
         }
       }
@@ -483,7 +459,6 @@ export function useLiveSession(
       listening,
       muted,
       thinking,
-      bridge,
       specialist,
       mood,
       caption,
@@ -498,7 +473,7 @@ export function useLiveSession(
       send,
       sendScreen,
     }),
-    [voice, connected, mode, error, listening, muted, thinking, bridge, specialist, mood,
+    [voice, connected, mode, error, listening, muted, thinking, specialist, mood,
      caption, speakKey, heard, level, board, toggleMute, send, sendScreen],
   );
 }

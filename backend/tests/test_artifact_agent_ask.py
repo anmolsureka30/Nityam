@@ -48,7 +48,6 @@ async def run() -> None:
     ctx = SimpleNamespace(state={"session_id": session_id, "student_id": student_id})
 
     result = await _last(ask_artifact(
-        bridge="Let me build that for you.",
         request="An interactive simulation of projectile range vs launch angle.",
         tool_context=ctx,
     ))
@@ -59,7 +58,7 @@ async def run() -> None:
     check("an artifact block actually landed", any(b.kind == "artifact" for b in board.blocks()), repr([b.kind for b in board.blocks()]))
 
     broken_ctx = SimpleNamespace(state={})
-    result2 = await _last(ask_artifact(bridge="ok", request="x", tool_context=broken_ctx))
+    result2 = await _last(ask_artifact(request="x", tool_context=broken_ctx))
     check("ask_artifact degrades to an error result rather than raising", "status" in result2, repr(result2))
 
 

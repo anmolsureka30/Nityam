@@ -398,7 +398,6 @@ export default function SessionScreen() {
         hasMarks={strokes.length > 0}
         onSend={(text) => send({ type: "text", text })}
         thinking={tutor.thinking}
-        bridge={tutor.bridge}
         specialist={tutor.specialist}
         onEnd={() => nav("/summary")}
       />

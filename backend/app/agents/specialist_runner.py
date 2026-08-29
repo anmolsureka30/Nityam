@@ -413,8 +413,17 @@ async def delegate(
     task = None
     try:
         transcript = await recent_transcript(session_id, student_id, n=transcript_n)
+        # The board goes in the prompt rather than behind read_screen. A tool
+        # only helps if the specialist thinks to call it, and mostly it did
+        # not — so BoardAgent would describe a figure TextbookAgent had just
+        # placed, having no idea it was there.
+        from app.canvas.tools import board_digest
+
+        board = board_digest(session_id)
         task = asyncio.get_running_loop().create_task(
-            runner.run_turn(session_id, student_id, f"{request}\n\n{transcript}")
+            runner.run_turn(
+                session_id, student_id, f"{request}\n\n{board}\n\n{transcript}"
+            )
         )
         started = time.monotonic()
         while not task.done():

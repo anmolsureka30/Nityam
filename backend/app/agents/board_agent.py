@@ -14,6 +14,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config
+from app.calc import calculate
 from app.agents.specialist_runner import SpecialistRunner, delegate
 from app.canvas.tools import BOARD_TOOLS
 from app.memory.tools import get_dpm, get_teaching_memory, list_concepts, search_grounding
@@ -33,7 +34,17 @@ teacher's words, with a citation, not generic textbook material. Ask for
 both in the SAME message as the writing they support, not a message of
 their own: you do not need the grounding text in hand to know you want it.
 
-## Use the request and the recent conversation together
+## Never write a number you did not calculate
+
+Every arithmetic step goes through `calculate` before it reaches the board.
+A wrong number reads exactly as well as a right one, and a student checking
+their homework against it has no way to tell. Angles are in degrees.
+
+## What you are handed
+
+The request, WHAT IS ALREADY ON THE BOARD, and the last several turns of the
+actual conversation. Do not write again what the board already has — add to
+it, correct it, or build on it.
 
 You are handed the voice layer's request and the last several turns of the
 actual conversation. Use the transcript to judge what the student already
@@ -81,14 +92,15 @@ def build_board_agent() -> LlmAgent:
             "writes it, grounded in their own teacher's material."
         ),
         instruction=BOARD_INSTRUCTION,
-        tools=[search_grounding, list_concepts, get_dpm, get_teaching_memory, *BOARD_TOOLS],
+        tools=[search_grounding, list_concepts, get_dpm, get_teaching_memory,
+               calculate, *BOARD_TOOLS],
     )
 
 
 _RUNNER = SpecialistRunner("nityam-board", build_board_agent)
 
 
-async def ask_board(bridge: str, request: str, tool_context: ToolContext):
+async def ask_board(request: str, tool_context: ToolContext):
     """Get something written on the student's board.
 
     Returns at once and keeps you talking while BoardAgent works — you will be
@@ -96,7 +108,6 @@ async def ask_board(bridge: str, request: str, tool_context: ToolContext):
     stop and wait.
 
     Args:
-        bridge: One short sentence in your own voice, said as you call.
         request: What should be written, in your own words — the concept, the
             specific doubt, and anything you noticed the student get wrong.
     """

@@ -1,5 +1,5 @@
 /* Which specialist the tutor has delegated to, and what to say about it when
- * she has not given her own bridge line.
+ * a specialist is working, named rather than generic.
  *
  * Kept as pure functions/data — no React, no hook state — so this is
  * testable exactly the same cheap way notebookReducer.ts already is: see
@@ -27,8 +27,8 @@ export function resolveSpecialist(toolName: string | undefined): Specialist | nu
   return SPECIALIST_BY_TOOL[toolName] ?? null;
 }
 
-/** Fallback phrase, shown only when the tutor has not supplied her own bridge
- *  line. Glyphs reuse the app's existing plain-geometric vocabulary rather
+/** What the indicator says while a specialist works. Glyphs reuse the app's
+ *  existing plain-geometric vocabulary rather
  *  than emoji, which would clash with this design system: `board` reuses the
  *  marker-tool glyph (SessionControls.tsx), `textbook` reuses the "View
  *  textbook" glyph (TextbookPeek.tsx). */
@@ -39,15 +39,14 @@ export const SPECIALIST_COPY: Record<Specialist, { glyph: string; verb: string }
   textbook: { glyph: "▦", verb: "Checking the textbook…" },
 };
 
-/** What the "she is thinking" indicator shows. Her own words always win when
- *  present; the specialist-specific phrase is only the fallback for when they
- *  aren't. */
-export function thinkingLine(
-  bridge: string | undefined,
-  specialist: Specialist | null,
-): string {
-  const line = bridge?.trim();
-  if (line) return line;
+/** What the "she is thinking" indicator shows.
+ *
+ *  It used to prefer a `bridge` string the tutor passed as a tool argument —
+ *  a sentence she was meant to be "saying" while the specialist worked, shown
+ *  as text because it was never actually spoken. She speaks for herself
+ *  throughout a delegation now, so her words belong in the bubble and this is
+ *  a status line again: what is happening, not what she said. */
+export function thinkingLine(specialist: Specialist | null): string {
   if (specialist) {
     const { glyph, verb } = SPECIALIST_COPY[specialist];
     return `${glyph} ${verb}`;

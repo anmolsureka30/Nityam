@@ -12,6 +12,7 @@ backend.
 """
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import re
@@ -27,12 +28,57 @@ log = logging.getLogger("nityam.textbook")
 INDEX_PATH = Path(__file__).resolve().parent / "textbook_index.json"
 
 
+@functools.cache
 def _index() -> list[dict]:
+    """The chapter index, parsed once.
+
+    Cached because it is a 101 KB JSON file and this was re-reading and
+    re-parsing it on EVERY call — once per search_textbook, once per
+    show_textbook_figure, and now once per fast-path resolve. It is a build
+    artefact that cannot change while the process runs.
+    """
     try:
         return json.loads(INDEX_PATH.read_text())
     except (OSError, json.JSONDecodeError):
         log.warning("no textbook index at %s", INDEX_PATH)
         return []
+
+
+FIGURE_RE = re.compile(r"\b(?:fig(?:ure)?\.?\s*)?(\d{1,2}\.\d{1,2})\b", re.I)
+
+
+def resolve_figure(query: str) -> dict | None:
+    """A figure number in the student's words -> exactly where it is. No model.
+
+    "show me figure 3.14" needs no reasoning: the number is a regex away and
+    the index maps it straight to a chapter, a page and a crop box. Routing
+    that through a specialist cost a full gemini-3.7-flash turn — around eight
+    seconds — to make two lookups that take under a millisecond.
+
+    Returns None when there is no number, or the number is not a real figure,
+    and the caller falls through to TextbookAgent for anything vaguer than
+    this ("that diagram with the two vectors").
+    """
+    match = FIGURE_RE.search(query or "")
+    if not match:
+        return None
+    want = match.group(1)
+    # The chapter is the part before the dot — NCERT numbers figures
+    # chapter-first — but scan them all rather than trusting that, since the
+    # index is small and a mismatch would silently show the wrong page.
+    for chapter in _index():
+        for figure in chapter.get("figures", []):
+            if figure.get("figure") == want:
+                return {
+                    "chapter": chapter["file"],
+                    "number": chapter["number"],
+                    "title": chapter["title"],
+                    "page": figure["page"],
+                    "box": figure.get("box"),
+                    "caption": figure.get("caption", ""),
+                    "figure": want,
+                }
+    return None
 
 
 def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict:

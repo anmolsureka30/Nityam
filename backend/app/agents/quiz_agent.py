@@ -22,6 +22,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import ToolContext
 
 from app import config, sessions
+from app.calc import calculate
 from app.agents.specialist_runner import SpecialistRunner, delegate
 from app.canvas import doc as D
 from app.memory.tools import get_dpm, get_teaching_memory, search_grounding
@@ -124,7 +125,11 @@ def publish_quiz_question(
 
 QUIZ_INSTRUCTION = """You write checkpoint questions. You never speak to the student.
 
-The tutor hands you a brief. Before writing anything:
+You are handed the brief, what is already on the board, and the recent
+conversation — test what was actually taught, not the topic in general.
+Any number in a question or an option goes through `calculate` first.
+
+Before writing anything:
   - call get_dpm and get_teaching_memory to see what this student actually
     struggles with, and
   - call search_grounding for the concepts in the brief, so your questions test
@@ -157,14 +162,15 @@ def build_quiz_agent() -> LlmAgent:
             "saying what to test and which misconceptions to probe."
         ),
         instruction=QUIZ_INSTRUCTION,
-        tools=[publish_quiz_question, get_dpm, get_teaching_memory, search_grounding],
+        tools=[publish_quiz_question, get_dpm, get_teaching_memory,
+               search_grounding, calculate],
     )
 
 
 _RUNNER = SpecialistRunner("nityam-quiz", build_quiz_agent)
 
 
-async def ask_quiz(bridge: str, request: str, tool_context: ToolContext):
+async def ask_quiz(request: str, tool_context: ToolContext):
     """Set a checkpoint quiz for the student.
 
     Returns at once and keeps you talking while QuizAgent works — you will be
@@ -172,7 +178,6 @@ async def ask_quiz(bridge: str, request: str, tool_context: ToolContext):
     not stop and wait.
 
     Args:
-        bridge: One short sentence in your own voice, said as you call.
         request: What to test and which misconceptions to probe, in your own
             words.
     """

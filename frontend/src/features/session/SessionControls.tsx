@@ -14,7 +14,7 @@ const TOOLS: { id: MarkTool; glyph: string; label: string }[] = [
 
 export default function SessionControls({
   tool, onTool, onClear, hasMarks,
-  onSend, onEnd, thinking, bridge, specialist,
+  onSend, onEnd, thinking, specialist,
 }: {
   tool: MarkTool | null;
   onTool: (t: MarkTool | null) => void;
@@ -30,7 +30,6 @@ export default function SessionControls({
    *  could not already see, while the line she actually produced —
    *  "Certainly, I can show you the derivation of the range formula" — was
    *  sitting unused in the tool call. */
-  bridge?: string;
   /** Which specialist she has delegated to, when known. Picks the fallback
    *  phrase in thinkingLine() below when `bridge` is absent — `null`/absent
    *  means either she isn't thinking, or an unrecognized delegate tool was
@@ -50,7 +49,7 @@ export default function SessionControls({
           <span className={s.thinking}>
             <i /><i /><i />
             <span className={s.thinkingText}>
-              {thinkingLine(bridge, specialist ?? null)}
+              {thinkingLine(specialist ?? null)}
             </span>
           </span>
         </div>
