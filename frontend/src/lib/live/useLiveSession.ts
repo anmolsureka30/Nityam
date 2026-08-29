@@ -17,6 +17,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import type { BoardAction, BoardState } from "../notebookReducer";
 import { boardReducer, emptyBoard } from "../notebookReducer";
 import type { TutorMood } from "../types";
+import type { Specialist } from "./specialists";
+import { resolveSpecialist } from "./specialists";
 import { LiveSession } from "./session";
 import { spokenMs, toChunks } from "./chunks";
 import type { ClientMessage, ScreenState, ServerFrame } from "./protocol";
@@ -40,6 +42,10 @@ export interface LiveTutor {
   /** The holding line she gave when she delegated — what she is working on,
    *  in her words. Empty when she is not thinking. */
   bridge: string;
+  /** Which specialist she has delegated to, while `thinking` is true. `null`
+   *  when she isn't thinking, or when an `ask_*` tool this app doesn't
+   *  recognize was reached — see specialists.ts's resolveSpecialist(). */
+  specialist: Specialist | null;
   mood: TutorMood;
   /** What she is saying, as it arrives. */
   caption: string;
@@ -84,6 +90,7 @@ export function useLiveSession(
   const [voice, setVoice] = useState<MediaStream | null>(null);
   const [thinking, setThinking] = useState(false);
   const [bridge, setBridge] = useState("");
+  const [specialist, setSpecialist] = useState<Specialist | null>(null);
   const [muted, setMuted] = useState(false);
   /* Read inside the connect callback, which closes over the first render.
      Assigned in an effect rather than during render: a render can be discarded,
@@ -205,6 +212,7 @@ export function useLiveSession(
       for (const part of event.content?.parts ?? []) {
         if (part.functionCall?.name?.startsWith("ask_")) {
           setThinking(true);
+          setSpecialist(resolveSpecialist(part.functionCall.name));
           const line = (part.functionCall.args as { bridge?: string } | undefined)
             ?.bridge?.trim();
           if (line) {
@@ -220,6 +228,7 @@ export function useLiveSession(
         if (part.functionResponse?.name?.startsWith("ask_")) {
           setThinking(false);
           setBridge("");
+          setSpecialist(null);
         }
       }
 
@@ -246,6 +255,7 @@ export function useLiveSession(
         if (event.turnComplete) {
           setThinking(false);
           setBridge("");
+          setSpecialist(null);
         }
       }
     },
@@ -462,6 +472,7 @@ export function useLiveSession(
       muted,
       thinking,
       bridge,
+      specialist,
       mood,
       caption,
       speakKey,
@@ -475,7 +486,7 @@ export function useLiveSession(
       send,
       sendScreen,
     }),
-    [voice, connected, mode, error, listening, muted, thinking, bridge, mood, caption,
-     speakKey, heard, level, board, toggleMute, send, sendScreen],
+    [voice, connected, mode, error, listening, muted, thinking, bridge, specialist, mood,
+     caption, speakKey, heard, level, board, toggleMute, send, sendScreen],
   );
 }
