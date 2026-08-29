@@ -75,9 +75,25 @@ class Server:
         self.proc.wait(timeout=5)
 
 
-async def collect(ws, seconds: float) -> list[dict]:
-    """Everything the server sends in a window. The tutor streams, so there is
-    no single 'the reply' frame to wait for."""
+async def collect(ws, seconds: float, *, until_turn_ends: bool = True) -> list[dict]:
+    """Everything the server sends for one turn.
+
+    `seconds` is a CEILING, not a window. It used to be a plain stopwatch, and
+    that made the suite a race it periodically lost: a greeting's first patch
+    lands at ~2.7s and her first word at ~3.2s, against a 3.0s budget. The
+    failure was doubly confusing, because the speech that missed its own window
+    then arrived inside the NEXT one — so "she says something when greeted"
+    failed while "a bare highlight provokes no reply" reported six spoken
+    frames, and the true reading of that pair is one late turn, not two bugs.
+
+    So: stop when the turn actually ends. `turnComplete` is the server's own
+    signal that she has finished, which is exactly what these checks mean by
+    "the reply", and it also stops one turn's tail being read as the next
+    turn's response. The timeout remains as a backstop for a turn that never
+    completes, and for the checks that deliberately expect SILENCE — pass
+    until_turn_ends=False there, where waiting for a turn that should never
+    happen would just mean waiting the whole ceiling anyway.
+    """
     out: list[dict] = []
     deadline = asyncio.get_event_loop().time() + seconds
     while True:
@@ -91,9 +107,12 @@ async def collect(ws, seconds: float) -> list[dict]:
         if isinstance(raw, bytes):
             continue
         try:
-            out.append(json.loads(raw))
+            frame = json.loads(raw)
         except json.JSONDecodeError:
-            pass
+            continue
+        out.append(frame)
+        if until_turn_ends and frame.get("turnComplete"):
+            return out
 
 
 def patches(frames: list[dict]) -> list[dict]:
@@ -129,7 +148,7 @@ async def run(port: int) -> None:
             "conceptName": "Maximum range", "intensity": "standard", "minutes": 20,
         }))
         await ws.send(json.dumps({"type": "greet"}))
-        frames = await collect(ws, 3.0)
+        frames = await collect(ws, 15.0)
         p = patches(frames)
         check("greeting makes the tutor write something", len(p) >= 1,
               repr([x["op"] for x in p]))
@@ -138,7 +157,7 @@ async def run(port: int) -> None:
 
         # ------------------------------------------------------------ a question
         await ws.send(json.dumps({"type": "text", "text": "why is 45 degrees best?"}))
-        frames = await collect(ws, 3.0)
+        frames = await collect(ws, 15.0)
         p = patches(frames)
         ops = [x["op"] for x in p]
         check("a question produces board writes", "append_block" in ops, repr(ops))
@@ -165,7 +184,7 @@ async def run(port: int) -> None:
             "confidence": 1,
         }
         await ws.send(json.dumps({"type": "gesture", "packet": mark}))
-        quiet = await collect(ws, 2.5)
+        quiet = await collect(ws, 2.5, until_turn_ends=False)
         check("a bare highlight does NOT provoke a reply",
               len(patches(quiet)) == 0
               and not [f for f in quiet if f.get("outputTranscription")],
@@ -174,7 +193,7 @@ async def run(port: int) -> None:
 
         # …but pressing "Ask about this" is a question, and gets answered.
         await ws.send(json.dumps({"type": "gesture", "packet": mark, "ask": True}))
-        answered = await collect(ws, 3.0)
+        answered = await collect(ws, 15.0)
         check("asking about the same mark does",
               len(patches(answered)) >= 1
               or len([f for f in answered if f.get("outputTranscription")]) >= 1)
@@ -189,7 +208,7 @@ async def run(port: int) -> None:
 
         # ------------------------------------------------------------------ quiz
         await ws.send(json.dumps({"type": "text", "text": "quiz me"}))
-        frames = await collect(ws, 3.0)
+        frames = await collect(ws, 15.0)
         quizzes = [x for x in patches(frames) if x["op"] == "show_quiz"]
         check("asking to be quizzed puts a checkpoint on screen", len(quizzes) == 1,
               repr([x["op"] for x in patches(frames)]))
@@ -207,7 +226,7 @@ async def run(port: int) -> None:
                 "type": "quiz_answer", "checkpointId": cp["id"],
                 "optionId": right[0]["id"], "optionText": right[0]["text"], "correct": True,
             }))
-            frames = await collect(ws, 3.0)
+            frames = await collect(ws, 15.0)
             calls = [x for x in patches(frames) if x.get("block", {}).get("kind") == "callout"]
             check("answering it is recorded on the board", len(calls) >= 1,
                   repr([x["op"] for x in patches(frames)]))

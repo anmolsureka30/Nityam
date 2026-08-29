@@ -72,6 +72,24 @@ def configure() -> str:
         os.getenv("NITYAM_REASONING_MODEL", "").strip() or config.REASONING_MODEL
     )
 
+    # Stashed BEFORE the scrubbing below, and this is load-bearing.
+    #
+    # Express mode has to delete GOOGLE_CLOUD_PROJECT from the environment or
+    # the genai SDK ignores the key and takes the ADC path. But the project id
+    # is also what app/user_auth.py checks a Firebase token's `aud` against —
+    # and it read GOOGLE_CLOUD_PROJECT, which by then no longer existed. Every
+    # sign-in was refused, and the student was told their session had expired,
+    # on a machine whose .env had the project set correctly all along.
+    #
+    # Same shape as NITYAM_RESOLVED_LIVE_MODEL above: derived once here, under
+    # a name nothing else is entitled to remove.
+    project = (
+        os.getenv("FIREBASE_PROJECT_ID", "").strip()
+        or os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
+    )
+    if project:
+        os.environ["NITYAM_PROJECT_ID"] = project
+
     if mode == "vertex":
         # Project + location + Application Default Credentials.
         # The API key must be cleared or the SDK may prefer express mode.

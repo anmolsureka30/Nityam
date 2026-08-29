@@ -1,15 +1,21 @@
-"""Get a real Firebase ID token for a fixed, auto-provisioned test account.
+"""A real Firebase ID token for a fixed test account, with no admin credentials.
 
-No signing/impersonation permission needed: this creates (if missing) a real
-Firebase Auth user with a known email/password via the Admin SDK's plain
-create_user/get_user_by_email (ordinary authenticated Admin API calls — same
-as scripts/create_demo_firebase_user.py, works with plain ADC), then signs
-in as that user via the real (free, no-quota-cost) Identity Toolkit password
-sign-in REST API. Tests get a real ID token, exactly what a browser gets.
+The account is created and signed into through the ordinary Identity Toolkit
+REST API — the same endpoints the browser SDK calls — authenticated by nothing
+but FIREBASE_WEB_API_KEY, which is a public client key. Tests therefore get a
+real ID token, exactly what a browser gets, on any machine that can reach the
+internet.
 
-Needs: Email/Password sign-in enabled in the Firebase console (Authentication
--> Sign-in method — a one-time manual step), ADC
-(`gcloud auth application-default login`), and FIREBASE_WEB_API_KEY in the
+WHY NOT THE ADMIN SDK. It used to be firebase_admin's create_user /
+get_user_by_email, and that needs Application Default Credentials — which on a
+developer laptop are minted WITHOUT a quota project, which identitytoolkit
+refuses, and the documented fix needs serviceusage.services.use on the Firebase
+project, which a developer may simply not have been granted. The suites became
+unrunnable for a reason that had nothing to do with the code under test.
+Nothing here needs privilege, so nothing here asks for it.
+
+Needs: Email/Password sign-in enabled once in the Firebase console
+(Authentication -> Sign-in method), and FIREBASE_WEB_API_KEY in the
 environment.
 """
 from __future__ import annotations
@@ -19,40 +25,57 @@ import os
 import urllib.error
 import urllib.request
 
-from firebase_admin import auth as firebase_auth
+_ENDPOINT = "https://identitytoolkit.googleapis.com/v1/{path}?key={key}"
 
-from app import user_auth
+_SETUP = """
+These tests sign in as a real Firebase user, so they need one thing:
+
+  FIREBASE_WEB_API_KEY in backend/.env — the same value the browser uses as
+  VITE_FIREBASE_API_KEY. See backend/.env.example.
+
+Email/Password sign-in must also be enabled once, in the Firebase console:
+  Authentication -> Sign-in method -> Email/Password -> Enable
+
+Suites that need neither, and run right now:
+  .venv/bin/python -m tests.test_canvas
+  cd ../frontend
+  node tests/contract.mjs && node tests/reducer.mjs && node tests/chunks.mjs
+"""
 
 
-def ensure_test_user(email: str, password: str) -> str:
-    """Idempotent: returns the uid, creating the account if it doesn't exist."""
-    user_auth.init_firebase()
+class _Failed(RuntimeError):
+    pass
+
+
+def _call(path: str, body: dict) -> dict:
     try:
-        return firebase_auth.get_user_by_email(email).uid
-    except firebase_auth.UserNotFoundError:
-        return firebase_auth.create_user(email=email, password=password).uid
-
-
-def mint_id_token(email: str, password: str) -> str:
-    """Auto-provisions the account if needed, then signs in for a real ID token."""
-    ensure_test_user(email, password)
-    api_key = os.environ["FIREBASE_WEB_API_KEY"]
-    url = (
-        "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
-        f"?key={api_key}"
-    )
-    body = json.dumps(
-        {"email": email, "password": password, "returnSecureToken": True},
-    ).encode()
+        key = os.environ["FIREBASE_WEB_API_KEY"]
+    except KeyError:
+        raise SystemExit(_SETUP) from None
     req = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/json"},
+        _ENDPOINT.format(path=path, key=key),
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.load(resp)["idToken"]
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.load(resp)
     except urllib.error.HTTPError as e:
         # The body is the whole diagnosis and urllib throws it away: a bare
         # "HTTP Error 400: Bad Request" hides OPERATION_NOT_ALLOWED, which is
-        # what a fresh project says until Email/Password sign-in is enabled in
-        # the console — by far the likeliest first-run failure here.
-        raise RuntimeError(f"Firebase sign-in failed: {e.read().decode()}") from e
+        # what a fresh project says until Email/Password sign-in is enabled.
+        raise _Failed(json.loads(e.read().decode())["error"]["message"]) from None
+
+
+def mint_id_token(email: str, password: str) -> str:
+    """Signs in, creating the account first if it does not exist yet."""
+    creds = {"email": email, "password": password, "returnSecureToken": True}
+    try:
+        return _call("accounts:signInWithPassword", creds)["idToken"]
+    except _Failed as first:
+        if "EMAIL_NOT_FOUND" not in str(first) and "INVALID_LOGIN" not in str(first):
+            raise SystemExit(f"{_SETUP}\nFirebase said: {first}\n") from None
+    try:
+        return _call("accounts:signUp", creds)["idToken"]
+    except _Failed as e:
+        raise SystemExit(f"{_SETUP}\nFirebase said: {e}\n") from None

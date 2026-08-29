@@ -39,7 +39,22 @@ if [[ ! -x "$PY" ]]; then
   [[ -n "$PYBIN" ]] || { echo "Install Python 3.10+ first: brew install python@3.12"; exit 1; }
   "$PYBIN" -m venv .venv
   $PY -m pip install --quiet --upgrade pip
+fi
+
+# Install whenever requirements.txt has CHANGED, not only when the venv is
+# first created. The install used to sit inside the block above, which meant a
+# new dependency reached everyone who had never run the project and nobody who
+# had: adding firebase-admin left an existing venv untouched, and the backend
+# died at import with `ModuleNotFoundError: No module named 'firebase_admin'`
+# while the frontend started happily on top of it. The stamp is the hash of
+# the file, so the check costs nothing on an unchanged tree and cannot drift
+# the way a timestamp comparison does across a git checkout.
+STAMP=.venv/.requirements-sha
+WANT="$(shasum -a 256 requirements.txt | cut -d" " -f1)"
+if [[ "$(cat "$STAMP" 2>/dev/null || true)" != "$WANT" ]]; then
+  echo "Python dependencies changed — installing…"
   $PY -m pip install --quiet -r requirements.txt
+  echo "$WANT" > "$STAMP"
 fi
 
 if grep -qE '^NITYAM_AUTH=mock' .env 2>/dev/null; then
@@ -64,6 +79,29 @@ if [[ ! -f data/memory.db ]]; then
   }
   echo
 fi
+
+# The npm-side twin of the requirements stamp above, and it has bitten exactly
+# the same way: `[[ -d node_modules ]] || npm install` installs a new dependency
+# for everyone who has never run the project and nobody who has. Adding
+# `firebase` to package.json left an existing node_modules untouched, so
+# lib/firebase.ts imported a package that was not there — and because getAuth()
+# throws during module evaluation, the whole app rendered as a BLANK WHITE PAGE
+# with one console line. Hash package.json and the lockfile instead.
+#
+# Braces around ${dir} below are load-bearing: the ellipsis is U+2026, and
+# macOS's bash 3.2 reads those high bytes as part of a variable NAME. Written
+# as "$dir…" it expanded $dir… — an unbound variable under `set -u`, which
+# killed the whole script on the line that was only trying to print progress.
+npm_sync() {
+  local dir="$1" stamp want
+  stamp="$dir/node_modules/.nityam-deps-sha"
+  want="$(cat "$dir/package.json" "$dir/package-lock.json" 2>/dev/null | shasum -a 256 | cut -d" " -f1)"
+  if [[ ! -d "$dir/node_modules" || "$(cat "$stamp" 2>/dev/null || true)" != "$want" ]]; then
+    echo "Installing npm dependencies in ${dir}…"
+    (cd "$dir" && npm install)
+    echo "$want" > "$stamp"
+  fi
+}
 
 # A busy port used to fail silently: uvicorn exited, Vite started anyway, and
 # the page loaded with a mic that could never connect. Say so and stop.
@@ -174,7 +212,7 @@ if [[ "$API_ONLY" == 1 ]]; then
   echo "Backend on http://localhost:$PORT"
 else
   FE=../frontend
-  [[ -d "$FE/node_modules" ]] || (cd "$FE" && npm install)
+  npm_sync "$FE"
   # VITE_LANDING_URL is the mirror of the landing page's own NEXT_PUBLIC_APP_URL
   # below: a signed-out visitor at "/" is sent here (see src/App.tsx's RootGate).
   # Set even when the landing page itself is skipped (--no-landing) — pointing
@@ -187,7 +225,7 @@ fi
 
 if [[ "$SKIP_LANDING" == 0 ]]; then
   LANDING=../Nityam
-  [[ -d "$LANDING/node_modules" ]] || (cd "$LANDING" && npm install)
+  npm_sync "$LANDING"
   # Points the landing page's "Sign in" / "Start learning" CTAs at wherever
   # the real app's dev server actually ended up (see Nityam/app/lib/config.ts).
   spawn env -C "$LANDING" NEXT_PUBLIC_APP_URL="http://localhost:$WEB_PORT" \
@@ -211,7 +249,7 @@ if [[ "$SKIP_OBSERVATORY" == 0 ]]; then
     REDIS_PORT="${REDIS_PORT:-6379}" \
     uv run uvicorn observatory.main:app --port "$OBS_PORT" --reload --reload-dir observatory
 
-  [[ -d "$OBS_FE/node_modules" ]] || (cd "$OBS_FE" && npm install)
+  npm_sync "$OBS_FE"
   spawn env -C "$OBS_FE" \
     VITE_OBSERVATORY_BACKEND_URL="http://localhost:$OBS_PORT" \
     VITE_TUTOR_BASE_URL="http://localhost:$PORT" \

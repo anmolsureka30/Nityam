@@ -61,7 +61,9 @@ log = logging.getLogger("nityam")
 APP_NAME = "nityam"
 
 app = FastAPI(title="Nityam backend")
-user_auth.init_firebase()
+# No init_firebase() here any more: verifying an ID token needs Google's
+# PUBLIC certificates and no credentials at all. See app/user_auth.py for
+# why the Admin SDK was removed from this path.
 app.include_router(memory_router)
 app.include_router(shruti_router)
 
@@ -91,6 +93,9 @@ if MODE != "mock":
     from google.adk.agents.run_config import RunConfig, StreamingMode
     from google.adk.apps import App
     from google.adk.artifacts import GcsArtifactService
+    from google.adk.artifacts.in_memory_artifact_service import (
+        InMemoryArtifactService,
+    )
     from google.adk.runners import Runner
     from google.adk.sessions import InMemorySessionService
     from google.genai import types
@@ -104,6 +109,43 @@ if MODE != "mock":
     # SEAM: InMemorySessionService. Swap for DatabaseSessionService (Cloud SQL)
     # or VertexAiSessionService — a one-line constructor change, no other code
     # moves. See backend/INTEGRATION.md.
+    def _artifact_service():
+        """ADK's artifact store, which this app does not actually use yet.
+
+        GcsArtifactService.__init__ EAGERLY CONSTRUCTS a storage.Client(), and
+        that constructor resolves both credentials and a project id. So naming
+        the class here made those a hard IMPORT-TIME requirement of the entire
+        backend, for a line with no functional effect. It has now taken the
+        backend down twice, each time differently and each time with a
+        twenty-frame traceback out of google.cloud that never mentions Nityam:
+
+          * no ADC at all -> DefaultCredentialsError
+          * ADC present, but vertex_express mode DELETES GOOGLE_CLOUD_PROJECT
+            from the environment (see app/auth.py — the genai SDK would
+            otherwise ignore the API key) -> "Project was not passed and could
+            not be determined from the environment"
+
+        Both surfaced to the student as a frontend that could not reach its own
+        backend, because uvicorn had already exited.
+
+        So the client is built only when it can be, and the reasons are checked
+        before construction rather than discovered by exception. The in-memory
+        service is a real BaseArtifactService, so the Runner is fully formed
+        either way and nothing downstream branches on this.
+        """
+        if not config.GCS_BUCKET:
+            return InMemoryArtifactService()
+        try:
+            return GcsArtifactService(bucket_name=config.GCS_BUCKET)
+        except Exception as exc:  # DefaultCredentialsError, OSError, …
+            log.warning(
+                "GCS artifact store unavailable (%s) — using the in-memory "
+                "one. Nothing calls save_artifact() yet, so this changes no "
+                "behaviour. %s",
+                exc.__class__.__name__, exc,
+            )
+            return InMemoryArtifactService()
+
     session_service = InMemorySessionService()
     runner = Runner(
         app=App(
@@ -117,13 +159,9 @@ if MODE != "mock":
         session_service=session_service,
         # Wired but not yet load-bearing: nothing calls tool_context.save_artifact()
         # — generated artifacts persist through app/artifacts_gcs.py directly
-        # (see artifact_agent.py:_build for why). Worth knowing before a deploy:
-        # GcsArtifactService.__init__ eagerly constructs a storage.Client(), so
-        # in live mode importing this module now requires resolvable Application
-        # Default Credentials, even though this line has no functional effect
-        # yet. A box with valid model-serving credentials but no ADC will fail
-        # here, and the cause will not be obvious.
-        artifact_service=GcsArtifactService(bucket_name=config.GCS_BUCKET),
+        # (see artifact_agent.py:_build for why). See _artifact_service() for
+        # why it is not simply GcsArtifactService.
+        artifact_service=_artifact_service(),
     )
 
 log.info("starting — %s", describe())
@@ -162,8 +200,23 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
             # and with it every concurrent student's audio stream — for as long
             # as that fetch takes.
             decoded = await asyncio.to_thread(user_auth.verify_token, token)
-        except Exception:
+        except Exception as exc:
+            # LOGGED, not swallowed. The student is told one thing — "your
+            # sign-in has expired" — and for a long time that was the only
+            # trace of any of: an expired token, a token for another project,
+            # a missing project id, or the backend being unable to reach
+            # Google for the signing certificates. Four different fixes behind
+            # one sentence, and nothing in the log to tell them apart. Finding
+            # the real cause took a temporary log line every time.
+            log.warning("rejecting a token: %s: %s", exc.__class__.__name__, exc)
             decoded = None
+    if token and decoded and decoded.get("uid") != user_id:
+        # Distinct from a bad token, and worth its own line: the token is
+        # genuine but was minted for somebody else.
+        log.warning(
+            "token uid %r does not match the url's %r",
+            decoded.get("uid"), user_id,
+        )
     if not decoded or decoded.get("uid") != user_id:
         # Accept-then-reject, not a pre-accept close: a pre-accept WebSocket
         # rejection carries no reason string the browser can read (a platform

@@ -9,7 +9,12 @@ import {
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { auth } from "../firebase";
+import { auth as maybeAuth } from "../firebase";
+
+/* Non-null by construction: main.tsx renders the setup notice instead of this
+   provider when Firebase is unconfigured. Asserted once here rather than at
+   each call site below. */
+const auth = maybeAuth!;
 
 interface AuthValue {
   user: User | null;
