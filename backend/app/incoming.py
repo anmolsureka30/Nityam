@@ -337,6 +337,13 @@ def describe_grounding_pack(plan, brief: str, chunks: list[dict]) -> str:
             "\"u squared sine two theta over g\" — or ask your teaching layer "
             "to put it on the board."
         )
+        # The transcript is whatever language the class was taught in, which is
+        # often Hinglish. Without this she mirrors it and opens the session in
+        # Hindi to a student who has not said a word yet.
+        lines.append(
+            "The language of those quotes is their teacher's, not yours. "
+            "Speak English unless the student asks you not to."
+        )
     lines.append(
         "You may answer questions from this material directly and at once. "
         "Anything it does not cover, delegate.]"

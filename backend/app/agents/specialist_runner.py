@@ -230,7 +230,7 @@ _STRETCH_AFTER_S = 30
 """Past this, stop asking her to continue the same thread and move her on."""
 
 _OPENING_CLAUSE = {
-    "board": "Say the idea out loud yourself while it is being written.",
+    "board": "Ask them what they already know about it.",
     "artifact": "Ask them to predict what the simulation will show.",
     "quiz": "Ask them to recall the key point before the questions appear.",
     "textbook": "Ask what they remember of the figure you are looking for.",
@@ -247,8 +247,9 @@ def _opening(label: str) -> dict:
         "still_working": label,
         "seconds": 0,
         "do": (
-            "[Keep teaching in your own words while this is prepared. Do not "
-            "stop and wait, and never say anything is loading. "
+            "[Keep teaching while this is prepared — but keep it a "
+            "conversation: a sentence or two, then a question, then let them "
+            "answer. Never say anything is loading. "
             + _OPENING_CLAUSE.get(label, "")
             + "]"
         ),
@@ -265,14 +266,16 @@ def _holding(label: str, seconds: int) -> object:
     """
     if seconds >= _STRETCH_AFTER_S:
         do = (
-            "[Still being prepared. Move to a related idea, or ask them to try "
-            "something. Do not repeat what you have already said.]"
+            "[Still working. Ask them to try something, or move to a related "
+            "idea — as a question. Do not repeat what you have already said.]"
         )
     else:
+        # "or ask them something" let her monologue: given the choice she took
+        # the next step out loud, at length, and never handed the turn back.
+        # Asking is the instruction now, not one of two options.
         do = (
-            "[Still being prepared. Take the next step out loud, or ask them "
-            "something. Leave room for them to answer; if they are talking, "
-            "wait.]"
+            "[Still working. Say one thing, then ASK THEM a question about it "
+            "and stop. Do not explain at length while you wait.]"
         )
     return types.FunctionResponse(
         response={"still_working": label, "seconds": seconds, "do": do},
