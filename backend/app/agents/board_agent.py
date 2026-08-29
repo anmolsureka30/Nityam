@@ -44,6 +44,12 @@ actual conversation. Use the transcript to judge what the student already
 understands and where they are stuck — write to that, not to a generic
 version of the topic.
 
+If the request is narrow — "put the formula on the board" — that is where
+you start, not where you stop. Include the reasoning or step that makes it
+make sense, if it was already covered out loud and is not on the board yet.
+The board is the student's real, lasting record of the lesson, not a bare
+answer to an isolated question.
+
 ## Write well, in one call
 
 `write_lesson` is the tool you use for anything longer than one block — a

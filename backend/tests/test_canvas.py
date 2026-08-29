@@ -33,7 +33,7 @@ class FakeToolContext:
         self.state = {"session_id": session_id, "student_id": "demo_student"}
 
 
-def main() -> int:
+async def main() -> int:
     ctx = FakeToolContext("s_test")
     sessions.drop("s_test")
 
@@ -122,7 +122,7 @@ def main() -> int:
     sessions.drop("s_batch")
     batch = FakeToolContext("s_batch")
     sessions.get("s_batch")
-    lesson = T.write_lesson([
+    lesson = await T.write_lesson([
         "# Maximum range",
         "= R = u² [[sin(2θ)|projectile.horizontal_range]] / g | on flat ground",
         "Only the [[angle|projectile.launch_angle]] is yours to choose.",
@@ -149,14 +149,14 @@ def main() -> int:
     sessions.drop("s_none")
     none_ctx = FakeToolContext("s_none")
     before = len(sessions.get("s_none").board.blocks())
-    broke = T.write_lesson(
+    broke = await T.write_lesson(
         ["# This heading is fine", "! only-two | parts"], none_ctx
     )
     after = len(sessions.get("s_none").board.blocks())
     check("a malformed line writes NOTHING rather than half a lesson",
           "error" in broke and after == before, f"{before} -> {after}; {broke}")
     check("LaTeX in a batch is refused too",
-          "error" in T.write_lesson(["= R = \\frac{a}{b}"], batch))
+          "error" in await T.write_lesson(["= R = \\frac{a}{b}"], batch))
 
     # ---------------------------------------------------------- the outbox
     drained = []
@@ -255,7 +255,4 @@ def main() -> int:
 if __name__ == "__main__":
     # sessions.get() builds an asyncio.Queue, which wants a loop on some
     # platforms; run inside one so the test matches how the server calls it.
-    async def _run():
-        return main()
-
-    raise SystemExit(asyncio.run(_run()))
+    raise SystemExit(asyncio.run(main()))

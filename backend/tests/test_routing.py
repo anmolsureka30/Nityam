@@ -78,8 +78,6 @@ CASES: list[tuple[str, str, str]] = [
     # "I shouldn't have to tell it to write this down" was the report.
     (DELEGATE, "What did my teacher say about range in class?",
      "quoting the class is teaching, and teaching gets written down"),
-    (DIRECT, "Point at the sine term for me.",
-     "it has the anchor ids; point_at is local"),
 
     # ---- should go to the reasoning layer
     # The textbook lives on TutorAgent, so the voice layer cannot see those

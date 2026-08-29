@@ -16,6 +16,7 @@ anchor that really exists. See app/canvas/doc.py:IdMinter.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 
@@ -317,7 +318,15 @@ def scroll_to(block_id: str, tool_context: ToolContext) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def write_lesson(blocks: list[str], tool_context: ToolContext) -> dict:
+STREAM_DELAY_S = 0.45
+"""Pause between blocks as write_lesson publishes them, so the board fills in
+block by block instead of all landing on the page in the same instant — the
+same content, paced like it is being written rather than dumped. Costs
+nothing extra in model time: every block was already decided before this
+loop starts, so the delay only staggers WebSocket sends, not LLM calls."""
+
+
+async def write_lesson(blocks: list[str], tool_context: ToolContext) -> dict:
     """Write a whole answer on the board in ONE call. Use this, not the
     single-block tools, for anything longer than one block.
 
@@ -418,12 +427,14 @@ def write_lesson(blocks: list[str], tool_context: ToolContext) -> dict:
 
     session_id = _sid(tool_context)
     written: list[str] = []
-    for block in staged:
+    for i, block in enumerate(staged):
         try:
             sessions.publish(session_id, D.AppendBlock(block=block))
         except (sessions.PatchRejected, ValueError) as exc:
             return {"error": str(exc), "written_before_failing": written}
         written.append(block.id)
+        if i < len(staged) - 1:
+            await asyncio.sleep(STREAM_DELAY_S)
 
     lit: list[str] = []
     for span in pointed:

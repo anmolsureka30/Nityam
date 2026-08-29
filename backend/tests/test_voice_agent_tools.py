@@ -37,8 +37,10 @@ def main() -> int:
         name = getattr(tool, "name", None) or getattr(tool, "__name__", str(tool))
         by_name[name] = tool
 
-    for free_tool in ("read_screen", "point_at", "scroll_to"):
+    for free_tool in ("read_screen", "scroll_to"):
         check(f"{free_tool} is still a VoiceAgent tool", free_tool in by_name)
+
+    check("point_at is not a VoiceAgent tool (removed 2026-08-29)", "point_at" not in by_name)
 
     for delegate in ("ask_board", "ask_artifact", "ask_quiz", "ask_textbook"):
         check(f"{delegate} is a VoiceAgent tool", delegate in by_name)
