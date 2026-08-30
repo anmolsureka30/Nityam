@@ -153,9 +153,14 @@ pause, instead of cutting VoiceAgent off mid-sentence. That platform mechanism
 replaced a hand-rolled nudge/inject queue (`sessions.nudges`/`state.context`),
 which is now gone. Two consequences worth knowing:
 
-* Each `ask_*` takes a required `bridge` argument — the holding line VoiceAgent
-  says out loud *right now*, while the specialist works. The Live model would
-  otherwise either speak or call, never both.
+* Each `ask_*` is an **async generator**, not a coroutine — `specialist_runner.delegate()`
+  is what every one of them wraps and yields from. ADK routes an async-generator
+  tool through its streaming path, where every `yield` becomes its own
+  `send_tool_response` on the same call id: an opening placeholder the moment
+  the call lands, a "still working" chunk on a cadence while the specialist
+  runs, and the real result once it finishes. VoiceAgent never has to be handed
+  a holding line by the caller — `delegate()` generates one from the
+  specialist's own label.
 * ADK yields no `function_response` event into `run_live`'s stream for a
   WHEN_IDLE tool, so nothing can be triggered off one. Anything that must happen
   when a delegation finishes belongs at the tool function's own call site — see
@@ -168,12 +173,14 @@ substantive turns, which is why VoiceAgent must say something before it
 delegates.
 
 Adding a specialist: write `build_x_agent()`, give it a module-level
-`SpecialistRunner`, and expose one `async def ask_x(bridge, request,
-tool_context)` tool that calls `run_turn` and returns `{"status", "summary"}`.
-Register it in `voice_agent.py` wrapped in `_when_idle(...)`. The tool's
-docstring is the actual interface — it is what VoiceAgent routes on. Build
-agents in a factory, never at module level: an agent already attached to one
-parent raises `"agent already has a parent"`.
+`SpecialistRunner`, and expose one `async def ask_x(request: str, tool_context:
+ToolContext)` async generator that `async for`-yields from
+`specialist_runner.delegate(...)`, passing your label, runner, request,
+transcript length, and the default/error summaries to speak. Register it in
+`voice_agent.py` wrapped in `_when_idle(...)`. The tool's docstring is the
+actual interface — it is what VoiceAgent routes on. Build agents in a
+factory, never at module level: an agent already attached to one parent
+raises `"agent already has a parent"`.
 
 ## The board
 

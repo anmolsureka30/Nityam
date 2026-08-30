@@ -27,6 +27,8 @@ graph LR
 *(Full detail, icon-accurate and built for redrawing in Excalidraw across five diagrams, lives in
 [`docs/architecture-diagrams.html`](docs/architecture-diagrams.html).)*
 
+![Nityam agent orchestration: one Gemini Live voice agent routing to four specialist agents, backed by the unified memory substrate](docs/images/agent-orchestration.png)
+
 ## 🎓 From rote answers to real understanding
 
 A tutor that just answers produces a student who can pass tonight's question and not next week's.
@@ -72,6 +74,8 @@ specialists that write to a shared board, pull up textbook figures, publish quiz
 render simulations, all inside the same conversation. Voice, board, text, and generated visuals
 are one experience, not four disconnected surfaces.
 
+![Four surfaces, one conversation: the shared board, textbook, quiz checkpoint, and simulation all driven by a single live voice conversation](docs/images/multimodal-experience.png)
+
 **UX that hides the machinery.** The student never hears "let me call a tool": VoiceAgent speaks
 every specialist's output as her own words, keeps talking while a specialist is still working
 underneath her, and only interrupts herself when three separate timing gates agree it's safe to.
@@ -116,6 +120,8 @@ keep the conversation coherent while up to four calls could plausibly be in flig
 
 ### SMRITI, the memory layer
 
+![SMRITI's three memory tiers: workflow memory in Redis, episodic memory in Firestore, and long-term memory holding the DPM profile, teaching memory, and grounding chunks](docs/images/smriti-memory-layer.png)
+
 Three questions, three tiers:
 
 | Tier | Answers | Backed by | Written |
@@ -132,6 +138,8 @@ Every weakness, doubt, and self-reflection carries `evidence: [session_id#turn]`
 no citation cannot be written. See **Diagram 4**.
 
 ### Shruti, the ingest pipeline
+
+![The Shruti pipeline: a recorded lecture flows through board recovery, transcript, deixis resolution, beat fusion, board reading, and concept-graph extraction into grounding chunks, each carrying a BeatRef timestamp](docs/images/shruti-pipeline.png)
 
 **श्रुति · "that which is heard."** Ten stages (shot/ink-curve analysis, board recovery under
 occlusion, code-mixed transcript, deixis resolution: "*this* term, *here*", Beat fusion, board
