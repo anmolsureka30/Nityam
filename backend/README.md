@@ -30,14 +30,24 @@ docker compose up -d redis     # recommended — see docker-compose.yml
 redis-server --daemonize yes --port 6379
 ```
 
-**Google Cloud credentials** — needed for two things, and neither is covered
-by anything in `.env`: verifying a student's Firebase sign-in
-(`app/user_auth.py`, required for *every* real connection, regardless of
-`NITYAM_AUTH`) and Firestore (`app/memory/store_firestore.py`, only if
-`NITYAM_STORE=firestore`). Both use **Application Default Credentials
-(ADC)** — a machine-level credential, not a `.env` value. Copying `.env` to
-a different machine, with every value filled in, will still not make
-sign-in or Firestore work there without this step. Pick one:
+**A Firebase project** — every real connection verifies a Firebase ID token
+(`app/user_auth.py`), and there is no dev bypass; `NITYAM_AUTH=mock` removes
+the *Gemini* credential requirement, not this one. Set
+`GOOGLE_CLOUD_PROJECT` in `.env` to the same project id the frontend's
+`VITE_FIREBASE_PROJECT_ID` names, or every token is refused on its `aud`
+check and the student is told their sign-in expired.
+
+This needs **no credentials at all**. A Firebase ID token is an RS256 JWT
+verified against Google's *public* certificates — see this module's own
+header for why the Admin SDK (and the ADC dependency it dragged in) was
+deliberately removed. An earlier revision of this file said ADC was required
+here; it isn't, and hasn't been since that change.
+
+**Application Default Credentials (ADC)** — needed for exactly one thing:
+Firestore (`app/memory/store_firestore.py`), and only when
+`NITYAM_STORE=firestore`. ADC is a machine-level credential, not a `.env`
+value, so copying `.env` to a different machine with every value filled in
+will still not make Firestore work there. Pick one:
 
 - **You have access to the GCP project** (the one named in
   `GOOGLE_CLOUD_PROJECT`):
@@ -56,18 +66,24 @@ sign-in or Firestore work there without this step. Pick one:
   the key file like a password — it grants real access, so it belongs
   nowhere near a commit.
 
-Set `NITYAM_STORE=sqlite` in `.env` to skip Firestore's credential
-requirement entirely — memory becomes a local file
-(`backend/data/memory.db`), no project access needed. Sign-in verification
-still needs ADC either way; it isn't gated by `NITYAM_STORE`.
+`NITYAM_STORE=sqlite` is the default, and it skips Firestore's credential
+requirement entirely — memory becomes a local file (`backend/data/memory.db`),
+no project access needed. Sign-in is unaffected either way: it isn't gated by
+`NITYAM_STORE` and it doesn't use ADC.
 
 ## Run it
 
 ```bash
 cp .env.example .env        # then fill in credentials, or set NITYAM_AUTH=mock
-./run.sh                    # backend + frontend dev server
-./run.sh --api-only         # backend alone
+./run.sh                    # backend + frontend + Observatory + landing page
+./run.sh --no-observatory   # skip the Observatory (and its uv requirement)
+./run.sh --no-landing       # skip the Next.js landing page
+./run.sh --api-only         # backend alone, nothing browser-facing
 ```
+
+`frontend/.env` is a separate, required step — six Firebase web-config values,
+gitignored, without which the app renders a setup notice instead of the tutor.
+See the repo-root README's spin-up section for the full sequence.
 
 `run.sh` builds the virtualenv, checks credentials, seeds the demo student on
 first run, and refuses to start if the port is busy — a silently-busy port used
@@ -76,9 +92,13 @@ to look like a tutor that just never spoke.
 Mock mode needs no credentials, no network and no spend. It is what the tests
 run against.
 
-Defaults: API `8210`, web `5173`. Both move together via `NITYAM_API_PORT` /
-`NITYAM_WEB_PORT`; `frontend/vite.config.ts` reads the same vars. The `adk`
-sub-module keeps 8100/5273, so both can run side by side.
+Defaults: API `8210`, web `5173`, landing `3001`, Observatory API `8100` and
+Observatory web `3000`. API and web move together via `NITYAM_API_PORT` /
+`NITYAM_WEB_PORT`; `frontend/vite.config.ts` reads the same vars. The
+Observatory's web port must stay `3000` — its backend hardcodes CORS to
+`5173` and `3000`, and 5173 is already taken here. The `adk` sub-module also
+defaults to 8100, so run one or the other, or move ours with
+`NITYAM_OBSERVATORY_PORT`.
 
 ## Check it works
 
