@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { conceptName } from "../../lib/conceptCatalog";
 import { MASTERY, type BriefingPreview } from "../../lib/memory";
 import s from "./SessionBriefing.module.css";
@@ -17,6 +18,26 @@ import s from "./SessionBriefing.module.css";
  *
  * It dismisses itself the moment she speaks. Nothing to click, because a
  * student who has to dismiss a loading screen has been given a chore. */
+/* The wait is five or six seconds on a good run and has been seen at
+ * seventeen, and one unchanging line for that long reads as a hang. These
+ * rotate so the screen is visibly alive.
+ *
+ * They are canned, not wired to real progress signals — there is no per-stage
+ * event to key them off, and inventing one to drive a loading screen is not
+ * worth the wire. They are ordered to match the rough shape of what actually
+ * happens (board, memory, corpus, plan, Live handshake), so a reader who knows
+ * the system is not being told something false; nothing here claims a specific
+ * step has FINISHED. */
+const STAGES = [
+  "Making your canvas ready",
+  "Reading your last session",
+  "Opening your NCERT textbook",
+  "Going through your class recordings",
+  "Planning what to cover tonight",
+  "Getting your tutor on the line",
+];
+const STAGE_MS = 4500;
+
 export default function SessionBriefing({
   brief, topic, mode, open,
 }: {
@@ -45,6 +66,24 @@ export default function SessionBriefing({
       note: weak ? (MASTERY[weak.mastery]?.label ?? weak.mastery) : "",
     };
   });
+
+  /* Advances every 4.5s and then STOPS on the last line rather than looping.
+     Six stages cover 27 seconds, past the worst start observed; if the
+     connection takes longer than that, holding on "Getting your tutor on the
+     line" stays true, whereas wrapping back round to "Making your canvas
+     ready" would be plainly false and would read as a stuck spinner. */
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    if (!open) {
+      setStage(0);
+      return;
+    }
+    const id = setInterval(
+      () => setStage((i) => (i < STAGES.length - 1 ? i + 1 : i)),
+      STAGE_MS,
+    );
+    return () => clearInterval(id);
+  }, [open]);
 
   return (
     <div
@@ -80,7 +119,15 @@ export default function SessionBriefing({
 
         <div className={s.waiting}>
           <span className={s.dots} aria-hidden="true"><i /><i /><i /></span>
-          <span>Getting your tutor on the line…</span>
+          {/* Keyed by index so React remounts the span and the fade replays on
+              every change. aria-hidden because the veil is already an
+              aria-live region: without it a screen reader announces all six
+              lines, turning a decorative progress hint into six
+              interruptions. The stable label below is what gets announced. */}
+          <span key={stage} className={s.status} aria-hidden="true">
+            {STAGES[stage]}…
+          </span>
+          <span className={s.srOnly}>Getting your tutor ready</span>
         </div>
       </div>
     </div>
