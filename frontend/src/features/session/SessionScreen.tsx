@@ -462,7 +462,13 @@ export default function SessionScreen() {
           // is what sends it on). The nav below is what actually closes the
           // connection, via useLiveSession's unmount cleanup.
           send({ type: "end" });
-          window.setTimeout(() => nav("/summary"), END_GRACE_MS);
+          // The recap screen needs to know WHICH session just ended. Without
+          // this it had no way to ask for one and rendered a static mock, so
+          // every session ended on the same fictional numbers.
+          window.setTimeout(
+            () => nav("/summary", { state: { sessionId } }),
+            END_GRACE_MS,
+          );
         }}
       />
       </div>

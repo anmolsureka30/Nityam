@@ -1,21 +1,26 @@
-import { APP_LOGIN_URL } from "../lib/config";
+import { APP_LOGIN_URL, APP_SIGNUP_URL } from "../lib/config";
+import { BoardSketch, TutorPortrait } from "./Illustrations";
 import styles from "./styles.module.css";
 
 export default function Hero() {
   return (
     <section className={styles.hero}>
       <div className={styles.heroInner}>
-        <div className={styles.badge}>
-          <span className={styles.badgeDot} />
-          Piloting now with Tier-1 schools in India
-        </div>
-
         <h1 className={styles.heroTitle}>
           A personal teacher for every student, built on what their class
           actually taught today.
         </h1>
 
         <p className={styles.heroTagline}>Learn the way you want.</p>
+
+        {/* She is the product and the hero was entirely type. Aria-hidden
+            here only: the same drawing is labelled where it carries the
+            argument, and repeating the label in the headline block would
+            interrupt the sentence a screen reader is mid-way through. */}
+        <div className={styles.heroFigure} aria-hidden="true">
+          <TutorPortrait className={styles.heroTutor} />
+          <BoardSketch className={styles.heroBoard} />
+        </div>
 
         <p className={styles.heroSubtitle}>
           Nityam records the lesson in the classroom, learns how each student
@@ -25,13 +30,26 @@ export default function Hero() {
         </p>
 
         <div className={styles.heroCtas}>
-          <a href={APP_LOGIN_URL} className={styles.btnLime}>
-            Start learning free
+          {/* Says what pressing it does. "Start learning free" implied you
+              could begin reading right there; you cannot — the tutor needs an
+              account before it has anywhere to keep what it learns about you,
+              which is the whole product. Better to be plain about it here
+              than to have the login form say it for us. */}
+          <a href={APP_SIGNUP_URL} className={styles.btnAccent}>
+            Create your free account
           </a>
           <a href="#how" className={styles.btnOutline}>
             See how it works
           </a>
         </div>
+
+        <p className={styles.ctaNote}>
+          Free to start. Sign up with Google or an email address — Nityam needs
+          an account to remember what you have covered.{" "}
+          <a href={APP_LOGIN_URL} className={styles.ctaNoteLink}>
+            Already have one? Sign in
+          </a>
+        </p>
 
         <div className={styles.mockCard}>
           <div className={styles.mockCardHeader}>
@@ -57,42 +75,42 @@ export default function Hero() {
               <div>
                 <div className={styles.progressRow}>
                   <span>Aarav, gap in factoring</span>
-                  <span style={{ color: "var(--orange)", fontWeight: 600 }}>
+                  <span style={{ color: "var(--warn)", fontWeight: 600 }}>
                     re-teaching
                   </span>
                 </div>
                 <div className={styles.progressTrack}>
                   <div
                     className={styles.progressFill}
-                    style={{ width: "38%", background: "var(--orange)" }}
+                    style={{ width: "38%", background: "var(--warn)" }}
                   />
                 </div>
               </div>
               <div>
                 <div className={styles.progressRow}>
                   <span>Diya, ready to go further</span>
-                  <span style={{ color: "var(--violet)", fontWeight: 600 }}>
+                  <span style={{ color: "var(--good)", fontWeight: 600 }}>
                     harder set
                   </span>
                 </div>
                 <div className={styles.progressTrack}>
                   <div
                     className={styles.progressFill}
-                    style={{ width: "86%", background: "var(--lavender)" }}
+                    style={{ width: "86%", background: "var(--good)" }}
                   />
                 </div>
               </div>
               <div>
                 <div className={styles.progressRow}>
                   <span>Class mastery this week</span>
-                  <span style={{ color: "var(--violet)", fontWeight: 600 }}>
+                  <span style={{ color: "var(--good)", fontWeight: 600 }}>
                     up 22%
                   </span>
                 </div>
                 <div className={styles.progressTrack}>
                   <div
                     className={styles.progressFill}
-                    style={{ width: "64%", background: "var(--lime)" }}
+                    style={{ width: "64%", background: "var(--accent)" }}
                   />
                 </div>
               </div>

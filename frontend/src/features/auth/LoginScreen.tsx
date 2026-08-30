@@ -31,7 +31,14 @@ export default function LoginScreen() {
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? "/";
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  /* The landing page's primary call to action is "Create your free account",
+     and it used to land here on the Sign in tab — so the one journey the site
+     pushes hardest opened on the wrong form. ?mode=signup is what that CTA
+     now links to; anything else still defaults to signing in, which is the
+     right default for a returning student typing /login themselves. */
+  const [mode, setMode] = useState<"signin" | "signup">(
+    new URLSearchParams(location.search).get("mode") === "signup" ? "signup" : "signin",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

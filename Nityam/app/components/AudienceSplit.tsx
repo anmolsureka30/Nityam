@@ -1,3 +1,4 @@
+import { ClassRoster, MemoryCard, SimulationSketch } from "./Illustrations";
 import styles from "./styles.module.css";
 
 export default function AudienceSplit() {
@@ -15,6 +16,11 @@ export default function AudienceSplit() {
             which steps your child did not follow. It starts right there, in
             the language they think in, whenever they sit down to study.
           </p>
+          {/* What it holds about one child — the real mastery levels, and a
+              doubt still open with the turn it came from. */}
+          <MemoryCard className={styles.panelArt} />
+          {/* And what it builds when the words are not landing. */}
+          <SimulationSketch className={styles.panelArt} />
         </div>
         <div className={`${styles.panel} ${styles.panelDark}`}>
           <div className={`${styles.eyebrow} ${styles.eyebrowLime}`}>
@@ -27,6 +33,7 @@ export default function AudienceSplit() {
             teaching. It only takes out the guesswork, and gives the school a
             clear record to show parents.
           </p>
+          <ClassRoster className={styles.panelArtDark} />
         </div>
       </div>
     </section>
