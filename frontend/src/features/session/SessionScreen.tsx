@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFirstName } from "../../lib/displayName";
 import { conceptName } from "../../lib/conceptCatalog";
-import { fetchBriefingPreview } from "../../lib/memory";
+import { fetchBriefingPreview, type BriefingPreview } from "../../lib/memory";
 import SessionBriefing from "./SessionBriefing";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { UserChip } from "../../components/Shell";
@@ -134,15 +134,20 @@ export default function SessionScreen() {
      One fetch would be tidier, but the overlay owns its own and this screen
      needs only three strings — threading a shared fetch through both is more
      coupling than it saves. */
-  const [planSteps, setPlanSteps] = useState<string[]>(FALLBACK_PLAN);
+  /* ONE fetch of the briefing, shared by the plan across the top and the
+     overlay. Both used to fetch their own. */
+  const [brief, setBrief] = useState<BriefingPreview | null>(null);
   useEffect(() => {
     if (!userId) return;
     let live = true;
     fetchBriefingPreview(userId, plannedConcept?.name ?? "", mode)
-      .then((b) => { if (live && b.plan?.length) setPlanSteps(b.plan.map(conceptName)); })
-      .catch(() => { /* the fallback is already on screen */ });
+      .then((b) => { if (live) setBrief(b); })
+      .catch(() => { /* the fallback plan is already on screen */ });
     return () => { live = false; };
   }, [userId, plannedConcept?.name, mode]);
+  const planSteps = brief?.plan?.length
+    ? brief.plan.map(conceptName)
+    : FALLBACK_PLAN;
   const [heardHer, setHeardHer] = useState(false);
   useEffect(() => {
     /* Lift the moment she speaks. A 6.5s floor was tried and it was far too
@@ -473,7 +478,7 @@ export default function SessionScreen() {
       )}
 
       <SessionBriefing
-        studentId={userId}
+        brief={brief}
         topic={plannedConcept?.name ?? ""}
         mode={mode}
         open={!heardHer}

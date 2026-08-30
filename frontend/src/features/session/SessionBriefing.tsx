@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { conceptName } from "../../lib/conceptCatalog";
-import { MASTERY, fetchBriefingPreview, type BriefingPreview } from "../../lib/memory";
+import { MASTERY, type BriefingPreview } from "../../lib/memory";
 import s from "./SessionBriefing.module.css";
 
 /* Shown over the board while the Live model connects.
@@ -19,30 +18,20 @@ import s from "./SessionBriefing.module.css";
  * It dismisses itself the moment she speaks. Nothing to click, because a
  * student who has to dismiss a loading screen has been given a chore. */
 export default function SessionBriefing({
-  studentId, topic, mode, open,
+  brief, topic, mode, open,
 }: {
-  studentId: string | undefined;
+  /** Fetched once by SessionScreen and passed down. This component used to
+   *  fetch its own copy, and the screen fetched another for the plan across
+   *  the top — two components wanting the same three facts, so one session
+   *  start made FOUR calls to /briefing in dev (React double-invokes effects),
+   *  each one several blocking Firestore round trips on the server, during the
+   *  exact five seconds the student is waiting to be spoken to. */
+  brief: BriefingPreview | null;
   topic: string;
   mode: string;
   /** False once she has spoken; the overlay fades and stops mattering. */
   open: boolean;
 }) {
-  const [brief, setBrief] = useState<BriefingPreview | null>(null);
-
-  useEffect(() => {
-    if (!studentId) return;
-    let live = true;
-    fetchBriefingPreview(studentId, topic, mode)
-      .then((b) => live && setBrief(b))
-      .catch(() => {
-        /* An overlay must never be the reason a lesson does not start. It
-           simply shows the topic and the spinner instead. */
-      });
-    return () => {
-      live = false;
-    };
-  }, [studentId, topic, mode]);
-
   /* Short enough to take in at a glance: the concepts tonight covers, worst
      first, each with a two-word note on where the student stands. Names are
      already short — "Resolving a vector into components" is trimmed to its

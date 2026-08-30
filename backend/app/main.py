@@ -368,6 +368,39 @@ async def _flush_session_memory(session_id: str, student_id: str) -> None:
         log.warning("failed to flush session memory for %s", session_id, exc_info=True)
 
 
+def _student_facing(error: BaseException) -> str:
+    """A failure, said in words a student can act on.
+
+    The raw exception went straight to the screen, so a Live quota limit read
+    as:
+
+        APIError: 1011 None. Resource has been exhausted (e.g. check quota).
+
+    Which tells a fifteen-year-old nothing, sounds like they broke something,
+    and does not mention the one useful fact — that waiting a minute fixes it.
+    The full traceback is already in the session log for whoever is debugging;
+    this is for the person sitting there.
+    """
+    text = str(error).lower()
+    if "resource has been exhausted" in text or "resource_exhausted" in text or "1011" in text:
+        return (
+            "Too many lessons running at once just now. Give it a minute and "
+            "start again — nothing you did caused this, and nothing is lost."
+        )
+    if "unauthenticated" in text or "401" in text:
+        return "My connection to the tutor expired. Refresh the page and sign in again."
+    if "permission_denied" in text or "403" in text:
+        return "I could not reach the tutoring service. This one is on us, not on you."
+    if "deadline" in text or "timeout" in text:
+        return "The tutor took too long to answer. Try starting the session again."
+    # Anything unrecognised keeps its class name: better a slightly technical
+    # message than a reassuring one that hides a real fault.
+    return (
+        "Something went wrong on my end and the lesson stopped "
+        f"({type(error).__name__}). Try starting it again."
+    )
+
+
 async def send_control(ws: WebSocket, **payload) -> None:
     """Our own messages, namespaced so they can't be confused with ADK events."""
     try:
@@ -722,8 +755,7 @@ async def run_live(ws: WebSocket, user_id: str, session_id: str) -> None:
             ):
                 log.error("stream task failed", exc_info=result)
                 await send_control(
-                    ws, kind="error",
-                    message=f"{type(result).__name__}: {str(result)[:300]}",
+                    ws, kind="error", message=_student_facing(result),
                 )
     finally:
         # If ws_endpoint's own task is cancelled while suspended above (a
