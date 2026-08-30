@@ -13,7 +13,7 @@ import redis.asyncio as redis
 
 from observatory.broadcaster import Broadcaster
 from observatory.diff import diff_dpm, diff_teaching_memory
-from observatory.events import EnrichedEvent, MemoryEvent
+from observatory.events import EnrichedEvent, EnrichedToolCallEvent, MemoryEvent, ToolCallEvent
 from observatory.snapshot_cache import SnapshotCache
 
 _CHANNEL = "smriti:events:live"
@@ -25,7 +25,15 @@ async def ingest_one_message(
     broadcaster: Broadcaster,
     get_dpm: Callable[[str], dict | None],
     get_teaching_memory: Callable[[str], dict | None],
-) -> EnrichedEvent:
+) -> EnrichedEvent | EnrichedToolCallEvent:
+    import json
+
+    if json.loads(raw).get("kind") == "tool_call":
+        tool_event = ToolCallEvent.model_validate_json(raw)
+        enriched_tool_call = EnrichedToolCallEvent(event=tool_event)
+        broadcaster.publish(enriched_tool_call)
+        return enriched_tool_call
+
     event = MemoryEvent.model_validate_json(raw)
     diff = []
     if event.record_type in ("dpm_profile", "teaching_memory") and event.student_id:

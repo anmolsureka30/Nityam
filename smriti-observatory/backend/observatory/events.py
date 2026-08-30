@@ -19,6 +19,8 @@ RecordType = Literal[
     "grounding_chunk", "dpm_profile", "teaching_memory",
     "session_log", "turn_buffer", "artifact_event",
 ]
+ToolActor = Literal["voice_agent", "board_agent", "artifact_agent", "quiz_agent", "textbook_agent"]
+ToolCallPhase = Literal["started", "done", "error", "busy"]
 
 
 class MemoryEvent(BaseModel):
@@ -35,6 +37,22 @@ class MemoryEvent(BaseModel):
     payload: Any = None
 
 
+class ToolCallEvent(BaseModel):
+    kind: Literal["tool_call"] = "tool_call"
+    event_id: str
+    ts: str
+    session_id: str | None
+    student_id: str | None
+    trace_id: str | None
+    span_id: str | None
+    actor: ToolActor
+    tool_name: str
+    phase: ToolCallPhase
+    args_summary: str | None = None
+    result_summary: str | None = None
+    duration_ms: int | None = None
+
+
 class FieldChange(BaseModel):
     path: str
     kind: str  # "added" | "removed" | "changed"
@@ -44,8 +62,17 @@ class FieldChange(BaseModel):
 
 
 class EnrichedEvent(BaseModel):
+    kind: Literal["memory"] = "memory"
     event: MemoryEvent
     diff: list[FieldChange] = []
 
 
-__all__ = ["MemoryEvent", "FieldChange", "EnrichedEvent"]
+class EnrichedToolCallEvent(BaseModel):
+    kind: Literal["tool_call"] = "tool_call"
+    event: ToolCallEvent
+
+
+__all__ = [
+    "MemoryEvent", "FieldChange", "EnrichedEvent",
+    "ToolCallEvent", "EnrichedToolCallEvent",
+]

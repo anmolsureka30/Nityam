@@ -51,6 +51,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.firestore.close()
 
 
+import httpx
+
+
+async def _proxy_memory_state(session_id: str, student_id: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TUTOR_BASE_URL}/memory/sessions/{session_id}/state",
+            params={"student_id": student_id}, timeout=10.0,
+        )
+    return response.json()
+
+
+async def _proxy_memory_events(session_id: str, student_id: str, trace_id: str | None) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{TUTOR_BASE_URL}/memory/sessions/{session_id}/events",
+            params={"student_id": student_id}, timeout=10.0,
+        )
+    return response.json()
+
+
 app = FastAPI(title="SMRITI Observatory", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -58,5 +79,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(build_router(tutor_base_url=TUTOR_BASE_URL, redis_host=REDIS_HOST, redis_port=REDIS_PORT))
+app.include_router(
+    build_router(
+        tutor_base_url=TUTOR_BASE_URL, redis_host=REDIS_HOST, redis_port=REDIS_PORT,
+        memory_state_fn=_proxy_memory_state, memory_events_fn=_proxy_memory_events,
+    )
+)
 app.include_router(build_ws_router(broadcaster))

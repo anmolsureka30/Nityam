@@ -9,9 +9,20 @@ from observatory.routes_rest import build_router
 
 @pytest.fixture
 def client_app(firestore_db, redis_client):
+    async def unreachable_state_fn(session_id, student_id):
+        raise RuntimeError("agent server unreachable")
+
+    async def unreachable_events_fn(session_id, student_id, trace_id):
+        raise RuntimeError("agent server unreachable")
+
     app = FastAPI()
     app.state.firestore = firestore_db
-    app.include_router(build_router(tutor_base_url="http://localhost:9999", redis_host="localhost", redis_port=6379))
+    app.include_router(
+        build_router(
+            tutor_base_url="http://localhost:9999", redis_host="localhost", redis_port=6379,
+            memory_state_fn=unreachable_state_fn, memory_events_fn=unreachable_events_fn,
+        )
+    )
     return TestClient(app)
 
 
@@ -41,8 +52,19 @@ def test_agent_graph_proxies_and_caches_the_tutor_apps_dot_source(monkeypatch):
 
     monkeypatch.setattr("observatory.routes_rest.httpx.AsyncClient", FakeAsyncClient)
 
+    async def fake_state_fn(session_id, student_id):
+        return {}
+
+    async def fake_events_fn(session_id, student_id, trace_id):
+        return {"events": []}
+
     app = FastAPI()
-    app.include_router(build_router(tutor_base_url="http://fake-tutor", redis_host="localhost", redis_port=6379))
+    app.include_router(
+        build_router(
+            tutor_base_url="http://fake-tutor", redis_host="localhost", redis_port=6379,
+            memory_state_fn=fake_state_fn, memory_events_fn=fake_events_fn,
+        )
+    )
     client = TestClient(app)
 
     first = client.get("/api/agent-graph")
@@ -53,30 +75,48 @@ def test_agent_graph_proxies_and_caches_the_tutor_apps_dot_source(monkeypatch):
     assert calls == ["http://fake-tutor/dev/apps/app/graph"]  # second call served from cache, not re-fetched
 
 
-def test_session_state_proxies_to_the_configured_agent_server(monkeypatch):
-    class FakeResponse:
-        def json(self):
-            return {"session_id": "s1", "student_id": "stu1", "workflow": {}, "episodic": {}, "long_term": {}}
+def test_session_state_calls_memory_state_fn_directly():
+    calls = []
 
-    class FakeAsyncClient:
-        async def __aenter__(self):
-            return self
+    async def fake_state_fn(session_id, student_id):
+        calls.append((session_id, student_id))
+        return {"session_id": session_id, "student_id": student_id, "workflow": {"turn_buffer": []}}
 
-        async def __aexit__(self, *exc):
-            return False
+    async def fake_events_fn(session_id, student_id, trace_id):
+        return {"events": []}
 
-        async def get(self, url, **kwargs):
-            assert url == "http://fake-agent/memory/sessions/s1/state"
-            assert kwargs["params"] == {"student_id": "stu1"}
-            return FakeResponse()
-
-    monkeypatch.setattr("observatory.routes_rest.httpx.AsyncClient", FakeAsyncClient)
-
+    router = build_router(
+        tutor_base_url="http://unused", redis_host="localhost", redis_port=6379,
+        memory_state_fn=fake_state_fn, memory_events_fn=fake_events_fn,
+    )
     app = FastAPI()
-    app.include_router(build_router(tutor_base_url="http://fake-agent", redis_host="localhost", redis_port=6379))
-    response = TestClient(app).get("/api/sessions/s1/state", params={"student_id": "stu1"})
+    app.include_router(router)
+    client = TestClient(app)
+
+    response = client.get("/api/sessions/s1/state", params={"student_id": "stu1"})
     assert response.status_code == 200
-    assert response.json()["student_id"] == "stu1"
+    assert calls == [("s1", "stu1")]
+
+
+def test_session_state_degrades_gracefully_when_memory_state_fn_raises():
+    async def raising_state_fn(session_id, student_id):
+        raise RuntimeError("boom")
+
+    async def fake_events_fn(session_id, student_id, trace_id):
+        return {"events": []}
+
+    router = build_router(
+        tutor_base_url="http://unused", redis_host="localhost", redis_port=6379,
+        memory_state_fn=raising_state_fn, memory_events_fn=fake_events_fn,
+    )
+    app = FastAPI()
+    app.include_router(router)
+    client = TestClient(app)
+
+    response = client.get("/api/sessions/s1/state", params={"student_id": "stu1"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["long_term"] == {"dpm_profile": None, "teaching_memory": None}
 
 
 def test_session_state_degrades_gracefully_when_the_agent_server_is_unreachable(client_app):
@@ -98,30 +138,26 @@ def test_health_reports_redis_and_firestore_reachability(client_app):
     assert "tutor_reachable" in body
 
 
-def test_session_events_proxies_to_the_configured_agent_server(monkeypatch):
-    class FakeResponse:
-        def json(self):
-            return {"events": [{"event_id": "e1", "session_id": "s1"}]}
+def test_session_events_calls_memory_events_fn_directly():
+    calls = []
 
-    class FakeAsyncClient:
-        async def __aenter__(self):
-            return self
+    async def fake_state_fn(session_id, student_id):
+        return {}
 
-        async def __aexit__(self, *exc):
-            return False
+    async def fake_events_fn(session_id, student_id, trace_id):
+        calls.append((session_id, student_id, trace_id))
+        return {"events": [{"event_id": "e1", "session_id": session_id}]}
 
-        async def get(self, url, **kwargs):
-            assert url == "http://fake-agent/memory/sessions/s1/events"
-            assert kwargs["params"] == {"student_id": "stu1"}
-            return FakeResponse()
-
-    monkeypatch.setattr("observatory.routes_rest.httpx.AsyncClient", FakeAsyncClient)
-
+    router = build_router(
+        tutor_base_url="http://unused", redis_host="localhost", redis_port=6379,
+        memory_state_fn=fake_state_fn, memory_events_fn=fake_events_fn,
+    )
     app = FastAPI()
-    app.include_router(build_router(tutor_base_url="http://fake-agent", redis_host="localhost", redis_port=6379))
+    app.include_router(router)
     response = TestClient(app).get("/api/sessions/s1/events", params={"student_id": "stu1"})
     assert response.status_code == 200
     assert response.json()["events"][0]["event_id"] == "e1"
+    assert calls == [("s1", "stu1", None)]
 
 
 def test_session_events_degrades_gracefully_when_the_agent_server_is_unreachable(client_app):

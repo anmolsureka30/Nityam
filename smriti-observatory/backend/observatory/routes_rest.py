@@ -1,9 +1,15 @@
-"""REST snapshot endpoints. Talks to whichever agent server is configured
-(sub_modules_examples/tutor or backend/) purely over HTTP — never imports
-either app's Python package. See
-docs/superpowers/specs/2026-08-28-backend-memory-observatory-design.md §3.
+"""REST snapshot endpoints. Historically talked to whichever agent server
+was configured purely over HTTP; session_state/session_events now call
+backend/'s own memory_routes.py handlers directly, in-process, since this
+router is mounted into the same FastAPI app as backend/ (see
+docs/superpowers/specs/2026-08-30-observatory-integration-design.md's
+Architecture section). agent-graph and health still use tutor_base_url —
+left as dead/degraded per that same spec's Non-goals, unrelated to this
+change.
 """
 from __future__ import annotations
+
+from typing import Any, Awaitable, Callable
 
 import httpx
 import redis as redis_sync
@@ -11,8 +17,17 @@ from fastapi import APIRouter, Request
 
 from observatory.events import MemoryEvent
 
+MemoryStateFn = Callable[[str, str], Awaitable[dict[str, Any]]]
+MemoryEventsFn = Callable[[str, str, str | None], Awaitable[dict[str, Any]]]
 
-def build_router(tutor_base_url: str, redis_host: str, redis_port: int) -> APIRouter:
+
+def build_router(
+    tutor_base_url: str,
+    redis_host: str,
+    redis_port: int,
+    memory_state_fn: MemoryStateFn,
+    memory_events_fn: MemoryEventsFn,
+) -> APIRouter:
     router = APIRouter(prefix="/api")
     _agent_graph_cache: dict[str, str] = {}
 
@@ -67,17 +82,12 @@ def build_router(tutor_base_url: str, redis_host: str, redis_port: int) -> APIRo
     @router.get("/sessions/{session_id}/state")
     async def session_state(session_id: str, student_id: str):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{tutor_base_url}/memory/sessions/{session_id}/state",
-                    params={"student_id": student_id}, timeout=10.0,
-                )
-            return response.json()
+            return await memory_state_fn(session_id, student_id)
         except Exception:
-            # The agent server being briefly unreachable must not crash the
-            # viewer — same graceful-degradation contract as agent_graph()
-            # above. Same shape the frontend already handles for "nothing
-            # here yet" (see memory_routes.py's own missing-record shape).
+            # A transient failure must not crash the viewer — same
+            # graceful-degradation contract as agent_graph() above. Same
+            # shape the frontend already handles for "nothing here yet"
+            # (see memory_routes.py's own missing-record shape).
             return {
                 "session_id": session_id, "student_id": student_id,
                 "workflow": {"turn_buffer": []},
@@ -88,20 +98,9 @@ def build_router(tutor_base_url: str, redis_host: str, redis_port: int) -> APIRo
     @router.get("/sessions/{session_id}/events")
     async def session_events(session_id: str, student_id: str = ""):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{tutor_base_url}/memory/sessions/{session_id}/events",
-                    params={"student_id": student_id}, timeout=10.0,
-                )
-            return response.json()
+            return await memory_events_fn(session_id, student_id, None)
         except Exception:
             return {"events": []}
-
-    @router.post("/sessions/{session_id}/close")
-    async def close_session_proxy(session_id: str, body: dict):
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{tutor_base_url}/memory/sessions/{session_id}/close", json=body)
-        return response.json()
 
     @router.get("/health")
     def health(request: Request):

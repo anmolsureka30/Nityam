@@ -5,7 +5,7 @@ import asyncio
 import pytest
 
 from observatory.broadcaster import Broadcaster
-from observatory.events import MemoryEvent
+from observatory.events import EnrichedEvent, EnrichedToolCallEvent, MemoryEvent, ToolCallEvent
 from observatory.ingest import ingest_one_message
 from observatory.snapshot_cache import SnapshotCache
 
@@ -106,3 +106,49 @@ async def test_ingest_does_not_deliver_to_a_different_sessions_queue():
     await ingest_one_message(_event_json(), cache, broadcaster, get_dpm=lambda sid: None, get_teaching_memory=lambda sid: None)
 
     assert other_q.empty()
+
+
+def _tool_call_event_json(**overrides) -> str:
+    base = dict(
+        kind="tool_call", event_id="tc1", ts="2026-08-30T00:00:00Z",
+        session_id="s1", student_id="stu1", trace_id="abc", span_id="def",
+        actor="board_agent", tool_name="search_grounding", phase="done",
+        args_summary=None, result_summary="3 chunks found", duration_ms=842,
+    )
+    base.update(overrides)
+    return ToolCallEvent(**base).model_dump_json()
+
+
+@pytest.mark.asyncio
+async def test_ingest_tool_call_event_broadcasts_without_diffing():
+    cache = SnapshotCache()
+    broadcaster = Broadcaster()
+    q = broadcaster.subscribe("s1")
+
+    enriched = await ingest_one_message(
+        _tool_call_event_json(), cache, broadcaster,
+        get_dpm=lambda sid: None, get_teaching_memory=lambda sid: None,
+    )
+
+    assert isinstance(enriched, EnrichedToolCallEvent)
+    assert enriched.event.tool_name == "search_grounding"
+    delivered = q.get_nowait()
+    assert delivered.event.event_id == "tc1"
+
+
+@pytest.mark.asyncio
+async def test_ingest_distinguishes_tool_call_from_memory_event_on_the_same_channel():
+    cache = SnapshotCache()
+    broadcaster = Broadcaster()
+
+    memory_result = await ingest_one_message(
+        _event_json(), cache, broadcaster,
+        get_dpm=lambda sid: None, get_teaching_memory=lambda sid: None,
+    )
+    tool_result = await ingest_one_message(
+        _tool_call_event_json(), cache, broadcaster,
+        get_dpm=lambda sid: None, get_teaching_memory=lambda sid: None,
+    )
+
+    assert isinstance(memory_result, EnrichedEvent)
+    assert isinstance(tool_result, EnrichedToolCallEvent)
