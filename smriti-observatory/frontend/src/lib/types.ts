@@ -31,8 +31,51 @@ export interface FieldChange {
 }
 
 export interface EnrichedEvent {
+  kind: "memory";
   event: MemoryEvent;
   diff: FieldChange[];
+}
+
+export type ToolActor = "voice_agent" | "board_agent" | "artifact_agent" | "quiz_agent" | "textbook_agent";
+export type ToolCallPhase = "started" | "done" | "error" | "busy";
+
+export interface ToolCallEvent {
+  kind: "tool_call";
+  event_id: string;
+  ts: string;
+  session_id: string | null;
+  student_id: string | null;
+  trace_id: string | null;
+  span_id: string | null;
+  actor: ToolActor;
+  tool_name: string;
+  phase: ToolCallPhase;
+  args_summary: string | null;
+  result_summary: string | null;
+  duration_ms: number | null;
+}
+
+export interface EnrichedToolCallEvent {
+  kind: "tool_call";
+  event: ToolCallEvent;
+}
+
+export type ObservatoryEvent = (EnrichedEvent & { kind: "memory" }) | EnrichedToolCallEvent;
+
+export function eventId(e: ObservatoryEvent): string {
+  return e.event.event_id;
+}
+
+export function eventTs(e: ObservatoryEvent): string {
+  return e.event.ts;
+}
+
+export function eventTraceId(e: ObservatoryEvent): string | null {
+  return e.event.trace_id;
+}
+
+export function eventSessionId(e: ObservatoryEvent): string | null {
+  return e.event.session_id;
 }
 
 export interface Turn {

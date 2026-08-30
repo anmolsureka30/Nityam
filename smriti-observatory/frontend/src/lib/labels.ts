@@ -1,4 +1,4 @@
-import type { EnrichedEvent, MemoryEvent, RecordType, Tier } from "./types";
+import type { EnrichedEvent, MemoryEvent, RecordType, Tier, ToolCallEvent, ToolCallPhase } from "./types";
 
 /** Standard, framework-agnostic memory-systems terminology — not SMRITI's
  * internal tier names. "workflow" -> Working Memory, "episodic" -> Episodic
@@ -106,4 +106,30 @@ export function describeEvent(event: MemoryEvent): string {
 
 export function eventKey(e: EnrichedEvent): string {
   return e.event.event_id;
+}
+
+export const TOOL_CALL_PHASE_LABEL: Record<ToolCallPhase, string> = {
+  started: "started",
+  done: "done",
+  error: "error",
+  busy: "busy — already running",
+};
+
+export const TOOL_ACTOR_LABEL: Record<string, string> = {
+  voice_agent: "VoiceAgent",
+  board_agent: "BoardAgent",
+  artifact_agent: "ArtifactAgent",
+  quiz_agent: "QuizAgent",
+  textbook_agent: "TextbookAgent",
+};
+
+/** One human-readable sentence describing a tool call, the counterpart to
+ * describeEvent() above for memory events. */
+export function describeToolCall(event: ToolCallEvent): string {
+  const actor = TOOL_ACTOR_LABEL[event.actor] ?? event.actor;
+  if (event.phase === "started") return `${actor} called ${event.tool_name}`;
+  if (event.phase === "busy") return `${actor} tried ${event.tool_name} — already running`;
+  if (event.phase === "error") return `${actor}'s ${event.tool_name} failed`;
+  const duration = event.duration_ms != null ? ` (${(event.duration_ms / 1000).toFixed(1)}s)` : "";
+  return `${actor}'s ${event.tool_name} finished${duration}`;
 }

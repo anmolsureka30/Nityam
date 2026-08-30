@@ -7,10 +7,10 @@ import { SidePanel } from "../../components/SidePanel";
 import { StateOverview } from "../../components/StateOverview";
 import { StatusChips } from "../../components/StatusChips";
 import { adkWebUrl } from "../../lib/traceLinks";
-import type { EnrichedEvent, SessionState, Tier } from "../../lib/types";
+import type { EnrichedEvent, MemoryEvent, ObservatoryEvent, SessionState, Tier } from "../../lib/types";
 import { connectSessionSocket } from "../../lib/ws";
 
-const BACKEND_URL = import.meta.env.VITE_OBSERVATORY_BACKEND_URL ?? "http://localhost:8100";
+const BACKEND_URL = import.meta.env.VITE_OBSERVATORY_BACKEND_URL ?? (import.meta.env.DEV ? "http://localhost:8100" : "/observatory");
 const TUTOR_BASE_URL = import.meta.env.VITE_TUTOR_BASE_URL ?? "http://localhost:8000";
 const GCP_PROJECT = import.meta.env.VITE_GCP_PROJECT ?? "nityam-506707";
 
@@ -20,8 +20,8 @@ export function SessionView() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
-  const [events, setEvents] = useState<EnrichedEvent[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<EnrichedEvent | null>(null);
+  const [events, setEvents] = useState<ObservatoryEvent[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<ObservatoryEvent | null>(null);
   const [activeTier, setActiveTier] = useState<Tier | null>(null);
   const sessionsRef = useRef<SessionSummary[]>([]);
 
@@ -82,7 +82,13 @@ export function SessionView() {
       .catch(() => setState(null));
     fetch(`${BACKEND_URL}/api/sessions/${selectedId}/events`)
       .then((r) => r.json())
-      .then((body) => setEvents((body.events ?? []).map((event: EnrichedEvent["event"]) => ({ event, diff: [] }))))
+      .then((body) =>
+        // The REST backlog only ever proxies SMRITI's own memory event log
+        // (see observatory/main.py's _proxy_memory_events) -- tool-call
+        // events are live-only, pushed straight from the broadcaster, so
+        // every backlog item is unambiguously "memory".
+        setEvents((body.events ?? []).map((event: MemoryEvent): ObservatoryEvent => ({ kind: "memory", event, diff: [] }))),
+      )
       .catch(() => {});
 
     return connectSessionSocket(BACKEND_URL.replace("http", "ws"), selectedId, (enriched) => {
@@ -96,22 +102,29 @@ export function SessionView() {
     });
   }, [selectedId]);
 
+  // Tool-call events have no tier/source_fn — they're not memory operations
+  // — so the per-tier tallies, pulse indicators, and agent/tool graph
+  // highlighting below (all inherited, unchanged UI) stay scoped to the
+  // "memory" half of the union, exactly as before this task's change.
+  const isMemoryEvent = (e: ObservatoryEvent): e is EnrichedEvent => e.kind === "memory";
+  const memoryEvents = useMemo(() => events.filter(isMemoryEvent), [events]);
+
   const counts = useMemo(() => {
     const c: Record<Tier, number> = { ...EMPTY_COUNTS };
-    for (const e of events) c[e.event.tier] += 1;
+    for (const e of memoryEvents) c[e.event.tier] += 1;
     return c;
-  }, [events]);
+  }, [memoryEvents]);
 
   const pulsing = useMemo(() => {
     const p: Record<Tier, boolean> = { workflow: false, episodic: false, long_term: false };
     const now = Date.now();
-    for (const e of events) {
+    for (const e of memoryEvents) {
       if (now - new Date(e.event.ts).getTime() < 1500) p[e.event.tier] = true;
     }
     return p;
-  }, [events]);
+  }, [memoryEvents]);
 
-  const filteredEvents = activeTier ? events.filter((e) => e.event.tier === activeTier) : events;
+  const filteredEvents = activeTier ? events.filter((e) => isMemoryEvent(e) && e.event.tier === activeTier) : events;
   const selectedSession = sessions.find((s) => s.session_id === selectedId);
 
   // The agent/tool graph highlights whichever trace the selected event
@@ -124,7 +137,7 @@ export function SessionView() {
     const map = new Map<string, Set<Tier>>();
     if (!selectedEvent) return map;
     const traceId = selectedEvent.event.trace_id;
-    const matching = traceId ? events.filter((e) => e.event.trace_id === traceId) : [selectedEvent];
+    const matching = (traceId ? events.filter((e) => e.event.trace_id === traceId) : [selectedEvent]).filter(isMemoryEvent);
     for (const e of matching) {
       const tiers = map.get(e.event.source_fn) ?? new Set<Tier>();
       tiers.add(e.event.tier);

@@ -1,11 +1,11 @@
-import type { EnrichedEvent } from "./types";
+import type { ObservatoryEvent } from "./types";
 
 const RECONNECT_DELAY_MS = 1000;
 
 export function connectSessionSocket(
   baseUrl: string,
   sessionId: string,
-  onEvent: (event: EnrichedEvent) => void,
+  onEvent: (event: ObservatoryEvent) => void,
 ): () => void {
   let socket: WebSocket | null = null;
   let closedByCaller = false;
@@ -14,7 +14,7 @@ export function connectSessionSocket(
   const connect = () => {
     socket = new WebSocket(`${baseUrl}/ws/sessions/${sessionId}`);
     socket.onmessage = (message) => {
-      onEvent(JSON.parse(message.data as string) as EnrichedEvent);
+      onEvent(JSON.parse(message.data as string) as ObservatoryEvent);
     };
     socket.onclose = () => {
       if (!closedByCaller) {

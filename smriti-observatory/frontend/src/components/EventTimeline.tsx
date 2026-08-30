@@ -1,21 +1,21 @@
 import { useMemo } from "react";
-import type { EnrichedEvent } from "../lib/types";
+import type { ObservatoryEvent } from "../lib/types";
 import { TraceGroup } from "./TraceGroup";
 import styles from "./EventTimeline.module.css";
 
 interface EventTimelineProps {
-  events: EnrichedEvent[];
+  events: ObservatoryEvent[];
   gcpProject: string;
   selectedEventId: string | null;
-  onSelect: (event: EnrichedEvent) => void;
+  onSelect: (event: ObservatoryEvent) => void;
 }
 
 /** Groups consecutive events sharing one trace_id into one "what happened
  * in this trace" block — this is the visualization's main content: not a
  * flat event log, but the session's story broken into the traces that
  * produced it, each showing what it read/wrote and what changed. */
-function groupByTrace(events: EnrichedEvent[]): { traceId: string | null; events: EnrichedEvent[] }[] {
-  const groups: { traceId: string | null; events: EnrichedEvent[] }[] = [];
+export function groupByTrace(events: ObservatoryEvent[]): { traceId: string | null; events: ObservatoryEvent[] }[] {
+  const groups: { traceId: string | null; events: ObservatoryEvent[] }[] = [];
   for (const enriched of events) {
     const traceId = enriched.event.trace_id;
     const last = groups[groups.length - 1];

@@ -162,3 +162,29 @@
 .diffLabel {
   color: var(--tier-long-term);
 }
+
+.toolIcon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.toolPhase {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+  background: var(--surface-container-highest);
+  color: var(--outline);
+}
+
+.toolPhase[data-phase="done"] {
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  color: var(--primary);
+}
+
+.toolPhase[data-phase="error"] {
+  background: color-mix(in srgb, var(--error) 25%, transparent);
+  color: var(--error);
+}

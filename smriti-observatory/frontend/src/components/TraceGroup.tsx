@@ -1,5 +1,5 @@
-import type { EnrichedEvent, Tier } from "../lib/types";
-import { RECORD_TYPE_LABEL, TIER_LABEL, describeEvent } from "../lib/labels";
+import type { ObservatoryEvent, Tier } from "../lib/types";
+import { RECORD_TYPE_LABEL, TIER_LABEL, TOOL_CALL_PHASE_LABEL, describeEvent, describeToolCall } from "../lib/labels";
 import { cloudTraceUrl } from "../lib/traceLinks";
 import { Transition, MasteryBadge, StrengthBadge, CoverageBadge, DoubtStatusBadge } from "./Badge";
 import styles from "./TraceGroup.module.css";
@@ -24,10 +24,10 @@ function shortTraceId(traceId: string): string {
 
 interface TraceGroupProps {
   traceId: string | null;
-  events: EnrichedEvent[];
+  events: ObservatoryEvent[];
   gcpProject: string;
   selectedEventId: string | null;
-  onSelect: (event: EnrichedEvent) => void;
+  onSelect: (event: ObservatoryEvent) => void;
 }
 
 export function TraceGroup({ traceId, events, gcpProject, selectedEventId, onSelect }: TraceGroupProps) {
@@ -59,6 +59,25 @@ export function TraceGroup({ traceId, events, gcpProject, selectedEventId, onSel
       </div>
       <ol className={styles.rows}>
         {events.map((enriched) => {
+          if (enriched.kind === "tool_call") {
+            const { event } = enriched;
+            const isSelected = event.event_id === selectedEventId;
+            return (
+              <li key={event.event_id}>
+                <button
+                  className={isSelected ? styles.rowSelected : styles.row}
+                  onClick={() => onSelect(enriched)}
+                >
+                  <span className={styles.toolIcon}>🔧</span>
+                  <span className={styles.toolPhase} data-phase={event.phase}>
+                    {TOOL_CALL_PHASE_LABEL[event.phase]}
+                  </span>
+                  <span className={styles.summary}>{describeToolCall(event)}</span>
+                </button>
+              </li>
+            );
+          }
+
           const { event, diff } = enriched;
           const isSelected = event.event_id === selectedEventId;
           return (
