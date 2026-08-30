@@ -33,11 +33,17 @@ load_env()
 MODE = configure()
 
 import asyncio  # noqa: E402
+import contextlib  # noqa: E402
 import contextvars  # noqa: E402
 import json  # noqa: E402
 import logging  # noqa: E402
 import os  # noqa: E402
+import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
+
+_OBS_BACKEND = Path(__file__).resolve().parent.parent.parent / "smriti-observatory" / "backend"
+if str(_OBS_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_OBS_BACKEND))
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
@@ -50,9 +56,19 @@ from app.admin_routes import router as admin_router  # noqa: E402
 # the ADK Runner plumbing — no client is constructed at import time.
 from app.agents import specialist_runner  # noqa: E402
 from app.memory import instrumentation, short_term, store  # noqa: E402
-from app.memory_routes import router as memory_router  # noqa: E402
+from app.memory_routes import (  # noqa: E402
+    router as memory_router,
+    session_events_endpoint,
+    session_state_endpoint,
+)
 from app.session_close import close_session as _close_session_memory  # noqa: E402
 from app.shruti_routes import router as shruti_router  # noqa: E402
+
+from observatory.broadcaster import Broadcaster as _ObsBroadcaster  # noqa: E402
+from observatory.ingest import run_ingest_loop as _obs_run_ingest_loop  # noqa: E402
+from observatory.routes_rest import build_router as _obs_build_router  # noqa: E402
+from observatory.routes_ws import build_ws_router as _obs_build_ws_router  # noqa: E402
+from observatory.snapshot_cache import SnapshotCache as _ObsSnapshotCache  # noqa: E402
 
 from app import logs  # noqa: E402
 
@@ -65,7 +81,36 @@ tracing.setup_tracing()
 
 APP_NAME = "nityam"
 
-app = FastAPI(title="Nityam backend")
+_obs_broadcaster = _ObsBroadcaster()
+_obs_snapshot_cache = _ObsSnapshotCache()
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(app: FastAPI):
+    from app import config
+
+    db = store.connect()
+
+    def _get_dpm(student_id: str):
+        profile = store.get_dpm(db, student_id)
+        return profile.model_dump(mode="json") if profile else None
+
+    def _get_teaching_memory(student_id: str):
+        memory = store.get_teaching_memory(db, student_id)
+        return memory.model_dump(mode="json") if memory else None
+
+    ingest_task = asyncio.create_task(
+        _obs_run_ingest_loop(
+            config.REDIS_HOST, config.REDIS_PORT,
+            _obs_snapshot_cache, _obs_broadcaster,
+            _get_dpm, _get_teaching_memory,
+        )
+    )
+    yield
+    ingest_task.cancel()
+
+
+app = FastAPI(title="Nityam backend", lifespan=_lifespan)
 # No init_firebase() here any more: verifying an ID token needs Google's
 # PUBLIC certificates and no credentials at all. See app/user_auth.py for
 # why the Admin SDK was removed from this path.
@@ -965,6 +1010,35 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
         for t in tasks:
             t.cancel()
         live.close()
+
+
+# ----------------------------------------------------------- observatory
+
+app.include_router(
+    _obs_build_router(
+        tutor_base_url=os.environ.get("TUTOR_BASE_URL", "http://localhost:8000"),
+        redis_host=config.REDIS_HOST, redis_port=config.REDIS_PORT,
+        memory_state_fn=session_state_endpoint, memory_events_fn=session_events_endpoint,
+    ),
+    prefix="/observatory",
+)
+app.include_router(_obs_build_ws_router(_obs_broadcaster), prefix="/observatory")
+
+OBS_DIST = Path(__file__).resolve().parent.parent.parent / "smriti-observatory" / "frontend" / "dist"
+
+if OBS_DIST.is_dir():
+    app.mount("/observatory/assets", StaticFiles(directory=OBS_DIST / "assets"), name="observatory-assets")
+
+    @app.get("/observatory")
+    async def observatory_root() -> FileResponse:
+        return FileResponse(OBS_DIST / "index.html")
+
+    @app.get("/observatory/{path:path}")
+    async def observatory_spa(path: str) -> FileResponse:
+        candidate = (OBS_DIST / path).resolve()
+        if path and OBS_DIST in candidate.parents and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(OBS_DIST / "index.html")
 
 
 # --------------------------------------------------------------- static
