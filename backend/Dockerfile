@@ -54,6 +54,16 @@ RUN adduser --disabled-password --gecos "" myuser
 COPY backend/ .
 COPY --from=frontend /fe/dist /app/frontend/dist
 
+# artifact_agent.py resolves this via a repo-root-relative sys.path walk
+# (backend/app/agents/ -> ... -> repo root -> sub_modules_examples/artifact_generator)
+# and generator.py reads prompt.md / ir/schema.json / examples/ at runtime via
+# open() — the whole tree is needed, not just generate/. Confirmed live:
+# without this, every ask_artifact call fails with
+# "ModuleNotFoundError: No module named 'spec'" (same failure class as the
+# earlier Shruti PYTHONPATH fix — a subdirectory-only COPY breaking a
+# repo-root-relative import).
+COPY sub_modules_examples/artifact_generator/ /app/sub_modules_examples/artifact_generator/
+
 RUN chown -R myuser:myuser /app
 USER myuser
 
