@@ -14,6 +14,7 @@ docs/superpowers/specs/2026-08-28-backend-memory-observatory-design.md.
 """
 from __future__ import annotations
 
+import asyncio
 import contextvars
 import functools
 import inspect
@@ -157,6 +158,30 @@ def publish_tool_call_event(event: ToolCallEvent) -> None:
         pass
 
 
+_tool_call_publish_lock = asyncio.Lock()
+"""Serializes publish_tool_call_event_async's actual Redis writes.
+
+Without this, a "started" event and its later "done" event were each their
+own independent asyncio.create_task(...), each opening its OWN fresh
+connection — and whichever one happened to finish its connect+auth
+handshake first won, regardless of which was scheduled first. Confirmed live
+(not theoretical): a started/done pair reordered in smriti:events:recent
+roughly 1 time in 3 against local Redis, and the frontend never sorts this
+list by ts, so a reordering rendered as "done" before "started" and could
+split one delegation across two apparent moments in the timeline — directly
+undoing the trace-correlation work this event type exists for.
+
+A single global lock (not per-session) is deliberate: asyncio.create_task
+schedules a task's first step via the event loop's own FIFO-ordered
+call_soon, so two publishes issued in application-code order acquire this
+lock in that same order — the first task to run always wins the
+uncontended acquire and starts its Redis I/O; the second blocks until the
+first releases it. That is enough to guarantee real ordering, and tool-call
+event volume (a handful of publishes per specialist call) is nowhere near
+where one process-wide lock could become a bottleneck.
+"""
+
+
 async def publish_tool_call_event_async(event: ToolCallEvent) -> None:
     """Async mirror of publish_tool_call_event, same shape as
     _publish_async: constructs a fresh async client, publishes, closes it.
@@ -171,18 +196,25 @@ async def publish_tool_call_event_async(event: ToolCallEvent) -> None:
     same fire-and-forget philosophy as _publish_async, just off the event
     loop's own thread instead of a background one.
     """
-    try:
-        client = redis_async.Redis(
-            host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True,
-            socket_timeout=2.0, socket_connect_timeout=2.0,
-        )
-        body = event.model_dump_json()
-        await client.publish(_CHANNEL, body)
-        await client.rpush(_LIST_KEY, body)
-        await client.ltrim(_LIST_KEY, -_LIST_CAP, -1)
-        await client.aclose()
-    except Exception:
-        pass
+    async with _tool_call_publish_lock:
+        client = None
+        try:
+            client = redis_async.Redis(
+                host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True,
+                socket_timeout=2.0, socket_connect_timeout=2.0,
+            )
+            body = event.model_dump_json()
+            await client.publish(_CHANNEL, body)
+            await client.rpush(_LIST_KEY, body)
+            await client.ltrim(_LIST_KEY, -_LIST_CAP, -1)
+        except Exception:
+            pass
+        finally:
+            if client is not None:
+                try:
+                    await client.aclose()
+                except Exception:
+                    pass
 
 
 def _current_trace_ids() -> tuple[str | None, str | None]:

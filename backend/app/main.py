@@ -901,6 +901,14 @@ def _record_turn(role: str, text: str) -> None:
     queue.put_nowait((session_id, student_id, role, text))
 
 
+_DELEGATION_TOOL_NAMES = frozenset({"ask_board", "ask_quiz", "ask_artifact", "ask_textbook"})
+"""The four specialist delegations. specialist_runner.delegate() publishes
+their real started/done/error/busy ToolCallEvents itself, from inside the
+delegation's own lifecycle — trace() must not also publish for these (see
+its own comment at the function_response branch below for why ADK sends it
+a response for them at all despite WHEN_IDLE scheduling)."""
+
+
 def _publish_tool_call_bg(event, session_id: str | None) -> None:
     """Fire-and-forget: schedule the Redis publish without ever letting a
     stalled Redis connection block the live audio session it was called from
@@ -946,18 +954,27 @@ def trace(event) -> None:
                     _sid,
                 )
 
-        # Note: for a response_scheduling=WHEN_IDLE tool — which every ask_*
-        # delegation is — ADK yields no function_response Event into this
-        # stream at all, so nothing hung here would ever fire for a
-        # specialist. Re-briefing the voice layer after a delegation is
-        # triggered from the specialist's own tool function instead
-        # (agents/specialist_runner.refresh_brief). scroll_to/read_screen are
-        # NOT WHEN_IDLE tools (see agents/voice_agent.py's _when_idle wiring),
-        # so they DO yield a function_response here — this is the only place
-        # their own completion is ever observable, so it's published as a
-        # "done" ToolCallEvent below.
+        # Note: an ask_* delegation IS response_scheduling=WHEN_IDLE, but —
+        # contrary to what this comment used to claim — ADK 2.8.0 still
+        # yields ONE function_response Event into this stream for it: because
+        # every ask_* tool is an async generator, ADK takes the streaming
+        # branch (google/adk/flows/llm_flows/functions.py's
+        # _process_function_live_helper, is_non_blocking=False for a
+        # streaming tool) and immediately synthesizes a "results are
+        # pending" response — the same "synthetic pending response"
+        # specialist_runner.delegate()'s own comment names. Re-briefing the
+        # voice layer after a delegation is triggered from the specialist's
+        # own tool function instead (agents/specialist_runner.refresh_brief),
+        # and delegate() itself publishes the REAL done/error/busy
+        # ToolCallEvent for these four tools once the specialist actually
+        # finishes — so publishing "done" here for them too would show every
+        # delegation completing instantly, followed by a second, real "done"
+        # 10-30s later. Excluded below; scroll_to/read_screen (genuinely NOT
+        # WHEN_IDLE, see agents/voice_agent.py's _when_idle wiring) are the
+        # only tools whose completion is observable here at all, so this
+        # remains the only place they get a "done" ToolCallEvent.
         response = part.function_response
-        if response and response.name != "transfer_to_agent":
+        if response and response.name != "transfer_to_agent" and response.name not in _DELEGATION_TOOL_NAMES:
             got = str(response.response)
             log.info("← TOOL DONE %s got %s -> %s", who, response.name,
                      got[:200] + ("…" if len(got) > 200 else ""))
@@ -970,6 +987,10 @@ def trace(event) -> None:
                 ),
                 _sid,
             )
+        elif response and response.name in _DELEGATION_TOOL_NAMES:
+            # Still worth a log line for the terminal/manual-test case this
+            # function exists for — just not a ToolCallEvent (see above).
+            log.debug("← %s's synthetic pending response (delegate() owns the real done event)", response.name)
 
     # A consolidated transcription can be empty (end-of-turn marker); logging
     # those just adds blank lines.
