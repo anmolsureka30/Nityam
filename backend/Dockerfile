@@ -43,6 +43,13 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
+FROM node:20-slim AS observatory-frontend
+WORKDIR /obs-fe
+COPY smriti-observatory/frontend/package.json smriti-observatory/frontend/package-lock.json ./
+RUN npm ci
+COPY smriti-observatory/frontend/ ./
+RUN npm run build
+
 FROM python:3.13-slim
 WORKDIR /app/backend
 
@@ -53,6 +60,7 @@ RUN adduser --disabled-password --gecos "" myuser
 
 COPY backend/ .
 COPY --from=frontend /fe/dist /app/frontend/dist
+COPY --from=observatory-frontend /obs-fe/dist /app/smriti-observatory/frontend/dist
 
 # artifact_agent.py resolves this via a repo-root-relative sys.path walk
 # (backend/app/agents/ -> ... -> repo root -> sub_modules_examples/artifact_generator)
@@ -63,6 +71,12 @@ COPY --from=frontend /fe/dist /app/frontend/dist
 # earlier Shruti PYTHONPATH fix — a subdirectory-only COPY breaking a
 # repo-root-relative import).
 COPY sub_modules_examples/artifact_generator/ /app/sub_modules_examples/artifact_generator/
+
+# app/main.py imports smriti-observatory/backend's `observatory` package as a
+# sibling directory on sys.path (see app/main.py's _OBS_BACKEND insert) — the
+# whole package tree is needed, not a subset, same reasoning as the
+# artifact_generator COPY above.
+COPY smriti-observatory/backend/observatory/ /app/smriti-observatory/backend/observatory/
 
 RUN chown -R myuser:myuser /app
 USER myuser
