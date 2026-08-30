@@ -1,0 +1,70 @@
+# Continuous deployment for nityam-backend (frontend + backend + all five
+# ADK agents, one image). Triggered on push to main — see
+# docs/superpowers/plans/2026-08-30-cloud-run-deployment.md for the manual
+# deploy this mirrors exactly (every flag below matches that deploy).
+#
+# VITE_FIREBASE_* arrive as trigger substitutions, not Secret Manager: these
+# are Firebase's client-side web config, not secrets — see backend/Dockerfile's
+# own comment on why (Firebase's own docs: safe to expose, security is
+# enforced by Firebase Security Rules, not by hiding this config). The real
+# secret (GOOGLE_API_KEY, the backend's Gemini credential) is already in
+# Secret Manager and is fetched by Cloud Run itself at deploy time via
+# --set-secrets below, never handled by this build.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:$SHORT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:latest
+      - --build-arg
+      - VITE_FIREBASE_API_KEY=${_VITE_FIREBASE_API_KEY}
+      - --build-arg
+      - VITE_FIREBASE_AUTH_DOMAIN=${_VITE_FIREBASE_AUTH_DOMAIN}
+      - --build-arg
+      - VITE_FIREBASE_PROJECT_ID=${_VITE_FIREBASE_PROJECT_ID}
+      - --build-arg
+      - VITE_FIREBASE_STORAGE_BUCKET=${_VITE_FIREBASE_STORAGE_BUCKET}
+      - --build-arg
+      - VITE_FIREBASE_MESSAGING_SENDER_ID=${_VITE_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg
+      - VITE_FIREBASE_APP_ID=${_VITE_FIREBASE_APP_ID}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args: [push, us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:$SHORT_SHA]
+  - name: gcr.io/cloud-builders/docker
+    args: [push, us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:latest]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - nityam-backend
+      - --image=us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:$SHORT_SHA
+      - --region=us-central1
+      - --platform=managed
+      - --service-account=nityam-backend-sa@$PROJECT_ID.iam.gserviceaccount.com
+      - --allow-unauthenticated
+      - --timeout=3600
+      - --session-affinity
+      - --memory=2Gi
+      - --cpu=2
+      - --concurrency=10
+      - --max-instances=10
+      - --min-instances=1
+      - --network=default
+      - --subnet=default
+      - --vpc-egress=private-ranges-only
+      - --update-secrets=GOOGLE_API_KEY=nityam-google-api-key:latest
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:$SHORT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
