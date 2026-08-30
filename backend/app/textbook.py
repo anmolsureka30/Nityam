@@ -107,6 +107,17 @@ def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict
     if not q:
         return {"hits": [], "note": "give me something to look for"}
 
+    # Words worth matching individually when the whole phrase never appears
+    # verbatim anywhere — "projectile motion maximum height" never occurs as
+    # one literal string in a section title, but "projectile" does. Confirmed
+    # live: this exact multi-word phrasing returned zero hits every time.
+    # Short words (of, the, in, at...) are skipped so they don't match
+    # everything indiscriminately.
+    _words = [w for w in q.split() if len(w) >= 4]
+
+    def _matches(text: str) -> bool:
+        return q in text or any(w in text for w in _words)
+
     # A numbered reference anywhere in the query. The old code did
     # `q.replace("fig.", "").replace("fig", "").strip() == fig["figure"]`, which
     # turns "figure 3.14" into "ure 3.14" and matches nothing — so the single
@@ -120,16 +131,16 @@ def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict
     hits: list[dict] = []
     for ch in _index():
         label = f"Ch {ch['number']} · {ch['title']}"
-        if q in ch["title"].lower():
+        if _matches(ch["title"].lower()):
             hits.append({"kind": "chapter", "chapter": ch["file"], "title": label, "page": 1})
         for sec in ch["sections"]:
-            if q in sec["title"].lower() or number == sec["section"]:
+            if _matches(sec["title"].lower()) or number == sec["section"]:
                 hits.append({
                     "kind": "section", "chapter": ch["file"], "page": sec["page"],
                     "title": f"{sec['section']} {sec['title'].title()}", "in": label,
                 })
         for pg in ch.get("pageText", []):
-            if q in pg["words"]:
+            if _matches(pg["words"]):
                 hits.append({
                     "kind": "page", "chapter": ch["file"], "page": pg["page"],
                     "title": f"{label}, page {pg['page']} mentions “{query.strip()}”",
@@ -142,7 +153,7 @@ def search_textbook(query: str, tool_context: ToolContext | None = None) -> dict
             # "Fig. 13.14 ...", so without this guard asking for one figure
             # by number also matched an unrelated figure eleven pages away.
             bare_number_query = q == number
-            if number == fig["figure"] or (not bare_number_query and q in caption.lower()):
+            if number == fig["figure"] or (not bare_number_query and _matches(caption.lower())):
                 title = f"Fig. {fig['figure']}"
                 if caption:
                     title += f" — {caption[:100]}"
