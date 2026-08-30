@@ -20,6 +20,8 @@ function friendlyError(code: string): string {
       return "Password should be at least 6 characters.";
     case "auth/popup-closed-by-user":
       return "Google sign-in was closed before finishing.";
+    case "auth/unauthorized-domain":
+      return "This site isn't yet approved for sign-in — add it under Firebase Console → Authentication → Settings → Authorized domains.";
     default:
       return "Something went wrong. Please try again.";
   }
@@ -92,7 +94,7 @@ export default function LoginScreen() {
     <div className={s.page}>
       <Card size="md" style={{ width: 380 }}>
         <div className={s.brand}>
-          <span className={s.mark} />
+          <img className={s.logo} src="/nityam-logo.png" alt="" width={40} height={40} />
           <span className={s.wordmark}>Nityam</span>
         </div>
         <p className={s.tagline}>Learn the Way You Want</p>
