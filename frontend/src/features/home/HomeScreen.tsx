@@ -3,6 +3,10 @@ import { useFirstName } from "../../lib/displayName";
 import DashboardMemory from "./DashboardMemory";
 import { Shell } from "../../components/Shell";
 import {
+  MarkDoubt, MarkExam, MarkOpenQuestion, MarkRevise, TutorBust,
+} from "../../components/Art";
+import { EmptyState, LoadingState } from "../../components/states";
+import {
   ActionCard, Choices, Chip, Label, MasteryInline, Panel,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth/AuthContext";
@@ -63,7 +67,8 @@ export default function HomeScreen() {
           <div className={s.countdown}>{daysToUnitTest}</div>
           <Label>days away</Label>
         </div>
-        <div className="body">
+        <div className={`body ${s.hello}`}>
+          <div className={s.helloText}>
           <h1 className="display">{greeting}, {firstName}.</h1>
           <p className={`lede ${s.subline}`}>
             {topic ? (
@@ -73,6 +78,11 @@ export default function HomeScreen() {
               of it — there are two things worth going over.</>
             )}
           </p>
+          </div>
+          {/* She is the product, and the dashboard never showed her. Seeing
+              who you are about to talk to before you press anything is most
+              of what makes this read as a tutor rather than a form. */}
+          <TutorBust className={s.helloArt} />
         </div>
       </section>
 
@@ -84,6 +94,7 @@ export default function HomeScreen() {
               primary
               eyebrow="Start here"
               title="Revise today's class"
+              art={<MarkRevise />}
               body={
                 topic
                   ? `${topic.heading} — from what you uploaded.`
@@ -95,6 +106,7 @@ export default function HomeScreen() {
             <ActionCard
               eyebrow="Anytime"
               title="Ask a doubt"
+              art={<MarkDoubt />}
               body="Anything from the board — today, or three weeks ago. Type it or say it."
               footer={<span className={s.rowMeta}>Voice or text</span>}
               onClick={() => nav("/session?mode=doubt")}
@@ -102,6 +114,7 @@ export default function HomeScreen() {
             <ActionCard
               eyebrow={readinessPct !== null ? `Readiness · ${readinessPct}%` : "Readiness"}
               title="Prepare for exam"
+              art={<MarkExam />}
               body={
                 readinessPct !== null
                   ? `${realWeaknesses.length} concept${realWeaknesses.length === 1 ? "" : "s"} tracked so far.`
@@ -121,9 +134,7 @@ export default function HomeScreen() {
                       );
                     })}
                   </span>
-                ) : (
-                  <span className={s.rowMeta}>—</span>
-                )
+                ) : undefined
               }
               onClick={() => nav("/readiness")}
             />
@@ -155,6 +166,7 @@ export default function HomeScreen() {
               a card. A question the teacher never answered is the reason this
               student is here tonight. */}
           <div className={s.recap}>
+            <MarkOpenQuestion className={s.recapArt} />
             <blockquote className={s.quote}>{classRecap.openQuestion}</blockquote>
             <p className={s.quoteWhy}>{classRecap.openQuestionContext}</p>
             <div className={s.sources}>
@@ -184,12 +196,12 @@ export default function HomeScreen() {
                   <p className={s.weakNote}>{weakest[0][1].evidence[0]}</p>
                 )}
               </>
+            ) : memory.status === "loading" ? (
+              <LoadingState label="Loading…" />
             ) : (
-              <p className={s.weakNote}>
-                {memory.status === "loading"
-                  ? "Loading…"
-                  : "Nothing here yet — this fills in after your first session."}
-              </p>
+              <EmptyState kind="profile" title="Nothing here yet." compact>
+                This fills in after your first session.
+              </EmptyState>
             )}
           </Panel>
         </div>

@@ -9,6 +9,7 @@ import {
   useStudentMemory,
   type SessionListItem,
 } from "../../lib/memory";
+import { EmptyState, LoadingState } from "../../components/states";
 import s from "./DashboardMemory.module.css";
 
 /* What I remember, on the dashboard.
@@ -75,12 +76,12 @@ export default function DashboardMemory() {
           </div>
 
           {sessions === null ? (
-            <p className={s.empty}>Loading…</p>
+            <LoadingState label="Loading…" />
           ) : !last ? (
-            <p className={s.empty}>
-              Nothing yet. Your first session will show up here the moment it
-              ends, along with everything it changed.
-            </p>
+            <EmptyState kind="sessions" title="Nothing yet." compact>
+              Your first session will show up here the moment it ends, along
+              with everything it changed.
+            </EmptyState>
           ) : (
             <Link to={`/sessions/${last.session_id}`} className={s.session}>
               <div className={s.sessionHead}>
@@ -107,15 +108,14 @@ export default function DashboardMemory() {
             <Link to="/profile" className={s.more}>See all →</Link>
           </div>
 
-          {memory.status !== "ready" ? (
-            <p className={s.empty}>
-              {memory.status === "loading" ? "Loading…" : "Couldn't reach your memory."}
-            </p>
+          {memory.status === "loading" ? (
+            <LoadingState label="Loading…" />
+          ) : memory.status !== "ready" ? (
+            <EmptyState kind="unreachable" title="Couldn't reach your memory." compact />
           ) : weakest.length === 0 ? (
-            <p className={s.empty}>
-              I haven't formed a view on anything yet — that starts after your
-              first session.
-            </p>
+            <EmptyState kind="profile" title="I haven't formed a view yet." compact>
+              That starts after your first session.
+            </EmptyState>
           ) : (
             <>
               <ul className={s.weak}>

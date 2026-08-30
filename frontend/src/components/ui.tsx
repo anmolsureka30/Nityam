@@ -56,7 +56,7 @@ export function Choices({ children }: { children: ReactNode }) {
 }
 
 export function ActionCard({
-  eyebrow, title, body, footer, primary, onClick,
+  eyebrow, title, body, footer, primary, onClick, art,
 }: {
   eyebrow: ReactNode;
   title: string;
@@ -64,6 +64,10 @@ export function ActionCard({
   footer?: ReactNode;
   primary?: boolean;
   onClick?: () => void;
+  /** A small drawing of what this row does, set at the END of the row: these
+   *  read left to right as sentences, so art above the title would interrupt
+   *  one. Decorative — the title already says it — so it stays aria-hidden. */
+  art?: ReactNode;
 }) {
   return (
     <button
@@ -81,6 +85,7 @@ export function ActionCard({
       </span>
       <span className={s.choiceAside}>
         {footer}
+        {art && <span className={s.choiceArt} aria-hidden="true">{art}</span>}
         <span className={s.choiceGo} aria-hidden="true">→</span>
       </span>
     </button>

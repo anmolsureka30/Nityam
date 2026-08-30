@@ -32,7 +32,7 @@
 .empty {
   margin: 0;
   padding: var(--s-4) var(--s-5) var(--s-5);
-  font-size: var(--t-small, 14px);
+  font-size: var(--t-small);
   line-height: 1.5;
   color: var(--ink-dim);
 }
@@ -44,7 +44,7 @@
   text-decoration: none;
   color: inherit;
 }
-.session:hover { background: var(--sunk, rgba(0, 0, 0, 0.02)); }
+.session:hover { background: var(--cream-soft); }
 .session:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .sessionHead {
@@ -55,7 +55,7 @@
   flex-wrap: wrap;
 }
 .topic {
-  font-family: var(--display);
+  font-family: var(--prose);
   font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -69,7 +69,7 @@
 }
 .summary {
   margin: var(--s-2) 0 0;
-  font-size: var(--t-small, 14px);
+  font-size: var(--t-small);
   line-height: 1.55;
   color: var(--ink-mid, var(--ink-dim));
   /* Enough to recognise the session by, not the whole thing — the recap
@@ -98,7 +98,7 @@
   gap: var(--s-3);
   padding: var(--s-3) var(--s-5);
   border-bottom: 1px solid var(--line-cool-3, var(--line));
-  font-size: var(--t-small, 14px);
+  font-size: var(--t-small);
 }
 .weakName { color: var(--ink-strong, var(--ink)); }
 .weakState {

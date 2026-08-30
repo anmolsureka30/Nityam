@@ -159,3 +159,39 @@
   .countdown { font-size: 1.9rem; }
   .band { padding-bottom: var(--s-7); }
 }
+
+/* ── the greeting, and who is giving it ────────────────────────────────
+   The dashboard opened on a line of type and nothing else. She sits to the
+   right of it at a size that reads as a portrait rather than an icon. */
+.hello {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-6);
+}
+.helloText { min-width: 0; flex: 1 1 auto; }
+.helloArt {
+  flex: 0 0 auto;
+  width: 156px;
+  height: auto;
+  display: block;
+  margin-bottom: -2px;
+}
+/* Below this the greeting wants the whole width; a shrunk portrait beside a
+   wrapped headline reads as an avatar chip, which is not what it is. */
+@media (max-width: 820px) {
+  .hello { display: block; }
+  .helloArt { display: none; }
+}
+
+/* ── the open question ─────────────────────────────────────────────────
+   The mark sits above the quote and to the left, so the eye lands on it and
+   then falls into the sentence. */
+/* .recap is a flex column with its own gap, so no margin here — a margin
+   would stack on top of the gap and open a hole the other children do not
+   have. */
+.recapArt {
+  display: block;
+  width: 150px;
+  height: auto;
+}
