@@ -183,6 +183,7 @@ async def session_recap_endpoint(student_id: str, session_id: str):
         "ended_at": entry.ended_at,
         "summary": entry.summary,
         "turns": [t.model_dump(mode="json") for t in entry.turns],
+        "board": entry.board,
         "has_recap": entry.dpm_after is not None,
         "before": {
             "mastery": _mastery_map(entry.dpm_before),
@@ -283,6 +284,59 @@ async def briefing_preview_endpoint(
     }
 
 
+async def _caller(authorization: str) -> dict:
+    """The verified claims of whoever is calling, or a 401.
+
+    Both write endpoints below need this and neither may trust a path
+    parameter: a uid is visible in a URL, so without checking the token
+    against it any signed-in user could seed or erase anyone else's record.
+    Verification is app/user_auth's — Google's public certificates, no ADC.
+    """
+    token = ""
+    if authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="sign in first")
+    try:
+        return await asyncio.to_thread(user_auth.verify_token, token)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("refusing a write: %s: %s", exc.__class__.__name__, exc)
+        raise HTTPException(status_code=401, detail="your sign-in has expired") from None
+
+
+@router.post("/students/{student_id}/ensure")
+async def ensure_student_endpoint(
+    student_id: str, authorization: str = Header(default=""),
+):
+    """Give a student the starting record if they have never had one.
+
+    Called by the browser the moment somebody signs in, so a new account has a
+    profile and a session history BEFORE they look at either. The equivalent
+    check on the WebSocket runs too, but that is too late for the thing it is
+    for: a judge signs in, lands on the dashboard, and sees an empty profile
+    and an empty session list — which is precisely the impression this record
+    exists to prevent — and only discovers otherwise if they happen to start a
+    session first.
+
+    Authenticated exactly like /reset, and idempotent: an existing student is
+    left completely alone, so this is safe to call on every sign-in.
+    """
+    claims = await _caller(authorization)
+    if claims.get("uid") != student_id:
+        raise HTTPException(status_code=403, detail="you can only seed your own account")
+
+    if not config.SEED_NEW_STUDENTS:
+        return {"ok": True, "seeded": False, "reason": "seeding is switched off"}
+
+    conn = _firestore_client()
+    if await asyncio.to_thread(seeding.has_record, conn, student_id):
+        return {"ok": True, "seeded": False, "reason": "already has a record"}
+
+    outcome = await asyncio.to_thread(seeding.reset, conn, student_id)
+    log.info("seeded new student %s on sign-in: %s", student_id, outcome)
+    return {"ok": True, "seeded": True, **outcome}
+
+
 @router.post("/students/{student_id}/reset")
 async def reset_student_endpoint(
     student_id: str, authorization: str = Header(default=""),
@@ -300,16 +354,7 @@ async def reset_student_endpoint(
     Verification goes through the same app/user_auth path the WebSocket uses:
     Google's public certificates, no ADC, no privileged credential.
     """
-    token = ""
-    if authorization.lower().startswith("bearer "):
-        token = authorization[7:].strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="sign in first")
-    try:
-        claims = await asyncio.to_thread(user_auth.verify_token, token)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("reset refused: %s: %s", exc.__class__.__name__, exc)
-        raise HTTPException(status_code=401, detail="your sign-in has expired") from None
+    claims = await _caller(authorization)
     if claims.get("uid") != student_id:
         log.warning("reset refused: %r tried to reset %r", claims.get("uid"), student_id)
         raise HTTPException(status_code=403, detail="you can only reset your own account")

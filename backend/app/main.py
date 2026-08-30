@@ -355,6 +355,10 @@ async def _flush_session_memory(session_id: str, student_id: str) -> None:
                 conn, session_id, student_id, state.started_at, buffer, client,
                 topic=state.plan.concept_name or state.plan.concept,
                 mode=state.plan.mode,
+                # Everything that was written down. Captured here rather than
+                # inside close_session because SessionState is this module's
+                # to reach, and the board is gone the instant the socket does.
+                board=state.board.model_dump(mode="json", exclude_none=True),
             )
 
         await asyncio.to_thread(_flush)

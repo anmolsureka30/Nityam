@@ -28,6 +28,34 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+/** Give a brand-new account its starting record, once, at sign-in.
+ *
+ *  The backend also checks this when a session's WebSocket opens, but that is
+ *  too late for what it is for: somebody signs in, lands on the dashboard, and
+ *  sees an empty profile and an empty session list — exactly the impression
+ *  the record exists to prevent — and only finds out otherwise if they happen
+ *  to start a session first.
+ *
+ *  Fire-and-forget and deliberately silent. It is idempotent server-side (an
+ *  existing student is left alone), and a seeding failure must never be the
+ *  reason somebody cannot get into the app — the worst case is the empty
+ *  dashboard they would have had anyway. */
+const seedAttempted = new Set<string>();
+
+async function ensureSeeded(user: User): Promise<void> {
+  if (seedAttempted.has(user.uid)) return;
+  seedAttempted.add(user.uid);
+  try {
+    const token = await user.getIdToken();
+    await fetch(`/memory/students/${encodeURIComponent(user.uid)}/ensure`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    /* see above */
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onAuthStateChanged(auth, (u) => {
         setUser(u);
         setLoading(false);
+        if (u) ensureSeeded(u);
       }),
     [],
   );

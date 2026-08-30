@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFirstName } from "../../lib/displayName";
 import { conceptName } from "../../lib/conceptCatalog";
 import { fetchBriefingPreview } from "../../lib/memory";
 import SessionBriefing from "./SessionBriefing";
@@ -6,7 +7,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { UserChip } from "../../components/Shell";
 import { Label, MasteryBar } from "../../components/ui";
 import { useAuth } from "../../lib/auth/AuthContext";
-import { concepts, intensities, student } from "../../lib/data";
+import { concepts, intensities } from "../../lib/data";
 import { useLiveSession } from "../../lib/live/useLiveSession";
 import { SPECIALIST_COPY } from "../../lib/live/specialists";
 import type { ContextPacket, MarkTool } from "../../lib/types";
@@ -28,11 +29,6 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
 /* What tonight covers.
    STUB: hardcoded. The agent will emit this from the intensity the student
    picked plus the class recap. See backend/INTEGRATION.md. */
-/** How long the pre-session briefing stays up, at minimum. Long enough to
- *  read four short lines without hurrying; short enough that a student who has
- *  read it is not left waiting on it. */
-const BRIEFING_MIN_MS = 6500;
-
 /* The last-resort plan, used only until the real one arrives (and if the
    memory service cannot be reached at all). It used to be the ONLY plan:
    three strings hardcoded here, so every session claimed the same three steps
@@ -133,7 +129,7 @@ export default function SessionScreen() {
     return () => { document.title = had; };
   }, [plannedConcept?.name]);
 
-  const openedAt = useRef(Date.now());
+  const firstName = useFirstName();
   /* The same briefing the overlay shows, for the step names in the header.
      One fetch would be tidier, but the overlay owns its own and this screen
      needs only three strings — threading a shared fetch through both is more
@@ -149,17 +145,11 @@ export default function SessionScreen() {
   }, [userId, plannedConcept?.name, mode]);
   const [heardHer, setHeardHer] = useState(false);
   useEffect(() => {
-    if (tutor.mood !== "speaking") return;
-    /* A MINIMUM DWELL, not just "hide when she speaks".
-       Connecting sometimes takes a second and sometimes six, and lifting the
-       moment she starts meant that on a fast connect the briefing was gone
-       before it could be read — which is worse than not showing it, because
-       something appeared and vanished. Hold it long enough to actually read,
-       measured from when it went up rather than from now. */
-    const shown = Date.now() - openedAt.current;
-    const wait = Math.max(0, BRIEFING_MIN_MS - shown);
-    const t = setTimeout(() => setHeardHer(true), wait);
-    return () => clearTimeout(t);
+    /* Lift the moment she speaks. A 6.5s floor was tried and it was far too
+       long — the point of this screen is to fill a wait, not to add one, and
+       once she is talking the board is what matters. What makes it readable
+       is that there is little to read, not that it lingers. */
+    if (tutor.mood === "speaking") setHeardHer(true);
   }, [tutor.mood]);
 
   const checkpoint = board.quizQueue[0] ?? null;
@@ -335,32 +325,10 @@ export default function SessionScreen() {
           {!tutor.connected && <Label tone="warn">Reconnecting…</Label>}
         </div>
         <div className={s.right}>
-          <button
-            className={cx(s.chipBtn, bookOpen && s.chipBtnOn)}
-            onClick={() => setBookOpen((v) => !v)}
-            aria-pressed={bookOpen}
-          >
-            ▦ View textbook
-          </button>
-          {/* window.print(), not a PDF library.
-              The board is already laid out as a page — that is the whole
-              design — so the browser's own print-to-PDF renders it at vector
-              resolution, with real text a reader can select and search, and
-              embedded canvases captured as they currently stand. html2canvas
-              plus jsPDF would ship two dependencies to produce a bitmap of
-              the same thing, and would have to be taught about the artifact's
-              shadow DOM. The print stylesheet in SessionScreen.module.css is
-              what makes the output a notebook page rather than a screenshot
-              of an app. */}
-          <button
-            className={s.chipBtn}
-            onClick={() => window.print()}
-            title="Save this board as a PDF"
-          >
-            ⤓ Save PDF
-          </button>
+
+
           <span className={s.clock}>{clock}</span>
-          <span className={s.who}>{student.firstName}</span>
+          <span className={s.who}>{firstName}</span>
           <UserChip />
         </div>
       </header>

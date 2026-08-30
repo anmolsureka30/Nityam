@@ -214,6 +214,9 @@ export interface SessionRecap {
   ended_at: string | null;
   summary: string;
   turns: { turn: number; role: string; text: string }[];
+  /** The finished notebook page, as the student left it. Null for sessions
+   *  that closed before boards were stored. */
+  board: { pages: { page: number; blocks: Record<string, unknown>[] }[] } | null;
   has_recap: boolean;
   before: { mastery: Record<string, MasteryEntry>; doubts: Record<string, DoubtEntry> };
   after: { mastery: Record<string, MasteryEntry>; doubts: Record<string, DoubtEntry> };

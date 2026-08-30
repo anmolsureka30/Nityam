@@ -185,10 +185,12 @@ def close_session(
     client: genai.Client,
     topic: str = "",
     mode: str = "",
+    board: dict | None = None,
 ) -> SessionLog:
     instrumentation.set_session_context(session_id)
     log = build_session_log(session_id, student_id, started_at, buffer)
     log.topic, log.mode = topic, mode
+    log.board = board
     store.put_session_log(conn, log)
 
     profile = store.get_dpm(conn, student_id) or DPMProfile(student_id=student_id)

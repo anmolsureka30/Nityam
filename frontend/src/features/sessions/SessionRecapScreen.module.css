@@ -146,3 +146,19 @@
   .opConcept { grid-column: 1 / -1; }
   .turns li { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* Opens the print-only view in a new tab, so the recap you were reading is
+   still there when the print dialog closes. */
+.export {
+  display: inline-block;
+  margin-top: var(--s-4);
+  padding: 8px 15px;
+  border: 1px solid var(--line-hard, var(--line));
+  border-radius: var(--r-chip, 3px);
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.06em;
+  color: var(--ink-strong, var(--ink));
+  text-decoration: none;
+}
+.export:hover { border-color: var(--ink-dim); background: var(--sunk, rgba(0,0,0,0.03)); }

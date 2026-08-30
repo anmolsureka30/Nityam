@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useFirstName } from "../../lib/displayName";
 import DashboardMemory from "./DashboardMemory";
 import { Shell } from "../../components/Shell";
 import {
@@ -15,24 +16,6 @@ function greetingFor(hour: number) {
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
-}
-
-/** The signed-in person's actual first name.
- *
- *  It was `student.firstName` from lib/data — "Arjun", hardcoded — so everyone
- *  who signed in was greeted as somebody else. Google gives a displayName on
- *  the credential; the email's local part is the fallback, and "there" is the
- *  last resort so the greeting is never left dangling on a comma. */
-function useFirstName(): string {
-  const { user } = useAuth();
-  const display = (user?.displayName ?? "").trim();
-  if (display) return display.split(/\s+/)[0]!;
-  const local = (user?.email ?? "").split("@")[0] ?? "";
-  if (!local) return "there";
-  // "arnav.prasad999918" -> "Arnav": the separator-and-digits shape an email
-  // local part usually has says nothing about how someone is called.
-  const word = local.split(/[._-]/)[0]!.replace(/[0-9]+$/, "");
-  return word ? word.charAt(0).toUpperCase() + word.slice(1) : "there";
 }
 
 export default function HomeScreen() {

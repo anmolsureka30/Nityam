@@ -43,6 +43,20 @@ export default function SessionBriefing({
     };
   }, [studentId, topic, mode]);
 
+  /* Short enough to take in at a glance: the concepts tonight covers, worst
+     first, each with a two-word note on where the student stands. Names are
+     already short — "Resolving a vector into components" is trimmed to its
+     first clause rather than wrapped over three lines. */
+  const plan = (brief?.plan ?? []).slice(0, 4).map((cid) => {
+    const weak = brief?.weak_points?.find((w) => w.concept_id === cid);
+    const full = conceptName(cid) || cid;
+    return {
+      key: cid,
+      label: full.length > 34 ? full.slice(0, 32).replace(/[ ,]+$/, "") + "…" : full,
+      note: weak ? (MASTERY[weak.mastery]?.label ?? weak.mastery) : "",
+    };
+  });
+
   return (
     <div
       className={`${s.veil} ${open ? s.veilOpen : s.veilGone}`}
@@ -54,53 +68,25 @@ export default function SessionBriefing({
     >
       <div className={s.card}>
         <p className={s.kicker}>
-          {mode === "exam" ? "Exam preparation" : mode === "doubt" ? "Your doubt" : "Revision"}
+          {mode === "exam" ? "Exam preparation" : mode === "doubt" ? "Your doubt" : "Tonight"}
         </p>
         <h2 className={s.topic}>{brief?.topic || topic || "Tonight's session"}</h2>
 
-        {brief?.last_session && (
-          <div className={s.block}>
-            <p className={s.label}>Where we stopped</p>
-            <p className={s.last}>{brief.last_session}</p>
-          </div>
-        )}
-
-        {!!brief?.weak_points?.length && (
-          <div className={s.block}>
-            <p className={s.label}>What I'll start with</p>
-            <ul className={s.weak}>
-              {brief.weak_points.map((w) => (
-                <li key={w.concept_id}>
-                  <span className={s.weakName}>
-                    {conceptName(w.concept_id) || w.concept_id}
-                  </span>
-                  <span className={s.weakState}>
-                    {MASTERY[w.mastery]?.label ?? w.mastery}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {!!brief?.open_doubts?.length && (
-          <div className={s.block}>
-            <p className={s.label}>Still open from before</p>
-            <ul className={s.doubts}>
-              {brief.open_doubts.map((d) => (
-                <li key={d.concept_id}>{d.doubt}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {!!brief?.covered?.length && (
-          <div className={s.block}>
-            <p className={s.label}>Already solid</p>
-            <p className={s.covered}>
-              {brief.covered.map((c) => conceptName(c) || c).join(" · ")}
-            </p>
-          </div>
+        {/* Four or five words each, and only what tonight actually covers.
+            This was three paragraphs — the last session's summary, every open
+            doubt in full — which nobody reads in the two seconds before she
+            starts talking, and which made the wait feel longer rather than
+            shorter. A holding screen has to be readable at a glance or it is
+            just a wall. */}
+        {!!plan.length && (
+          <ol className={s.plan}>
+            {plan.map((item) => (
+              <li key={item.key}>
+                <span className={s.planText}>{item.label}</span>
+                {item.note && <span className={s.planNote}>{item.note}</span>}
+              </li>
+            ))}
+          </ol>
         )}
 
         <div className={s.waiting}>

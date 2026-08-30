@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginScreen from "./features/auth/LoginScreen";
 import HomeScreen from "./features/home/HomeScreen";
 import IntensityScreen from "./features/intensity/IntensityScreen";
+import SessionExport from "./features/sessions/SessionExport";
 import SessionRecapScreen from "./features/sessions/SessionRecapScreen";
 import SessionsScreen from "./features/sessions/SessionsScreen";
 import ProfileScreen from "./features/profile/ProfileScreen";
@@ -47,6 +48,7 @@ export default function App() {
       <Route path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
       <Route path="/sessions" element={<ProtectedRoute><SessionsScreen /></ProtectedRoute>} />
       <Route path="/sessions/:sessionId" element={<ProtectedRoute><SessionRecapScreen /></ProtectedRoute>} />
+      <Route path="/sessions/:sessionId/export" element={<ProtectedRoute><SessionExport /></ProtectedRoute>} />
       <Route path="/session" element={<ProtectedRoute><SessionScreen /></ProtectedRoute>} />
       <Route path="/readiness" element={<ProtectedRoute><ReadinessScreen /></ProtectedRoute>} />
       <Route path="/summary" element={<ProtectedRoute><SummaryScreen /></ProtectedRoute>} />

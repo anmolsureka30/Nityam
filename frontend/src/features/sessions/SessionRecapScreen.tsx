@@ -132,6 +132,16 @@ export default function SessionRecapScreen() {
         <div className="body">
           <h1 className="display">{r.topic || "Untitled session"}</h1>
           {r.summary && <p className={`lede ${s.summary}`}>{r.summary}</p>}
+          {/* Opens a page built only to be printed, rather than printing this
+              one. See SessionExport for why that is not the same thing. */}
+          <a
+            className={s.export}
+            href={`/sessions/${r.session_id}/export`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            ⤓ Export as PDF
+          </a>
         </div>
       </section>
 

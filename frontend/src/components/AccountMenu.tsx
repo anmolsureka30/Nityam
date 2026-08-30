@@ -22,6 +22,12 @@ export default function AccountMenu() {
 
   const email = user?.email ?? "";
   const initial = email ? email[0]!.toUpperCase() : "?";
+  /* Google gives a photoURL on the credential and it was being ignored in
+     favour of a letter. The letter stays as the fallback — a password account
+     has no picture, and Google's CDN can fail like any other — so `broken`
+     tracks a load failure rather than leaving an empty circle. */
+  const photo = user?.photoURL ?? "";
+  const [broken, setBroken] = useState(false);
 
   // Close on an outside click or Escape — a menu that can only be dismissed
   // by choosing something from it is a trap.
@@ -90,7 +96,17 @@ export default function AccountMenu() {
         aria-expanded={open}
         title={email || "Account"}
       >
-        {initial}
+        {photo && !broken ? (
+          <img
+            className={s.photo}
+            src={photo}
+            alt=""
+            referrerPolicy="no-referrer"
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          initial
+        )}
       </button>
 
       {open && (

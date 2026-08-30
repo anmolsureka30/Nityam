@@ -125,6 +125,19 @@ class SessionLog(BaseModel):
     dpm_after: Optional["DPMProfile"] = None
     teaching_before: Optional["TeachingMemory"] = None
     teaching_after: Optional["TeachingMemory"] = None
+    board: Optional[dict] = None
+    """The finished notebook page, exactly as the student left it.
+
+    The turns record what was SAID; this is what was written down, and it is
+    the thing a student actually wants to keep — the formula, the worked step,
+    the figure from their own textbook. It was not stored anywhere: the board
+    lived in memory for the length of the WebSocket and was gone the moment it
+    closed, so a session could be read back but never re-opened or exported.
+
+    A plain dict rather than the CanvasDoc model: this is a durable record of
+    what was on screen that day, and it must keep deserialising even after the
+    block schema grows a field it has never heard of."""
+
     operations: list[dict] = Field(default_factory=list)
     """What Reflect proposed, in order, each tagged with whether it applied.
     A dropped operation is as informative as an accepted one — it is the

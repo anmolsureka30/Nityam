@@ -20,6 +20,15 @@
   transition: border-color 0.14s var(--ease), background 0.14s var(--ease);
 }
 .avatar:hover { border-color: var(--ink-dim); }
+/* The Google photo fills the circle; the letter is the fallback underneath. */
+.avatar:has(.photo) { padding: 0; overflow: hidden; }
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
 .avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .menu {
