@@ -1,4 +1,5 @@
 .wrap { max-width: 720px; margin: var(--s-6) auto 0; }
+
 .headline {
   font-family: var(--prose);
   font-variation-settings: "opsz" 48;
@@ -11,34 +12,142 @@
   margin: var(--s-3) 0 0;
 }
 
-.moved { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
-.movedRow { display: flex; flex-direction: column; gap: 7px; }
-.movedHead {
+/* The tutor's own sentence about the session, at lede size directly under the
+   topic — it is the one line most students will actually read. */
+.lede {
+  font-family: var(--prose);
+  font-size: var(--t-lede);
+  line-height: var(--lh-prose);
+  color: var(--ink-mid);
+  margin: var(--s-4) 0 0;
+  max-width: 62ch;
+}
+
+.body {
+  font-family: var(--prose);
+  font-size: var(--t-body);
+  line-height: var(--lh-prose);
+  color: var(--ink-mid);
+  margin: var(--s-3) 0 0;
+  max-width: 66ch;
+}
+
+/* ── what moved ──────────────────────────────────────────────────────
+   Deliberately the same shape as the row on /sessions/:id. A student who
+   sees `Misunderstood → Getting there` here and then opens the full recap
+   should recognise it as the same object, not meet a second design. */
+.changes {
+  list-style: none;
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.change {
+  padding: var(--s-4);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+}
+
+.changeConcept {
+  font-family: var(--ui);
+  font-size: var(--t-head);
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  color: var(--ink-strong);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.kindTag {
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--r-chip);
+  padding: 1px 5px;
+}
+
+.changeArrow {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+  font-family: var(--mono);
+  font-size: var(--t-body);
+  flex-wrap: wrap;
 }
-.movedName { font-size: 14.5px; }
-.movedNums { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.from { color: var(--ink-dim); }
-.arrow { color: var(--ink-dim); margin: 0 5px; }
-.to { color: var(--good); font-weight: 500; }
+.from { color: var(--ink-dim); text-decoration: line-through; text-decoration-thickness: 1px; }
+.arrow { color: var(--line-hard); }
 
-.grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--s-5); margin-top: var(--s-5); }
+/* Direction, not judgement: a student going backwards on a concept is
+   information, not a failure to hide. */
+.toBetter { color: var(--good); font-weight: 600; }
+.toWorse { color: var(--warn); font-weight: 600; }
 
-.momentText {
+.changeNote {
+  margin: var(--s-2) 0 0;
   font-family: var(--prose);
-  font-variation-settings: "opsz" 24;
-  font-size: 1.35rem;
-  line-height: 1.42;
-  letter-spacing: -0.01em;
-  letter-spacing: -0.01em;
-  margin: 11px 0 0;
-  text-wrap: pretty;
+  font-size: var(--t-small);
+  line-height: var(--lh-body);
+  color: var(--ink-dim);
+  max-width: 72ch;
 }
-.body { font-size: 14.5px; line-height: 1.55; color: var(--ink-mid); margin: 11px 0 0; text-wrap: pretty; }
 
-.actions { display: flex; gap: 10px; margin-top: 24px; }
+/* ── still open ──────────────────────────────────────────────────────── */
+.openList {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.openList li { display: flex; flex-direction: column; gap: 3px; }
+.openConcept {
+  font-family: var(--ui);
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.openDoubt {
+  font-family: var(--prose);
+  font-size: var(--t-small);
+  line-height: var(--lh-body);
+  color: var(--ink-mid);
+  max-width: 68ch;
+}
 
-@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+/* ── the wait ────────────────────────────────────────────────────────
+   close_session only starts when this screen navigates, so this state is
+   the normal one for the first few seconds, not an error. */
+.dots { display: inline-flex; gap: 5px; margin-top: var(--s-5); }
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.25s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: 0.16s; }
+.dots i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes pulse {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dots i { animation: none; opacity: 0.6; }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+}

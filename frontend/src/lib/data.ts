@@ -9,7 +9,7 @@
 
 import type {
   AtRiskStudent, Checkpoint, ClassRecap, Concept, IntensityOption, Notebook,
-  ProjectileArtifact, SessionSummary, Student, Teacher, TeacherClassView,
+  ProjectileArtifact, Student, Teacher, TeacherClassView,
 } from "./types";
 
 export const student: Student = {
@@ -221,19 +221,11 @@ export const checkpoint: Checkpoint = {
   footnote: "Nobody sees this but you.",
 };
 
-export const summary: SessionSummary = {
-  endedAt: "21:26",
-  minutes: 22,
-  headline: "You finished what the class started.",
-  moved: [
-    { conceptName: "Maximum range", from: 68, to: 84 },
-    { conceptName: "Symmetry of complementary angles", from: null, to: 62 },
-  ],
-  moment: studentFinding.text,
-  stillOpen:
-    "Independence of axes — 41%. It's under three of your four weak questions.",
-  tomorrow: "Mr. Deshpande will ask about 45° again. You can answer it.",
-};
+/* The /summary screen used to render this fixed object after EVERY session:
+   the same headline, the same two concepts at 68% and 62%, the same quote.
+   It now reads the session that actually just ended
+   (features/summary/SummaryScreen.tsx), so this mock is gone rather than
+   merely unused — left in the file it would eventually be imported again. */
 
 /* ------------------------------------------------------------- teacher */
 
