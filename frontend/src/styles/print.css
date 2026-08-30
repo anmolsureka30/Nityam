@@ -1,0 +1,59 @@
+/* What a session looks like on paper.
+ *
+ * "Save PDF" is window.print(), so this file IS the export format. It is
+ * GLOBAL rather than a CSS module on purpose: the pieces that have to be
+ * hidden live in five different modules — the header in SessionScreen, the
+ * composer in SessionControls, the tutor in TutorAvatar, the page in Notebook
+ * — and a module's class names are hashed per file, so a rule written in one
+ * of them cannot reach the others. Selecting on data attributes instead means
+ * a component opts in where it is rendered, next to the markup it describes.
+ *
+ * A simulation prints as its current frame; a canvas has no other static
+ * form. That is the honest result — the student keeps the state they left it
+ * in rather than a dead placeholder.
+ */
+@media print {
+  [data-print="hide"] { display: none !important; }
+
+  /* The board was always laid out as paper. Printing it is closer to
+     photographing that paper than to exporting anything, so the job here is
+     mostly to stop the app's layout from getting in the way. */
+  html, body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* THE ONE THAT MATTERS. The notebook is a fixed-height scroller, and a
+     scroller prints only what is visible — which would silently produce a
+     one-page PDF of a twelve-block lesson and look like it had worked. */
+  [data-print="page"],
+  [data-print="page"] * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  [data-print="page"] {
+    display: block !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    transform: none !important;
+    position: static !important;
+  }
+
+  /* Never split a formula from its caption, or a callout down the middle. */
+  [data-block] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Anchors are a screen affordance — on paper a highlight behind text just
+     makes it harder to read. */
+  mark { background: none !important; color: inherit !important; }
+
+  @page { margin: 16mm 14mm; }
+}

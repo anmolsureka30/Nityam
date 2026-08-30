@@ -6,6 +6,7 @@ import SetupNotice from "./features/auth/SetupNotice";
 import { AuthProvider } from "./lib/auth/AuthContext";
 import { firebaseConfigured } from "./lib/firebase";
 import "./styles/base.css";
+import "./styles/print.css";
 
 /* AuthProvider is mounted only when there is a Firebase project to talk to.
    See lib/firebase.ts: without one, every screen used to vanish behind a blank

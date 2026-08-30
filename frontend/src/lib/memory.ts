@@ -226,6 +226,10 @@ export interface SessionRecap {
 export interface BriefingPreview {
   topic: string;
   mode: string;
+  /** The steps shown across the top of the session screen, weakest first and
+   *  the topic last. Derived from the same record the tutor is briefed on, so
+   *  the header cannot promise a shape the lesson does not have. */
+  plan: string[];
   concepts: string[];
   weak_points: { concept_id: string; mastery: string }[];
   open_doubts: { concept_id: string; doubt: string }[];

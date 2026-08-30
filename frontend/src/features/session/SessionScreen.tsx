@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { conceptName } from "../../lib/conceptCatalog";
+import { fetchBriefingPreview } from "../../lib/memory";
 import SessionBriefing from "./SessionBriefing";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { UserChip } from "../../components/Shell";
@@ -31,7 +33,11 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
  *  read it is not left waiting on it. */
 const BRIEFING_MIN_MS = 6500;
 
-const PLAN = ["Find why 45° wins", "Say why", "Two throws, one spot"];
+/* The last-resort plan, used only until the real one arrives (and if the
+   memory service cannot be reached at all). It used to be the ONLY plan:
+   three strings hardcoded here, so every session claimed the same three steps
+   whatever it was about. */
+const FALLBACK_PLAN = ["Warm up", "Work it through", "Check it"];
 
 export default function SessionScreen() {
   const nav = useNavigate();
@@ -117,7 +123,30 @@ export default function SessionScreen() {
      `!tutor.connected` would flash it back up on every reconnect mid-lesson,
      and a plain `mood !== "speaking"` would put it back every time she
      pauses for breath. */
+  /* The browser names a printed PDF after document.title, so without this
+     every saved board is called "Nityam" and a folder of them is unusable. */
+  useEffect(() => {
+    const had = document.title;
+    const topic = plannedConcept?.name ?? "Session";
+    const day = new Date().toISOString().slice(0, 10);
+    document.title = `Nityam — ${topic} — ${day}`;
+    return () => { document.title = had; };
+  }, [plannedConcept?.name]);
+
   const openedAt = useRef(Date.now());
+  /* The same briefing the overlay shows, for the step names in the header.
+     One fetch would be tidier, but the overlay owns its own and this screen
+     needs only three strings — threading a shared fetch through both is more
+     coupling than it saves. */
+  const [planSteps, setPlanSteps] = useState<string[]>(FALLBACK_PLAN);
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    fetchBriefingPreview(userId, plannedConcept?.name ?? "", mode)
+      .then((b) => { if (live && b.plan?.length) setPlanSteps(b.plan.map(conceptName)); })
+      .catch(() => { /* the fallback is already on screen */ });
+    return () => { live = false; };
+  }, [userId, plannedConcept?.name, mode]);
   const [heardHer, setHeardHer] = useState(false);
   useEffect(() => {
     if (tutor.mood !== "speaking") return;
@@ -287,13 +316,13 @@ export default function SessionScreen() {
   );
 
   const planIndex = Math.min(
-    PLAN.length - 1,
+    planSteps.length - 1,
     board.doc.pages.reduce((n, p) => n + p.blocks.length, 0) > 6 ? 2 : checkpoint ? 1 : 0,
   );
 
   return (
     <div className={s.screen}>
-      <header className={s.bar}>
+      <header className={s.bar} data-print="hide">
         <div className={s.left}>
           <Link to="/" className={s.brand} aria-label="Leave session">
             <span className={s.mark} />
@@ -313,6 +342,23 @@ export default function SessionScreen() {
           >
             ▦ View textbook
           </button>
+          {/* window.print(), not a PDF library.
+              The board is already laid out as a page — that is the whole
+              design — so the browser's own print-to-PDF renders it at vector
+              resolution, with real text a reader can select and search, and
+              embedded canvases captured as they currently stand. html2canvas
+              plus jsPDF would ship two dependencies to produce a bitmap of
+              the same thing, and would have to be taught about the artifact's
+              shadow DOM. The print stylesheet in SessionScreen.module.css is
+              what makes the output a notebook page rather than a screenshot
+              of an app. */}
+          <button
+            className={s.chipBtn}
+            onClick={() => window.print()}
+            title="Save this board as a PDF"
+          >
+            ⤓ Save PDF
+          </button>
           <span className={s.clock}>{clock}</span>
           <span className={s.who}>{student.firstName}</span>
           <UserChip />
@@ -329,7 +375,7 @@ export default function SessionScreen() {
         {delta !== null && <span className={s.delta}>+{delta} tonight</span>}
 
         <div className={s.plan}>
-          {PLAN.map((step, i) => (
+          {planSteps.map((step: string, i: number) => (
             <span
               key={step}
               className={cx(
@@ -354,6 +400,7 @@ export default function SessionScreen() {
       </div>
 
       <main
+        data-print="page"
         className={cx(
           s.stage,
           tutor.specialist === "board" && s.stageBoardActive,
@@ -410,13 +457,16 @@ export default function SessionScreen() {
         revision={board.revision}
       />
 
+      <div data-print="hide">
       <TutorAvatar
         mood={tutor.mood}
         caption={tutor.caption}
         speakKey={tutor.speakKey}
         voice={tutor.voice}
       />
+      </div>
 
+      <div data-print="hide">
       <SessionControls
         tool={tool}
         onTool={setTool}
@@ -427,6 +477,7 @@ export default function SessionScreen() {
         specialist={tutor.specialist}
         onEnd={() => nav("/summary")}
       />
+      </div>
 
       {bookOpen && (
         <TextbookDrawer

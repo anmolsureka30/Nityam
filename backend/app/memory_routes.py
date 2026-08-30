@@ -240,9 +240,38 @@ async def briefing_preview_endpoint(
         except Exception:  # noqa: BLE001 - an overlay must never block a lesson
             last = ""
 
+    # The steps shown across the top of the session screen. They were three
+    # hardcoded strings — "Find why 45° wins", "Say why", "Two throws, one
+    # spot" — so every session claimed the same three regardless of what it
+    # was about. Derived from the same record the tutor is briefed on, so the
+    # header cannot promise a shape the lesson does not have.
+    #
+    # Weakest first, because that is the order she teaches in, and the topic
+    # itself last: the thing the session is FOR is the thing it ends on.
+    # Weakest first, because that is the order she teaches in, and the topic
+    # last: the thing the session is FOR is the thing it ends on.
+    #
+    # A student can legitimately have no weak points — one good session moves
+    # everything to known, which really happened here — so fall back to the
+    # concepts this topic actually resolves to, minus the ones already
+    # covered. A one-step plan is not a plan.
+    plan = [w["concept_id"] for w in weak[:2]]
+    if len(plan) < 2:
+        already = {c for c, v in (memory.covered if memory else {}).items()
+                   if v.status == "covered"}
+        for cid in concept_ids:
+            if len(plan) >= 2:
+                break
+            if cid not in plan and cid not in already:
+                plan.append(cid)
+    topic_label = conceptName or concept
+    if topic_label:
+        plan.append(topic_label)
+
     return {
         "topic": conceptName or concept,
         "mode": mode,
+        "plan": plan[:3],
         "concepts": concept_ids[:6],
         "weak_points": weak[:4],
         "open_doubts": doubts[:3],
