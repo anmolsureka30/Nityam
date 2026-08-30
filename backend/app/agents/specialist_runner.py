@@ -95,6 +95,22 @@ needed here — a stale entry from an abandoned call is simply never popped,
 which is harmless (it never affects a future call's own duration)."""
 
 
+def _publish_tool_call(event: instrumentation.ToolCallEvent, session_id: str | None) -> None:
+    """Fire-and-forget: schedule the Redis publish without ever letting a
+    stalled Redis connection add latency to a live tool call or specialist
+    turn (see instrumentation.publish_tool_call_event_async's own
+    docstring). Tracked via sessions.track for the same reason
+    schedule_brief_refresh's task is below: asyncio holds only a weak
+    reference to an unawaited task, so without this a slow publish can be
+    garbage-collected mid-flight and simply never complete."""
+    task = asyncio.get_running_loop().create_task(
+        instrumentation.publish_tool_call_event_async(event)
+    )
+    from app import sessions
+
+    sessions.track(session_id, task)
+
+
 def _log_tool_activity(
     label: str, event, session_id: str | None, student_id: str | None
 ) -> None:
@@ -116,12 +132,13 @@ def _log_tool_activity(
                       args[:200] + ("…" if len(args) > 200 else ""))
             if call.id:
                 _pending_calls[call.id] = time.monotonic()
-            instrumentation.publish_tool_call_event(
+            _publish_tool_call(
                 instrumentation.build_tool_call_event(
                     actor=actor, tool_name=call.name, phase="started",
                     session_id=session_id, student_id=student_id,
                     args_summary=args,
-                )
+                ),
+                session_id,
             )
         response = part.function_response
         if response:
@@ -131,12 +148,13 @@ def _log_tool_activity(
             duration_ms = None
             if response.id and response.id in _pending_calls:
                 duration_ms = int((time.monotonic() - _pending_calls.pop(response.id)) * 1000)
-            instrumentation.publish_tool_call_event(
+            _publish_tool_call(
                 instrumentation.build_tool_call_event(
                     actor=actor, tool_name=response.name, phase="done",
                     session_id=session_id, student_id=student_id,
                     result_summary=got, duration_ms=duration_ms,
-                )
+                ),
+                session_id,
             )
 
 
@@ -453,108 +471,141 @@ async def delegate(
 
     Verified against real Vertex Live before this was written; see
     tests/probe_live_streaming_tool.py for the numbers.
+
+    The whole body runs inside one span (`delegate.{label}`), opened here
+    rather than around just the specialist's own turn, for trace
+    correlation: `runner.run_turn`'s task is created via
+    `asyncio.get_running_loop().create_task(...)` *while this span is
+    active*, and asyncio copies the current contextvar context (which
+    includes whatever OTel span is current) into a new Task at creation
+    time — a one-way copy, so changes made *inside* that task's own copy
+    (such as `_run_turn_uncapped`'s own nested span) never propagate back
+    out to this generator's context. Opening the span here, before
+    `create_task`, is what makes the task's own span a proper CHILD of this
+    one, so every `instrumentation.publish_tool_call_event` call below
+    (the no-session error, the busy refusal, and the final done/error
+    block) shares one trace with the specialist's own internal tool-call
+    and memory events — instead of the delegation's own events always
+    landing with `trace_id=None` while the specialist's landed with a real
+    one, in two different Observatory trace groups for what is actually one
+    delegation. See backend/tests/test_delegate_trace_correlation.py.
+
+    Safe around the multiple `yield`s below (this is an async generator):
+    `start_as_current_span` as a sync context manager just attaches/detaches
+    a span on OTel's own context var around the `with` block: as long as
+    nothing else drives this generator's iteration from a different asyncio
+    Task (ADK drives it inline, from the same Task running this connection's
+    turn), the attach set here stays current across every suspension in
+    between, and detaches correctly however the generator exits (`return`,
+    a raised exception, or `GeneratorExit` from an early teardown) since a
+    `with` block's `__exit__` runs on all of those.
     """
-    session_id = tool_context.state.get("session_id")
-    student_id = tool_context.state.get("student_id")
-    if not session_id or not student_id:
-        log.warning("ask_%s called with no session/student id in state", label)
-        instrumentation.publish_tool_call_event(
+    with tracing.tracer.start_as_current_span(f"delegate.{label}"):
+        session_id = tool_context.state.get("session_id")
+        student_id = tool_context.state.get("student_id")
+        if not session_id or not student_id:
+            log.warning("ask_%s called with no session/student id in state", label)
+            _publish_tool_call(
+                instrumentation.build_tool_call_event(
+                    actor="voice_agent", tool_name=f"ask_{label}", phase="error",
+                    session_id=session_id, student_id=student_id,
+                    result_summary="no session/student id in state",
+                ),
+                session_id,
+            )
+            yield {"status": "error",
+                   "summary": "Something went wrong on my end — let's move on."}
+            return
+
+        key = (session_id, label)
+        if key in _in_flight:
+            log.info("ask_%s called while one was already running; refused", label)
+            _publish_tool_call(
+                instrumentation.build_tool_call_event(
+                    actor="voice_agent", tool_name=f"ask_{label}", phase="busy",
+                    session_id=session_id, student_id=student_id,
+                ),
+                session_id,
+            )
+            yield {"status": "busy",
+                   "summary": f"Already working on that — no need to ask again."}
+            return
+
+        yield types.FunctionResponse(
+            response=_opening(label),
+            # SILENT: this one is context for the turn she is ALREADY taking. ADK
+            # has just handed her its own synthetic pending response at WHEN_IDLE,
+            # which is what actually starts her talking; a second prompt here would
+            # only stack up behind it.
+            scheduling=types.FunctionResponseScheduling.SILENT,
+        )
+
+        _in_flight.add(key)
+        task = None
+        try:
+            transcript = await recent_transcript(session_id, student_id, n=transcript_n)
+            # The board goes in the prompt rather than behind read_screen. A tool
+            # only helps if the specialist thinks to call it, and mostly it did
+            # not — so BoardAgent would describe a figure TextbookAgent had just
+            # placed, having no idea it was there.
+            from app.canvas.tools import board_digest
+
+            board = board_digest(session_id)
+            task = asyncio.get_running_loop().create_task(
+                runner.run_turn(
+                    session_id, student_id, f"{request}\n\n{board}\n\n{transcript}"
+                )
+            )
+            started = time.monotonic()
+            while not task.done():
+                done, _ = await asyncio.wait({task}, timeout=KEEP_TALKING_INTERVAL_S)
+                if done:
+                    break
+                if _student_is_talking(session_id):
+                    continue          # skip rather than talk over them
+                if _she_just_spoke(session_id):
+                    continue          # she is teaching; there is no silence to fill
+                yield _holding(label, int(time.monotonic() - started))
+        finally:
+            _in_flight.discard(key)
+            # A generator torn down mid-flight (a session_resumption reconnect, the
+            # run ending) must not leave the specialist running with nobody to
+            # receive it.
+            if task is not None and not task.done():
+                task.cancel()
+
+        duration_ms = int((time.monotonic() - started) * 1000)
+        try:
+            summary = task.result()
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # noqa: BLE001 - the tool must always report something
+            log.exception("%sAgent turn failed", label.capitalize())
+            _publish_tool_call(
+                instrumentation.build_tool_call_event(
+                    actor="voice_agent", tool_name=f"ask_{label}", phase="error",
+                    session_id=session_id, student_id=student_id,
+                    duration_ms=duration_ms,
+                ),
+                session_id,
+            )
+            yield {"status": "error", "summary": error_text}
+            return
+
+        # A specialist's own work is the moment the student's record is most likely
+        # to have moved. Scheduled, not awaited: compose_brief makes several
+        # blocking Firestore round trips (3+ seconds, measured) and has no business
+        # delaying the answer she is about to give.
+        schedule_brief_refresh(session_id, student_id)
+        _publish_tool_call(
             instrumentation.build_tool_call_event(
-                actor="voice_agent", tool_name=f"ask_{label}", phase="error",
+                actor="voice_agent", tool_name=f"ask_{label}", phase="done",
                 session_id=session_id, student_id=student_id,
-                result_summary="no session/student id in state",
-            )
+                result_summary=summary or done_default, duration_ms=duration_ms,
+            ),
+            session_id,
         )
-        yield {"status": "error",
-               "summary": "Something went wrong on my end — let's move on."}
-        return
-
-    key = (session_id, label)
-    if key in _in_flight:
-        log.info("ask_%s called while one was already running; refused", label)
-        instrumentation.publish_tool_call_event(
-            instrumentation.build_tool_call_event(
-                actor="voice_agent", tool_name=f"ask_{label}", phase="busy",
-                session_id=session_id, student_id=student_id,
-            )
-        )
-        yield {"status": "busy",
-               "summary": f"Already working on that — no need to ask again."}
-        return
-
-    yield types.FunctionResponse(
-        response=_opening(label),
-        # SILENT: this one is context for the turn she is ALREADY taking. ADK
-        # has just handed her its own synthetic pending response at WHEN_IDLE,
-        # which is what actually starts her talking; a second prompt here would
-        # only stack up behind it.
-        scheduling=types.FunctionResponseScheduling.SILENT,
-    )
-
-    _in_flight.add(key)
-    task = None
-    try:
-        transcript = await recent_transcript(session_id, student_id, n=transcript_n)
-        # The board goes in the prompt rather than behind read_screen. A tool
-        # only helps if the specialist thinks to call it, and mostly it did
-        # not — so BoardAgent would describe a figure TextbookAgent had just
-        # placed, having no idea it was there.
-        from app.canvas.tools import board_digest
-
-        board = board_digest(session_id)
-        task = asyncio.get_running_loop().create_task(
-            runner.run_turn(
-                session_id, student_id, f"{request}\n\n{board}\n\n{transcript}"
-            )
-        )
-        started = time.monotonic()
-        while not task.done():
-            done, _ = await asyncio.wait({task}, timeout=KEEP_TALKING_INTERVAL_S)
-            if done:
-                break
-            if _student_is_talking(session_id):
-                continue          # skip rather than talk over them
-            if _she_just_spoke(session_id):
-                continue          # she is teaching; there is no silence to fill
-            yield _holding(label, int(time.monotonic() - started))
-    finally:
-        _in_flight.discard(key)
-        # A generator torn down mid-flight (a session_resumption reconnect, the
-        # run ending) must not leave the specialist running with nobody to
-        # receive it.
-        if task is not None and not task.done():
-            task.cancel()
-
-    duration_ms = int((time.monotonic() - started) * 1000)
-    try:
-        summary = task.result()
-    except asyncio.CancelledError:
-        raise
-    except Exception:  # noqa: BLE001 - the tool must always report something
-        log.exception("%sAgent turn failed", label.capitalize())
-        instrumentation.publish_tool_call_event(
-            instrumentation.build_tool_call_event(
-                actor="voice_agent", tool_name=f"ask_{label}", phase="error",
-                session_id=session_id, student_id=student_id,
-                duration_ms=duration_ms,
-            )
-        )
-        yield {"status": "error", "summary": error_text}
-        return
-
-    # A specialist's own work is the moment the student's record is most likely
-    # to have moved. Scheduled, not awaited: compose_brief makes several
-    # blocking Firestore round trips (3+ seconds, measured) and has no business
-    # delaying the answer she is about to give.
-    schedule_brief_refresh(session_id, student_id)
-    instrumentation.publish_tool_call_event(
-        instrumentation.build_tool_call_event(
-            actor="voice_agent", tool_name=f"ask_{label}", phase="done",
-            session_id=session_id, student_id=student_id,
-            result_summary=summary or done_default, duration_ms=duration_ms,
-        )
-    )
-    yield {"status": "done", "summary": summary or done_default}
+        yield {"status": "done", "summary": summary or done_default}
 
 
 async def refresh_brief(session_id: str, student_id: str) -> None:

@@ -95,7 +95,12 @@ def _get_sync_client() -> redis_sync.Redis:
     global _sync_client
     if _sync_client is None:
         _sync_client = redis_sync.Redis(
-            host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True
+            host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True,
+            # Bounds the worst case: without this, a stalled Redis connection
+            # blocks whichever thread/event-loop turn is publishing forever.
+            # Both _publish_sync (MemoryEvent) and publish_tool_call_event
+            # (ToolCallEvent) share this client, so both get hardened here.
+            socket_timeout=2.0, socket_connect_timeout=2.0,
         )
     return _sync_client
 
@@ -133,13 +138,49 @@ def build_tool_call_event(
 
 def publish_tool_call_event(event: ToolCallEvent) -> None:
     """Fire-and-forget, same contract as _publish_sync: a Redis hiccup here
-    must never break a real tool call."""
+    must never break a real tool call.
+
+    Sync, blocking form — kept for callers outside the event loop (and for
+    tests). All three real call sites (main.py's trace(), specialist_runner's
+    _log_tool_activity and delegate()) run on the event loop and use
+    publish_tool_call_event_async instead, scheduled via
+    asyncio.create_task so a slow Redis write never adds latency to the
+    tool-call/turn logic itself — see that function's docstring.
+    """
     try:
         client = _get_sync_client()
         body = event.model_dump_json()
         client.publish(_CHANNEL, body)
         client.rpush(_LIST_KEY, body)
         client.ltrim(_LIST_KEY, -_LIST_CAP, -1)
+    except Exception:
+        pass
+
+
+async def publish_tool_call_event_async(event: ToolCallEvent) -> None:
+    """Async mirror of publish_tool_call_event, same shape as
+    _publish_async: constructs a fresh async client, publishes, closes it.
+
+    This is what the three real call sites use — main.py's trace() (on the
+    run_live stream), specialist_runner's _log_tool_activity (inside the
+    per-specialist run_async loop) and delegate() (itself an async
+    generator) — all run on the event loop, and a synchronous, unbounded
+    Redis call there would stall the whole live audio session. Callers wrap
+    this in asyncio.create_task(...) rather than awaiting it directly, so a
+    slow publish never adds latency to the tool-call/turn logic itself —
+    same fire-and-forget philosophy as _publish_async, just off the event
+    loop's own thread instead of a background one.
+    """
+    try:
+        client = redis_async.Redis(
+            host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True,
+            socket_timeout=2.0, socket_connect_timeout=2.0,
+        )
+        body = event.model_dump_json()
+        await client.publish(_CHANNEL, body)
+        await client.rpush(_LIST_KEY, body)
+        await client.ltrim(_LIST_KEY, -_LIST_CAP, -1)
+        await client.aclose()
     except Exception:
         pass
 
@@ -205,7 +246,8 @@ def _publish_sync(event: MemoryEvent) -> None:
 async def _publish_async(event: MemoryEvent) -> None:
     try:
         client = redis_async.Redis(
-            host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True
+            host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True,
+            socket_timeout=2.0, socket_connect_timeout=2.0,
         )
         body = event.model_dump_json()
         await client.publish(_CHANNEL, body)

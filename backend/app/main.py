@@ -89,25 +89,53 @@ _obs_snapshot_cache = _ObsSnapshotCache()
 async def _lifespan(app: FastAPI):
     from app import config
 
-    db = store.connect()
+    # Everything below is Observatory setup, not tutor setup — the two must
+    # not share a fate. Before this mount existed, a Firestore/ADC hiccup
+    # only lazily broke one memory endpoint on first request
+    # (memory_routes._firestore_client()'s @functools.cache construction).
+    # store.connect() running unguarded here, ahead of `yield`, would instead
+    # fail uvicorn's startup outright and take the WHOLE app down with it —
+    # the live voice tutor included — over a dashboard that is allowed to be
+    # unavailable. The Observatory going dark on a Firestore hiccup is
+    # acceptable; the tutor failing to start is not.
+    ingest_task = None
+    try:
+        db = store.connect()
 
-    def _get_dpm(student_id: str):
-        profile = store.get_dpm(db, student_id)
-        return profile.model_dump(mode="json") if profile else None
+        def _get_dpm(student_id: str):
+            profile = store.get_dpm(db, student_id)
+            return profile.model_dump(mode="json") if profile else None
 
-    def _get_teaching_memory(student_id: str):
-        memory = store.get_teaching_memory(db, student_id)
-        return memory.model_dump(mode="json") if memory else None
+        def _get_teaching_memory(student_id: str):
+            memory = store.get_teaching_memory(db, student_id)
+            return memory.model_dump(mode="json") if memory else None
 
-    ingest_task = asyncio.create_task(
-        _obs_run_ingest_loop(
-            config.REDIS_HOST, config.REDIS_PORT,
-            _obs_snapshot_cache, _obs_broadcaster,
-            _get_dpm, _get_teaching_memory,
+        ingest_task = asyncio.create_task(
+            _obs_run_ingest_loop(
+                config.REDIS_HOST, config.REDIS_PORT,
+                _obs_snapshot_cache, _obs_broadcaster,
+                _get_dpm, _get_teaching_memory,
+            )
         )
-    )
+        # The ingest loop already survives a single bad message (see
+        # observatory/ingest.py's own per-message try/except), so reaching
+        # this callback means it died for a real reason — a task nobody
+        # awaits fails silently otherwise, and that silence is exactly what
+        # let a past ingest bug go unnoticed. Loud in Cloud Logging, not
+        # silent.
+        ingest_task.add_done_callback(
+            lambda t: log.error("Observatory ingest loop exited unexpectedly: %r", t.exception())
+            if not t.cancelled() and t.exception() else None
+        )
+    except Exception:
+        log.exception(
+            "Observatory ingest setup failed — Observatory will be "
+            "unavailable, tutor continues normally"
+        )
+        ingest_task = None
     yield
-    ingest_task.cancel()
+    if ingest_task is not None:
+        ingest_task.cancel()
 
 
 app = FastAPI(title="Nityam backend", lifespan=_lifespan)
@@ -873,6 +901,21 @@ def _record_turn(role: str, text: str) -> None:
     queue.put_nowait((session_id, student_id, role, text))
 
 
+def _publish_tool_call_bg(event, session_id: str | None) -> None:
+    """Fire-and-forget: schedule the Redis publish without ever letting a
+    stalled Redis connection block the live audio session it was called from
+    (see instrumentation.publish_tool_call_event_async's own docstring).
+    Tracked via sessions.track for the same reason every other fire-and-forget
+    task in this codebase is (specialist_runner.schedule_brief_refresh,
+    artifact generation): asyncio holds only a weak reference to an unawaited
+    task, so without this a slow publish can be garbage-collected mid-flight
+    and simply never complete."""
+    task = asyncio.get_running_loop().create_task(
+        instrumentation.publish_tool_call_event_async(event)
+    )
+    sessions.track(session_id, task)
+
+
 def trace(event) -> None:
     """One readable line per interesting event, so a manual test is verifiable.
 
@@ -895,11 +938,12 @@ def trace(event) -> None:
                 # you are going to read afterwards to work out what she meant.
                 log.debug("  args in full: %s", args)
                 _sid, _stu = (_recording_context.get() or (None, None))
-                instrumentation.publish_tool_call_event(
+                _publish_tool_call_bg(
                     instrumentation.build_tool_call_event(
                         actor="voice_agent", tool_name=call.name, phase="started",
                         session_id=_sid, student_id=_stu, args_summary=args,
-                    )
+                    ),
+                    _sid,
                 )
 
         # Note: for a response_scheduling=WHEN_IDLE tool — which every ask_*
@@ -907,13 +951,25 @@ def trace(event) -> None:
         # stream at all, so nothing hung here would ever fire for a
         # specialist. Re-briefing the voice layer after a delegation is
         # triggered from the specialist's own tool function instead
-        # (agents/specialist_runner.refresh_brief).
+        # (agents/specialist_runner.refresh_brief). scroll_to/read_screen are
+        # NOT WHEN_IDLE tools (see agents/voice_agent.py's _when_idle wiring),
+        # so they DO yield a function_response here — this is the only place
+        # their own completion is ever observable, so it's published as a
+        # "done" ToolCallEvent below.
         response = part.function_response
         if response and response.name != "transfer_to_agent":
             got = str(response.response)
             log.info("← TOOL DONE %s got %s -> %s", who, response.name,
                      got[:200] + ("…" if len(got) > 200 else ""))
             log.debug("  result in full: %s", got)
+            _sid, _stu = (_recording_context.get() or (None, None))
+            _publish_tool_call_bg(
+                instrumentation.build_tool_call_event(
+                    actor="voice_agent", tool_name=response.name, phase="done",
+                    session_id=_sid, student_id=_stu, result_summary=got,
+                ),
+                _sid,
+            )
 
     # A consolidated transcription can be empty (end-of-turn marker); logging
     # those just adds blank lines.

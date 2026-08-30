@@ -6,6 +6,12 @@ backend/tests/test_artifact_agent_ask.py's own end-to-end delegate() call,
 which is a real Gemini call this file's Redis-only style intentionally
 avoids duplicating).
 
+Both call sites publish via a fire-and-forget asyncio.create_task (see
+specialist_runner._publish_tool_call / instrumentation.
+publish_tool_call_event_async) rather than blocking on the Redis write, so
+every case here polls briefly for the event to land instead of assuming it
+is already there the instant the call/delegate() call returns.
+
 Needs local Redis (same requirement as tests/test_memory_store_events.py).
 
     .venv/bin/python -m tests.test_tool_call_wiring
@@ -15,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import time
 from types import SimpleNamespace
 
 import redis as redis_sync
@@ -54,20 +61,34 @@ def _read_tool_call_events(client) -> list[dict]:
     return [e for e in events if e.get("kind") == "tool_call"]
 
 
+async def _wait_for_tool_call_events(client, min_count: int, timeout: float = 2.0) -> list[dict]:
+    """Poll rather than assume: publishing happens in a background task
+    nobody awaits, so it can genuinely still be in flight the instant the
+    call that scheduled it returns."""
+    deadline = time.monotonic() + timeout
+    while True:
+        events = _read_tool_call_events(client)
+        if len(events) >= min_count or time.monotonic() >= deadline:
+            return events
+        await asyncio.sleep(0.02)
+
+
 def run() -> None:
     client = redis_sync.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True)
     client.delete("smriti:events:recent")
 
-    specialist_runner._log_tool_activity(
-        "nityam-board", _fake_call_event("search_grounding", "call-1", {"q": "projectile motion"}),
-        "s1", "stu1",
-    )
-    specialist_runner._log_tool_activity(
-        "nityam-board", _fake_response_event("search_grounding", "call-1", {"chunks": 3}),
-        "s1", "stu1",
-    )
+    async def _direct_log_activity_case():
+        specialist_runner._log_tool_activity(
+            "nityam-board", _fake_call_event("search_grounding", "call-1", {"q": "projectile motion"}),
+            "s1", "stu1",
+        )
+        specialist_runner._log_tool_activity(
+            "nityam-board", _fake_response_event("search_grounding", "call-1", {"chunks": 3}),
+            "s1", "stu1",
+        )
+        return await _wait_for_tool_call_events(client, min_count=2)
 
-    events = _read_tool_call_events(client)
+    events = asyncio.run(_direct_log_activity_case())
     check("two events published (started + done)", len(events) == 2, repr(events))
     started = next((e for e in events if e["phase"] == "started"), None)
     done = next((e for e in events if e["phase"] == "done"), None)
@@ -87,9 +108,9 @@ def run() -> None:
                 pass
         finally:
             specialist_runner._in_flight.discard(("s2", "board"))
+        return await _wait_for_tool_call_events(client, min_count=1)
 
-    asyncio.run(_busy_case())
-    busy_events = _read_tool_call_events(client)
+    busy_events = asyncio.run(_busy_case())
     check("busy delegation published one busy event", len(busy_events) == 1, repr(busy_events))
     check("busy event names the top-level ask_ tool", busy_events[0]["tool_name"] == "ask_board")
     check("busy event phase is busy", busy_events[0]["phase"] == "busy")
@@ -103,9 +124,9 @@ def run() -> None:
             transcript_n=1, done_default="done", error_text="error",
         ):
             pass
+        return await _wait_for_tool_call_events(client, min_count=1)
 
-    asyncio.run(_no_session_case())
-    error_events = _read_tool_call_events(client)
+    error_events = asyncio.run(_no_session_case())
     check("missing session/student id publishes one error event", len(error_events) == 1, repr(error_events))
     check("error event names ask_quiz", error_events[0]["tool_name"] == "ask_quiz")
 
