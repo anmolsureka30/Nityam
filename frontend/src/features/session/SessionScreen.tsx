@@ -26,6 +26,11 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
 /* What tonight covers.
    STUB: hardcoded. The agent will emit this from the intensity the student
    picked plus the class recap. See backend/INTEGRATION.md. */
+/** How long the pre-session briefing stays up, at minimum. Long enough to
+ *  read four short lines without hurrying; short enough that a student who has
+ *  read it is not left waiting on it. */
+const BRIEFING_MIN_MS = 6500;
+
 const PLAN = ["Find why 45° wins", "Say why", "Two throws, one spot"];
 
 export default function SessionScreen() {
@@ -112,9 +117,20 @@ export default function SessionScreen() {
      `!tutor.connected` would flash it back up on every reconnect mid-lesson,
      and a plain `mood !== "speaking"` would put it back every time she
      pauses for breath. */
+  const openedAt = useRef(Date.now());
   const [heardHer, setHeardHer] = useState(false);
   useEffect(() => {
-    if (tutor.mood === "speaking") setHeardHer(true);
+    if (tutor.mood !== "speaking") return;
+    /* A MINIMUM DWELL, not just "hide when she speaks".
+       Connecting sometimes takes a second and sometimes six, and lifting the
+       moment she starts meant that on a fast connect the briefing was gone
+       before it could be read — which is worse than not showing it, because
+       something appeared and vanished. Hold it long enough to actually read,
+       measured from when it went up rather than from now. */
+    const shown = Date.now() - openedAt.current;
+    const wait = Math.max(0, BRIEFING_MIN_MS - shown);
+    const t = setTimeout(() => setHeardHer(true), wait);
+    return () => clearTimeout(t);
   }, [tutor.mood]);
 
   const checkpoint = board.quizQueue[0] ?? null;

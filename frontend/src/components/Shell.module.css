@@ -43,19 +43,25 @@
    rather than a dot. It is the same device the page is built on, at
    wordmark size, which is what makes a logo feel like it belongs to the
    thing it names. */
-.mark {
-  width: 3px;
-  height: 17px;
-  border-radius: 2px;
-  background: var(--accent);
+/* The real mark, replacing the rotated margin rule that stood in for it.
+   Sized against the wordmark rather than to a round number, so the two read
+   as one lockup instead of an icon sitting next to some text. */
+.logo {
+  width: 30px;
+  height: 30px;
   flex: none;
+  object-fit: contain;
+  display: block;
 }
 .wordmark {
   font-family: var(--prose);
-  font-variation-settings: "opsz" 20;
-  font-size: 1.15rem;
+  font-variation-settings: "opsz" 32;
+  /* Was 1.15rem — smaller than several headings on the pages it sits above,
+     and a wordmark that loses to the content under it is not a wordmark. */
+  font-size: 1.6rem;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.022em;
+  line-height: 1;
 }
 
 .right { display: flex; align-items: center; gap: var(--s-4); }

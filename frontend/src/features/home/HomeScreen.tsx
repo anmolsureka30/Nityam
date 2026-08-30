@@ -5,7 +5,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { conceptName } from "../../lib/conceptCatalog";
-import { classRecap, concepts, daysToUnitTest, student } from "../../lib/data";
+import { classRecap, concepts, daysToUnitTest } from "../../lib/data";
 import { masteryPct, useStudentMemory } from "../../lib/memory";
 import ShrutiIngest from "./ShrutiIngest";
 import s from "./HomeScreen.module.css";
@@ -16,8 +16,27 @@ function greetingFor(hour: number) {
   return "Good evening";
 }
 
+/** The signed-in person's actual first name.
+ *
+ *  It was `student.firstName` from lib/data — "Arjun", hardcoded — so everyone
+ *  who signed in was greeted as somebody else. Google gives a displayName on
+ *  the credential; the email's local part is the fallback, and "there" is the
+ *  last resort so the greeting is never left dangling on a comma. */
+function useFirstName(): string {
+  const { user } = useAuth();
+  const display = (user?.displayName ?? "").trim();
+  if (display) return display.split(/\s+/)[0]!;
+  const local = (user?.email ?? "").split("@")[0] ?? "";
+  if (!local) return "there";
+  // "arnav.prasad999918" -> "Arnav": the separator-and-digits shape an email
+  // local part usually has says nothing about how someone is called.
+  const word = local.split(/[._-]/)[0]!.replace(/[0-9]+$/, "");
+  return word ? word.charAt(0).toUpperCase() + word.slice(1) : "there";
+}
+
 export default function HomeScreen() {
   const nav = useNavigate();
+  const firstName = useFirstName();
   const greeting = greetingFor(new Date().getHours());
   const { user } = useAuth();
   const memory = useStudentMemory(user?.uid);
@@ -55,7 +74,7 @@ export default function HomeScreen() {
           <Label>days away</Label>
         </div>
         <div className="body">
-          <h1 className="display">{greeting}, {student.firstName}.</h1>
+          <h1 className="display">{greeting}, {firstName}.</h1>
           <p className={`lede ${s.subline}`}>
             Your class covered {classRecap.subject.toLowerCase()} today. I listened to all
             of it — there are two things worth going over.

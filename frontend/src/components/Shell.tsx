@@ -32,7 +32,7 @@ export function Shell({
       <div className={s.page}>
         <header className={s.header}>
           <Link to="/" className={s.brand} aria-label="Nityam home">
-            <span className={s.mark} />
+            <img className={s.logo} src="/nityam-logo.png" alt="" width={30} height={30} />
             <span className={s.wordmark}>Nityam</span>
           </Link>
           <div className={s.right}>
@@ -69,7 +69,7 @@ export function TeacherShell({ children }: { children: ReactNode }) {
         <header className={s.header}>
           <div className={s.headLeft}>
             <Link to="/teacher" className={s.brand}>
-              <span className={s.mark} style={{ background: "var(--ink-strong)" }} />
+              <img className={s.logo} src="/nityam-logo.png" alt="" width={30} height={30} />
               <span className={s.wordmark}>Nityam</span>
             </Link>
             <span className={s.teacherMark}>Teacher</span>

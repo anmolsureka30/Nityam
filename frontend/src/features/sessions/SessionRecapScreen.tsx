@@ -28,7 +28,11 @@ import s from "./SessionRecapScreen.module.css";
  * convincing half of the demonstration. */
 
 function label(mastery: string | null): string {
-  if (!mastery) return "—";
+  // Null means the tutor had no view on this concept at all — a first
+  // encounter. It rendered as an em dash, so a genuinely new concept read as
+  // "— -> Known", which looks like missing data rather than like something
+  // being taught for the first time.
+  if (!mastery) return "Not seen yet";
   return MASTERY[mastery]?.label ?? mastery;
 }
 
@@ -48,9 +52,7 @@ function ChangeRow({ change }: { change: MemoryChange }) {
         <span className={forward ? s.toBetter : s.toWorse}>
           {change.kind === "doubt" && change.to === "removed"
             ? "cleared"
-            : label(change.to) === "—" && change.kind === "doubt"
-              ? change.to
-              : label(change.to)}
+            : label(change.to)}
         </span>
       </div>
       {change.doubt && <p className={s.changeNote}>{change.doubt}</p>}

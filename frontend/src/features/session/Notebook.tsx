@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Label } from "../../components/ui";
 import type { EvidenceEvent } from "../../lib/artifact";
 import { projectile } from "../../lib/data";
@@ -44,6 +44,32 @@ function segment(text: string, anchors: Anchor[] = []) {
   return segs;
 }
 
+/* `H_max` on a blackboard means H with a subscript, and it was rendering as
+ * the literal characters — "H underscore max" — everywhere an equation or a
+ * paragraph mentioned one. BoardAgent writes blackboard notation rather than
+ * LaTeX (no renderer, deliberately), so the underscore IS the notation and
+ * this is the one piece of it that needs interpreting.
+ *
+ * Handles `H_max` and `v_{0y}`. Kept to subscripts on purpose: superscripts
+ * are already written as `u²` with the real character, and a general maths
+ * renderer is a much larger change than the problem calls for. */
+const SUBSCRIPT = /([A-Za-z0-9)\]])_(?:\{([^}]{1,16})\}|([A-Za-z0-9]{1,8}))/g;
+
+function subscripted(text: string, keyBase: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(SUBSCRIPT)) {
+    const at = m.index ?? 0;
+    if (at > last) out.push(text.slice(last, at));
+    out.push(m[1]);
+    out.push(<sub key={`${keyBase}-${at}`}>{m[2] ?? m[3]}</sub>);
+    last = at + m[0].length;
+  }
+  if (last === 0) return [text];
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 function Anchored({
   text, anchors, blockId, hot,
 }: { text: string; anchors?: Anchor[]; blockId: string; hot: Record<string, number> }) {
@@ -59,10 +85,10 @@ function Anchored({
             className={`${s.anchor} ${seg.anchor.id in hot ? s.anchorHot : ""}`}
             title={seg.anchor.concept}
           >
-            {seg.text}
+            {subscripted(seg.text, `${blockId}-a${i}`)}
           </mark>
         ) : (
-          <Fragment key={i}>{seg.text}</Fragment>
+          <Fragment key={i}>{subscripted(seg.text, `${blockId}-t${i}`)}</Fragment>
         ),
       )}
     </>
