@@ -180,51 +180,299 @@ fork of `google/adk-web` with a Memory tab built in, or a standalone React/FastA
   - `wiki/`: Google platform/ADK research that fed the platform decisions (start at
     `wiki/index.md`).
 
-## Running the tutor
+## 🚀 Spin-up: running it locally
+
+Every command below is copy-pasteable from a fresh clone. Read step 0 first — two of these
+prerequisites are not obvious, and both fail in ways that look like a bug in the app.
+
+### 0. Prerequisites
+
+| Need | Version | Why, and what breaks without it |
+|---|---|---|
+| **Python 3.12** | 3.10–3.12 | `backend/run.sh` builds the virtualenv itself, but it probes for `python3.12`, `python3.11`, `python3.10` **in that order and no others**. Homebrew's `python3` is 3.13/3.14 now, and a machine with only those fails with `Install Python 3.10+ first` even though Python is installed. `brew install python@3.12` |
+| **Node.js** | 20+ | Three npm workspaces (tutor frontend, Observatory frontend, landing page). `run.sh` installs each one's dependencies for you. |
+| **Redis** | 7 | The workflow-memory tier (`backend/app/memory/short_term.py`). `docker compose up -d redis` from `backend/`, or a native `redis-server`. |
+| **A Firebase project** | — | **Not optional, and not skippable by mock mode.** Every WebSocket connection verifies a real Firebase ID token (`backend/app/user_auth.py`); there is no dev bypass. A free Firebase project with Google sign-in enabled is enough. |
+| **`uv`** | latest | Only for the Observatory backend and Shruti. Skip it with `./run.sh --no-observatory`. `brew install uv` |
+| **Google Cloud SDK** | latest | Only for deploying, and for `NITYAM_STORE=firestore`. Not needed for a local run. |
+
+**What you do *not* need for a local run:** Application Default Credentials. This is the single
+most common wrong assumption about this repo, and older revisions of this README said otherwise.
+Verifying a Firebase ID token needs Google's *public* signing certificates and no credentials at
+all — see the long comment at the top of `backend/app/user_auth.py` explaining why the Admin SDK
+was deliberately removed. ADC is needed for exactly two optional things: `NITYAM_STORE=firestore`
+and the GCS artifact bucket. The default (`NITYAM_STORE=sqlite`) needs neither.
+
+### 1. Configure the backend
 
 ```bash
 cd backend
-cp .env.example .env        # then fill in credentials, or set NITYAM_AUTH=mock
-./run.sh                    # backend + frontend + Observatory + landing page
+cp .env.example .env
 ```
 
-Redis and Google Cloud credentials (ADC) are both needed beyond what's in `.env`; see
-`backend/README.md`'s **Prerequisites** section before assuming a filled-in `.env` is enough on a
-new machine. It isn't, on its own, for Firestore or sign-in.
-
-See `backend/README.md` for the full picture: the agent topology, mock mode, and the
-`scripts/drive.py` smoke test ("the one to reach for when the tutor stops writing on the board").
-
-## Running Shruti
+Then open `.env` and set, at minimum:
 
 ```bash
-cd sub_modules_examples/shruti
-uv sync
-cp .env.example .env  # fill in your own credentials
-uv run --env-file .env python -m shruti.cli ingest
+NITYAM_AUTH=mock                       # no Gemini credential, no network, no spend
+GOOGLE_CLOUD_PROJECT=your-firebase-project-id   # must match the frontend config in step 2
+NITYAM_STORE=sqlite                    # local file at backend/data/memory.db — the default
 ```
 
-See `sub_modules_examples/shruti/docs/architecture.md` and `sub_modules_examples/shruti/justfile`
-for more commands.
+That is the zero-credential path, and it is what the tests run against. For a real tutor that
+actually speaks, set `NITYAM_AUTH=vertex_express` and fill in `GOOGLE_API_KEY` (a
+[Vertex AI Express Mode](https://cloud.google.com/vertex-ai/generative-ai/docs/start/express-mode/overview)
+key) instead. `NITYAM_AUTH` accepts `ai_studio`, `vertex`, `vertex_express`, or `mock`; run
+`.venv/bin/python -m app.auth` at any point to see which of them actually work on your machine,
+including a real Gemini Live handshake.
 
-## Memory-layer evals
+### 2. Configure the frontend — do not skip this
 
+`frontend/.env` is gitignored and holds six values from your Firebase console
+(**Project settings → General → Your apps → SDK setup and configuration**):
+
+```bash
+cd ../frontend
+cp .env.example .env
+```
+
+```bash
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=          # same project as GOOGLE_CLOUD_PROJECT above
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+```
+
+None of these are secrets — Firebase's web config identifies a project, it doesn't authenticate
+anything, and security is enforced by Firebase Security Rules (`firestore.rules`). Vite bakes them
+into the bundle at *build* time, so they cannot be supplied at runtime.
+
+Leave them blank and the app renders a "not configured yet" setup notice rather than the tutor.
+That's a deliberate guard: `getAuth()` **throws at module-evaluation time** on a missing API key,
+which used to take the entire product down to a blank white page with one console line. See the
+comment in `frontend/src/lib/firebase.ts`.
+
+Enable **Google** as a sign-in provider in the Firebase console (Authentication → Sign-in method),
+or nobody can sign in.
+
+### 3. Start Redis
+
+```bash
+cd ../backend
+docker compose up -d redis      # see backend/docker-compose.yml
+# or, without Docker:
+redis-server --daemonize yes --port 6379
+```
+
+### 4. Start everything
+
+```bash
+./run.sh
+```
+
+One command, five processes. On first run it also creates the virtualenv, installs Python and npm
+dependencies, prints a credential preflight, and seeds the demo student (without which every
+memory tool returns `found: false` and the tutor has nothing to teach from).
+
+| Surface | URL | Override |
+|---|---|---|
+| **Tutor (start here)** | http://localhost:5173 | `NITYAM_WEB_PORT` |
+| Backend API + WebSocket | http://localhost:8210 | `NITYAM_API_PORT` |
+| Landing page | http://localhost:3001 | `NITYAM_LANDING_PORT` |
+| SMRITI Observatory | http://localhost:3000 | `NITYAM_OBSERVATORY_PORT` / `..._WEB_PORT` |
+
+The Observatory frontend's port **must** be 3000: its backend hardcodes CORS to
+`localhost:5173` and `localhost:3000`, 5173 is already the tutor's, and a fetch from any other
+origin fails silently.
+
+Narrower run modes, when you don't want all five processes:
+
+```bash
+./run.sh --no-observatory     # skips the Observatory (and its uv requirement)
+./run.sh --no-landing         # skips the Next.js landing page
+./run.sh --api-only           # backend alone, nothing browser-facing
+```
+
+`run.sh` refuses to start on a busy port and prints what is holding it, rather than letting
+uvicorn die quietly while Vite starts anyway — which used to present as a tutor that simply never
+spoke. Ctrl-C cleans up all five processes.
+
+### 5. Confirm it works
+
+```bash
+curl localhost:8210/health                # the backend is up
+.venv/bin/python -m app.auth              # which auth modes work, including a real Live handshake
+.venv/bin/python -m tests.test_canvas     # the board, no model in the loop
+.venv/bin/python -m tests.test_wire       # the protocol, real server, mock mode
+.venv/bin/python -m scripts.drive         # a whole lesson in text mode, prints the board it wrote
+.venv/bin/python -m tests.test_live       # real Gemini — costs money, skips on mock
+```
+
+`scripts/drive.py` is the one to reach for when the tutor stops writing on the board: it runs
+BoardAgent directly, prints every tool call, then prints the board that came out with a pass/fail
+on the three things that have to be true — grounded, wrote to the board, patches queued.
+
+Frontend tests: `cd frontend && npm test`.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Install Python 3.10+ first` with Python installed | `run.sh` only probes `python3.12`/`3.11`/`3.10` | `brew install python@3.12` |
+| The page shows a "not configured yet" notice | `frontend/.env` is missing or has a blank value | Step 2 |
+| "Your sign-in has expired" on a valid sign-in | `GOOGLE_CLOUD_PROJECT` doesn't match the frontend's `VITE_FIREBASE_PROJECT_ID`, so the token's `aud` check fails closed | Make both the same project id; the backend log names the real reason |
+| `Port 8210 … is already in use` | Leftover from an earlier run | `kill $(lsof -t -iTCP:8210 -sTCP:LISTEN)`, or `NITYAM_API_PORT=8211 ./run.sh` |
+| Observatory's Working-memory tier is empty | Redis isn't reachable | Step 3 |
+| Observatory's Episodic/Long-term tiers are empty | It reads Firestore directly | Set `NITYAM_STORE=firestore` + ADC |
+| The tutor answers but never speaks | `NITYAM_AUTH=mock` uses synthetic audio | Switch to a real mode and re-run `python -m app.auth` |
+| `429 RESOURCE_EXHAUSTED` | Gemini quota, usually mid-eval | Wait, or use a different key |
+| Backend port 8100 collides | The `sub_modules_examples/adk` sub-module also defaults to 8100 | `NITYAM_OBSERVATORY_PORT=8101 ./run.sh` |
+
+## 🧪 Tests and evals
+
+The memory layer is the part with a real eval, not just unit tests:
 `sub_modules_examples/tutor/tests/eval/memory_eval/` runs the real `TutorAgent` through five
-multi-session student personas against real Firestore/Redis, with deterministic checks (D1-D7) and
-LLM-as-judge checks (L1-L4); see `project_documentation/memory_nityam_architecture/README.md` for
-the reading order and `memory_layer_eval_report.md` for the latest results.
+multi-session student personas against real Firestore/Redis, with deterministic checks (D1–D7) and
+LLM-as-judge checks (L1–L4). Needs ADC and real Gemini quota.
 
 ```bash
 cd sub_modules_examples/tutor
 uv run python -m tests.eval.memory_eval.run_eval
 ```
 
-## Deploying
+See `project_documentation/memory_nityam_architecture/README.md` for the reading order and
+`memory_layer_eval_report.md` for the latest results, including what's still open.
 
-Cloud Build redeploys the backend to Cloud Run on every push to `main` (`cloudbuild.yaml`): build,
-push to Artifact Registry, deploy with `--session-affinity` and the `GOOGLE_API_KEY` secret pulled
-from Secret Manager. Shruti runs as its own Cloud Run Job. See
-`docs/superpowers/specs/2026-08-30-cloud-run-deployment-design.md` for the full design.
+## 📼 Running Shruti
+
+The lecture-ingest pipeline is a self-contained project with its own dependencies and credentials:
+
+```bash
+cd sub_modules_examples/shruti
+uv sync
+cp .env.example .env             # fill in your own credentials
+uv run --env-file .env python -m shruti.cli ingest
+```
+
+See `sub_modules_examples/shruti/docs/architecture.md` and its `justfile` for more commands.
+
+## ☁️ Spin-up: deploying to Google Cloud
+
+The whole app — FastAPI backend, all five ADK agents, the built frontend, and the built
+Observatory — ships as **one container image** to **one Cloud Run service**. `backend/app/main.py`
+serves `frontend/dist` at `/` and `smriti-observatory/frontend/dist` at `/observatory` whenever
+those directories exist (see its `DIST` and `OBS_DIST` mounts), so there is no separate frontend
+host to deploy.
+
+### One-time project setup
+
+```bash
+export PROJECT_ID=your-project-id
+gcloud config set project $PROJECT_ID
+
+# 1. APIs
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com firestore.googleapis.com storage.googleapis.com \
+  redis.googleapis.com secretmanager.googleapis.com
+
+# 2. Artifact Registry repo (the name `nityam` is what cloudbuild.yaml expects)
+gcloud artifacts repositories create nityam \
+  --repository-format=docker --location=us-central1
+
+# 3. Runtime service account + roles
+gcloud iam service-accounts create nityam-backend-sa
+for ROLE in roles/datastore.user roles/storage.objectAdmin \
+            roles/secretmanager.secretAccessor roles/run.developer; do
+  gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member=serviceAccount:nityam-backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
+    --role=$ROLE
+done
+
+# 4. The one real secret — the backend's Gemini credential
+printf '%s' "$GOOGLE_API_KEY" | gcloud secrets create nityam-google-api-key --data-file=-
+
+# 5. Firestore (database id `smriti`) and the artifacts bucket
+gcloud firestore databases create --database=smriti --location=us-central1
+gcloud storage buckets create gs://$PROJECT_ID-nityam-artifacts --location=us-central1
+
+# 6. Memorystore for the workflow tier — REAL ONGOING COST, confirm before running
+gcloud redis instances create nityam-redis --size=1 --region=us-central1 --network=default
+gcloud redis instances describe nityam-redis --region=us-central1 --format='value(host)'
+```
+
+Deploy the Firestore security rules with the Firebase CLI —
+`firebase deploy --only firestore:rules` from the repo root, where `firestore.rules` lives — and add
+your Cloud Run URL to Firebase Authentication's **Authorized domains**, or sign-in is rejected in
+production.
+
+### Deploy
+
+Build context is the **repo root**, not `backend/` — the image needs `frontend/`,
+`smriti-observatory/`, and `sub_modules_examples/artifact_generator/` too.
+
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_VITE_FIREBASE_API_KEY=...,_VITE_FIREBASE_AUTH_DOMAIN=...,\
+_VITE_FIREBASE_PROJECT_ID=...,_VITE_FIREBASE_STORAGE_BUCKET=...,\
+_VITE_FIREBASE_MESSAGING_SENDER_ID=...,_VITE_FIREBASE_APP_ID=...
+```
+
+The `VITE_FIREBASE_*` values arrive as build substitutions rather than from Secret Manager because
+Vite bakes them into the JS bundle at build time and they are not secrets (see step 2 above and
+`backend/Dockerfile`'s own comment). The real secret is fetched by Cloud Run itself at deploy time
+via `--update-secrets`, and never touches the build.
+
+To build and deploy by hand instead, the equivalent of what `cloudbuild.yaml` does:
+
+```bash
+docker build -f backend/Dockerfile -t us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:latest \
+  --build-arg VITE_FIREBASE_API_KEY=... [+ the other five] .
+docker push us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:latest
+
+gcloud run deploy nityam-backend \
+  --image=us-central1-docker.pkg.dev/$PROJECT_ID/nityam/nityam-backend:latest \
+  --region=us-central1 --platform=managed \
+  --service-account=nityam-backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
+  --allow-unauthenticated \
+  --timeout=3600 --session-affinity \
+  --memory=2Gi --cpu=2 --concurrency=10 \
+  --min-instances=1 --max-instances=10 \
+  --network=default --subnet=default --vpc-egress=private-ranges-only \
+  --update-secrets=GOOGLE_API_KEY=nityam-google-api-key:latest \
+  --set-env-vars=NITYAM_AUTH=vertex_express,NITYAM_STORE=firestore,\
+GOOGLE_CLOUD_PROJECT=$PROJECT_ID,FIRESTORE_DATABASE=smriti,\
+GCS_BUCKET=$PROJECT_ID-nityam-artifacts,REDIS_HOST=<memorystore-ip>,REDIS_PORT=6379
+```
+
+Four of those flags are load-bearing and not defaults: **`--timeout=3600`** (a tutoring session is
+a long-lived WebSocket, and the 5-minute default kills it mid-lesson), **`--session-affinity`**
+(the socket must return to the instance holding that session's state), **`--vpc-egress` with
+`--network`/`--subnet`** (Direct VPC egress is how Cloud Run reaches Memorystore's private IP), and
+**`--min-instances=1`** (a cold start on a voice handshake is a student staring at a dead mic).
+
+### Continuous deployment
+
+`cloudbuild.yaml` is wired to a Cloud Build trigger on push to `main`: build → push to Artifact
+Registry → `gcloud run deploy`. Point a trigger at it and set the six `_VITE_FIREBASE_*`
+substitutions in the trigger config.
+
+### Verify the deployment
+
+```bash
+SERVICE_URL=$(gcloud run services describe nityam-backend --region=us-central1 --format='value(status.url)')
+curl $SERVICE_URL/health
+open $SERVICE_URL          # sign in, then start a session and check the tutor speaks
+```
+
+The full design, including Shruti's separate Cloud Run Job and the authenticated
+Job→Service sync webhook, is in
+`docs/superpowers/specs/2026-08-30-cloud-run-deployment-design.md`.
+
+**One known gap, stated plainly:** `frontend/src/lib/live/session.ts`'s WebSocket `onclose` handler
+does not reconnect. Locally that never matters; on Cloud Run an instance recycling mid-session
+(a new revision, `--min-instances` churn) silently ends a student's session. Confirmed real,
+deliberately out of scope for the deployment pass, and not an oversight.
 
 ## ✅ Honest status
 
