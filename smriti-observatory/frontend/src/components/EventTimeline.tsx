@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { groupByTrace } from "../lib/groupByTrace";
 import type { ObservatoryEvent } from "../lib/types";
 import { TraceGroup } from "./TraceGroup";
 import styles from "./EventTimeline.module.css";
@@ -10,23 +11,11 @@ interface EventTimelineProps {
   onSelect: (event: ObservatoryEvent) => void;
 }
 
-/** Groups consecutive events sharing one trace_id into one "what happened
- * in this trace" block — this is the visualization's main content: not a
- * flat event log, but the session's story broken into the traces that
- * produced it, each showing what it read/wrote and what changed. */
-export function groupByTrace(events: ObservatoryEvent[]): { traceId: string | null; events: ObservatoryEvent[] }[] {
-  const groups: { traceId: string | null; events: ObservatoryEvent[] }[] = [];
-  for (const enriched of events) {
-    const traceId = enriched.event.trace_id;
-    const last = groups[groups.length - 1];
-    if (last && last.traceId === traceId) {
-      last.events.push(enriched);
-    } else {
-      groups.push({ traceId, events: [enriched] });
-    }
-  }
-  return groups;
-}
+// Re-exported for anyone still importing it from here — the implementation
+// itself now lives in ../lib/groupByTrace.ts (a plain .ts file, not a .tsx
+// component) so it can carry its own unit test; see
+// tests/observatoryEvent.test.mjs.
+export { groupByTrace };
 
 export function EventTimeline({ events, gcpProject, selectedEventId, onSelect }: EventTimelineProps) {
   const groups = useMemo(() => groupByTrace(events), [events]);

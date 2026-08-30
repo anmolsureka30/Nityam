@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "node tests/ui.mjs",
+    "test:unit": "tsx tests/observatoryEvent.test.mjs",
     "test:ws": "tsx tests/ws.test.mjs"
   },
   "dependencies": {

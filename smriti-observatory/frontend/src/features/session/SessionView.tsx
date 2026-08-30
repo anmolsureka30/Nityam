@@ -6,6 +6,7 @@ import { SessionDrawer, type SessionSummary } from "../../components/SessionDraw
 import { SidePanel } from "../../components/SidePanel";
 import { StateOverview } from "../../components/StateOverview";
 import { StatusChips } from "../../components/StatusChips";
+import { mapBacklogEvent } from "../../lib/observatoryEvent";
 import { adkWebUrl } from "../../lib/traceLinks";
 import type { EnrichedEvent, MemoryEvent, ObservatoryEvent, SessionState, Tier, ToolCallEvent } from "../../lib/types";
 import { connectSessionSocket } from "../../lib/ws";
@@ -82,20 +83,7 @@ export function SessionView() {
       .catch(() => setState(null));
     fetch(`${BACKEND_URL}/api/sessions/${selectedId}/events`)
       .then((r) => r.json())
-      .then((body) =>
-        // smriti:events:recent (what this backlog reads) holds both memory
-        // and tool-call event JSON on one list -- a MemoryEvent's own JSON
-        // never carries a "kind" field (see app/memory/instrumentation.py),
-        // while a ToolCallEvent's does, which is exactly how ingest.py's own
-        // live dispatch tells them apart too.
-        setEvents(
-          (body.events ?? []).map((event: MemoryEvent | ToolCallEvent): ObservatoryEvent =>
-            "kind" in event && event.kind === "tool_call"
-              ? { kind: "tool_call", event }
-              : { kind: "memory", event: event as MemoryEvent, diff: [] },
-          ),
-        ),
-      )
+      .then((body) => setEvents((body.events ?? []).map((event: MemoryEvent | ToolCallEvent): ObservatoryEvent => mapBacklogEvent(event))))
       .catch(() => {});
 
     return connectSessionSocket(BACKEND_URL.replace("http", "ws"), selectedId, (enriched) => {
