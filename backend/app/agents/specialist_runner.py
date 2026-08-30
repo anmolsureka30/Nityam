@@ -50,7 +50,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from app import tracing
-from app.memory import short_term
+from app.memory import instrumentation, short_term
 
 log = logging.getLogger("nityam.specialist_runner")
 
@@ -81,23 +81,63 @@ def _speakable(text: str) -> str:
     return " ".join(cleaned.split()).strip()
 
 
-def _log_tool_activity(label: str, event) -> None:
+_ACTOR_FOR_LABEL: dict[str, "instrumentation.ToolActor"] = {
+    "board": "board_agent", "artifact": "artifact_agent",
+    "quiz": "quiz_agent", "textbook": "textbook_agent",
+}
+
+_pending_calls: dict[str, float] = {}
+"""function_call.id -> when it started, so the matching function_response
+can compute a real duration_ms. Module-level and keyed by call id (not by
+session): ADK's FunctionCall/FunctionResponse both carry a stable `id` field
+that already correlates a call with its result, so no session-scoping is
+needed here — a stale entry from an abandoned call is simply never popped,
+which is harmless (it never affects a future call's own duration)."""
+
+
+def _log_tool_activity(
+    label: str, event, session_id: str | None, student_id: str | None
+) -> None:
     """Log a specialist's own tool calls and results, the same way main.py's
-    trace() does for VoiceAgent. Nothing did this before: search_grounding,
-    get_dpm, strike_block and everything else a specialist calls internally
-    was invisible even in a full session log, since each specialist runs in
-    its own Runner several frames away from main.py's own event stream."""
+    trace() does for VoiceAgent, AND publish each one as a ToolCallEvent —
+    search_grounding, get_dpm, strike_block and everything else a specialist
+    calls internally was previously invisible even in a full session log,
+    since each specialist runs in its own Runner several frames away from
+    main.py's own event stream. Published from inside the span
+    _run_turn_uncapped opens, so these events share one trace with the
+    MemoryEvents that same tool activity triggers (e.g. get_dpm's own
+    published read)."""
+    actor = _ACTOR_FOR_LABEL.get(label, "board_agent")
     for part in event.content.parts if event.content and event.content.parts else []:
         call = part.function_call
         if call:
             args = str(call.args)
             log.info("  [%s] → %s(%s)", label, call.name,
                       args[:200] + ("…" if len(args) > 200 else ""))
+            if call.id:
+                _pending_calls[call.id] = time.monotonic()
+            instrumentation.publish_tool_call_event(
+                instrumentation.build_tool_call_event(
+                    actor=actor, tool_name=call.name, phase="started",
+                    session_id=session_id, student_id=student_id,
+                    args_summary=args,
+                )
+            )
         response = part.function_response
         if response:
             got = str(response.response)
             log.info("  [%s] ← %s -> %s", label, response.name,
                       got[:200] + ("…" if len(got) > 200 else ""))
+            duration_ms = None
+            if response.id and response.id in _pending_calls:
+                duration_ms = int((time.monotonic() - _pending_calls.pop(response.id)) * 1000)
+            instrumentation.publish_tool_call_event(
+                instrumentation.build_tool_call_event(
+                    actor=actor, tool_name=response.name, phase="done",
+                    session_id=session_id, student_id=student_id,
+                    result_summary=got, duration_ms=duration_ms,
+                )
+            )
 
 
 class SpecialistRunner:
@@ -150,7 +190,7 @@ class SpecialistRunner:
                 user_id=student_id, session_id=session_id,
                 new_message=types.Content(role="user", parts=[types.Part(text=message)]),
             ):
-                _log_tool_activity(self._app_name, event)
+                _log_tool_activity(self._app_name, event, session_id, student_id)
                 for part in event.content.parts if event.content and event.content.parts else []:
                     if part.text:
                         said.append(part.text)
@@ -418,6 +458,13 @@ async def delegate(
     student_id = tool_context.state.get("student_id")
     if not session_id or not student_id:
         log.warning("ask_%s called with no session/student id in state", label)
+        instrumentation.publish_tool_call_event(
+            instrumentation.build_tool_call_event(
+                actor="voice_agent", tool_name=f"ask_{label}", phase="error",
+                session_id=session_id, student_id=student_id,
+                result_summary="no session/student id in state",
+            )
+        )
         yield {"status": "error",
                "summary": "Something went wrong on my end — let's move on."}
         return
@@ -425,6 +472,12 @@ async def delegate(
     key = (session_id, label)
     if key in _in_flight:
         log.info("ask_%s called while one was already running; refused", label)
+        instrumentation.publish_tool_call_event(
+            instrumentation.build_tool_call_event(
+                actor="voice_agent", tool_name=f"ask_{label}", phase="busy",
+                session_id=session_id, student_id=student_id,
+            )
+        )
         yield {"status": "busy",
                "summary": f"Already working on that — no need to ask again."}
         return
@@ -472,12 +525,20 @@ async def delegate(
         if task is not None and not task.done():
             task.cancel()
 
+    duration_ms = int((time.monotonic() - started) * 1000)
     try:
         summary = task.result()
     except asyncio.CancelledError:
         raise
     except Exception:  # noqa: BLE001 - the tool must always report something
         log.exception("%sAgent turn failed", label.capitalize())
+        instrumentation.publish_tool_call_event(
+            instrumentation.build_tool_call_event(
+                actor="voice_agent", tool_name=f"ask_{label}", phase="error",
+                session_id=session_id, student_id=student_id,
+                duration_ms=duration_ms,
+            )
+        )
         yield {"status": "error", "summary": error_text}
         return
 
@@ -486,6 +547,13 @@ async def delegate(
     # blocking Firestore round trips (3+ seconds, measured) and has no business
     # delaying the answer she is about to give.
     schedule_brief_refresh(session_id, student_id)
+    instrumentation.publish_tool_call_event(
+        instrumentation.build_tool_call_event(
+            actor="voice_agent", tool_name=f"ask_{label}", phase="done",
+            session_id=session_id, student_id=student_id,
+            result_summary=summary or done_default, duration_ms=duration_ms,
+        )
+    )
     yield {"status": "done", "summary": summary or done_default}
 
 

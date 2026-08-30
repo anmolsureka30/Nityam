@@ -849,6 +849,13 @@ def trace(event) -> None:
                 # Truncation is right for the terminal and wrong for a record
                 # you are going to read afterwards to work out what she meant.
                 log.debug("  args in full: %s", args)
+                _sid, _stu = (_recording_context.get() or (None, None))
+                instrumentation.publish_tool_call_event(
+                    instrumentation.build_tool_call_event(
+                        actor="voice_agent", tool_name=call.name, phase="started",
+                        session_id=_sid, student_id=_stu, args_summary=args,
+                    )
+                )
 
         # Note: for a response_scheduling=WHEN_IDLE tool — which every ask_*
         # delegation is — ADK yields no function_response Event into this
