@@ -82,8 +82,8 @@ def _speakable(text: str) -> str:
 
 
 _ACTOR_FOR_LABEL: dict[str, "instrumentation.ToolActor"] = {
-    "board": "board_agent", "artifact": "artifact_agent",
-    "quiz": "quiz_agent", "textbook": "textbook_agent",
+    "nityam-board": "board_agent", "nityam-artifact": "artifact_agent",
+    "nityam-quiz": "quiz_agent", "nityam-textbook": "textbook_agent",
 }
 
 _pending_calls: dict[str, float] = {}

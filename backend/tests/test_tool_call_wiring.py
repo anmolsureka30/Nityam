@@ -59,11 +59,11 @@ def run() -> None:
     client.delete("smriti:events:recent")
 
     specialist_runner._log_tool_activity(
-        "board", _fake_call_event("search_grounding", "call-1", {"q": "projectile motion"}),
+        "nityam-board", _fake_call_event("search_grounding", "call-1", {"q": "projectile motion"}),
         "s1", "stu1",
     )
     specialist_runner._log_tool_activity(
-        "board", _fake_response_event("search_grounding", "call-1", {"chunks": 3}),
+        "nityam-board", _fake_response_event("search_grounding", "call-1", {"chunks": 3}),
         "s1", "stu1",
     )
 
