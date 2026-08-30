@@ -1017,7 +1017,8 @@ async def run_mock(ws: WebSocket, user_id: str, session_id: str) -> None:
 app.include_router(
     _obs_build_router(
         tutor_base_url=os.environ.get("TUTOR_BASE_URL", "http://localhost:8000"),
-        redis_host=config.REDIS_HOST, redis_port=config.REDIS_PORT,
+        redis_host=os.environ.get("REDIS_HOST") or "localhost",
+        redis_port=int(os.environ.get("REDIS_PORT") or "6379"),
         memory_state_fn=session_state_endpoint, memory_events_fn=session_events_endpoint,
     ),
     prefix="/observatory",
