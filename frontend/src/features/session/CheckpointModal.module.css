@@ -114,3 +114,13 @@
   border-top: 1px solid var(--line);
   background: var(--paper-warm);
 }
+
+/* The invitation, not just the correction. A rebuttal that explains the
+   mistake and leaves you nothing to do with it is a dead end. */
+.retry {
+  margin: var(--s-3) 0 0;
+  font-family: var(--mono);
+  font-size: var(--t-micro);
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}

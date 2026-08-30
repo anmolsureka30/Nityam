@@ -53,7 +53,7 @@ export default function CheckpointModal({
         <div className={s.head}>
           <Label>Checkpoint · {checkpoint.index} of {checkpoint.total}</Label>
           <Label tone={answered && correct ? undefined : "accent"}>
-            {answered ? (correct ? "Got it" : "Try again") : "Answer to continue"}
+            {answered ? (correct ? "Got it" : "Pick another") : "Answer to continue"}
           </Label>
         </div>
 
@@ -74,7 +74,21 @@ export default function CheckpointModal({
                     state === "right" && s.optionRight,
                   )}
                   onClick={() => {
-                    if (chosen !== null) return; // already answered; changing your mind doesn't re-report
+                    /* A WRONG ANSWER IS NOT THE END OF THE QUESTION.
+                       This used to lock on the first pick, so getting it wrong
+                       left you staring at a rebuttal explaining your mistake
+                       with no way to act on it — which is the one moment a
+                       student most wants to try again, and the whole reason
+                       the rebuttal is written. Re-picking is allowed until it
+                       is right; once it is right it locks, because changing a
+                       correct answer is not a thing anyone means to do.
+
+                       Every attempt is reported. A second try IS the lesson —
+                       the tutor should know it happened, and the record should
+                       show the first answer was wrong rather than quietly
+                       keeping only the one that worked. */
+                    if (correct) return;
+                    if (opt.id === chosen) return;   // same answer, nothing new
                     setChosen(opt.id);
                     onAnswer(opt.correct, opt.id, opt.text);
                   }}
@@ -99,6 +113,7 @@ export default function CheckpointModal({
             <div className={s.rebuttal}>
               <Label tone="warn">You said · {picked.text.toLowerCase()}</Label>
               <p className={s.rebuttalText}>{picked.rebuttal}</p>
+              <p className={s.retry}>Have another go — pick a different one.</p>
             </div>
           )}
         </div>
@@ -110,7 +125,11 @@ export default function CheckpointModal({
             disabled={!answered}
             onClick={() => picked && onDone(correct, picked.id, picked.text)}
           >
-            {correct ? "Keep going" : answered ? "Show me why" : "Pick one"}
+            {/* "Show me why" promised an explanation the button did not give —
+                the rebuttal is already on screen above it. It is an escape
+                hatch, and it should say so: you can always move on without
+                getting it right. */}
+            {correct ? "Keep going" : answered ? "Move on anyway" : "Pick one"}
           </Button>
         </div>
       </div>

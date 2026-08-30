@@ -291,6 +291,7 @@ async def ws_endpoint(ws: WebSocket, user_id: str, session_id: str) -> None:
             specialist_runner.forget_session(session_id)
             for key in [k for k in _evidence_seen if k[0] == session_id]:
                 del _evidence_seen[key]
+            _last_quiz_answer_at.pop(session_id, None)
             logs.close_session(session_id)
 
 
@@ -480,6 +481,10 @@ async def outbound(ws: WebSocket, session_id: str) -> None:
 EVIDENCE_REPEAT_S = 20.0
 """How long the same artifact event is ignored after being reported once."""
 
+_last_quiz_answer_at: dict[str, float] = {}
+"""session_id -> when this student last answered a checkpoint. Only used to
+tell a first answer from a retry."""
+
 _evidence_seen: dict[tuple[str, str], float] = {}
 """(session_id, event) -> when it was last passed on. Keyed by session as well
 as event: two students exploring the same artifact must not silence each
@@ -641,7 +646,26 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
                 + (f" on {concept}" if concept else "")
                 + f": chose \"{payload.get('optionText') or ''}\"",
             )
-            sink.text(incoming.describe_quiz_answer(payload))
+            # A student can change a wrong answer now, so two answers can
+            # arrive seconds apart. The first makes her start explaining; the
+            # second would cut her off mid-explanation of the first, which
+            # reads as her talking over herself — the same failure the
+            # artifact-evidence branch already had. A retry while she is still
+            # answering the previous attempt arrives as CONTEXT, so she
+            # finishes the thought and takes the new answer into account when
+            # she does. A first answer, or one after she has stopped, still
+            # completes a turn: the student did something deliberate and
+            # deserves a reply.
+            retry_while_talking = (
+                _last_quiz_answer_at.get(session_id) is not None
+                and specialist_runner.mid_exchange(session_id)
+            )
+            _last_quiz_answer_at[session_id] = asyncio.get_running_loop().time()
+            log.info("quiz answer (%s): %s",
+                     "context, she is mid-answer" if retry_while_talking else "turn",
+                     "correct" if correct else "wrong")
+            sink.text(incoming.describe_quiz_answer(payload),
+                      partial=retry_while_talking)
 
 
 # --------------------------------------------------------------- real path

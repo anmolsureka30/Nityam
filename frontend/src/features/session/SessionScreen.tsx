@@ -320,7 +320,7 @@ export default function SessionScreen() {
       <header className={s.bar} data-print="hide">
         <div className={s.left}>
           <Link to="/" className={s.brand} aria-label="Leave session">
-            <span className={s.mark} />
+            <img className={s.logo} src="/nityam-logo.png" alt="" width={30} height={30} />
             <span className={s.word}>Nityam</span>
           </Link>
           <span className={s.mode}>

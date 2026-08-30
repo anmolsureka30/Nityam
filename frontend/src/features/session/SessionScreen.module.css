@@ -25,13 +25,23 @@
 .left { display: flex; align-items: center; gap: 14px; }
 
 .brand { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 0; }
-.mark { width: 3px; height: 16px; border-radius: 2px; background: var(--accent); }
+/* Identical to the dashboard's lockup (components/Shell.module.css). The
+   session had its own smaller copy — a rotated rule and 1.05rem — so walking
+   into a lesson looked like walking into a different product. */
+.logo {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  object-fit: contain;
+  display: block;
+}
 .word {
   font-family: var(--prose);
-  font-variation-settings: "opsz" 18;
-  font-size: 1.05rem;
+  font-variation-settings: "opsz" 32;
+  font-size: 1.6rem;
   font-weight: 600;
-  letter-spacing: -0.014em;
+  letter-spacing: -0.022em;
+  line-height: 1;
 }
 
 .mode {
