@@ -118,7 +118,7 @@
 
 .bell {
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
   border-radius: var(--r-panel);
   padding: 20px 22px;
 }
@@ -149,7 +149,7 @@
   text-transform: uppercase;
   color: var(--ink-mid);
 }
-.filterOn { background: var(--ink); border-color: var(--ink); color: #fff; }
+.filterOn { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 
 .sev {
   display: inline-block;

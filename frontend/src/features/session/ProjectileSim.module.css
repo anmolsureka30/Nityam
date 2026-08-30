@@ -42,13 +42,13 @@
   margin-top: -8px;
   border-radius: var(--r-pill);
   background: var(--sim);
-  border: 3px solid #fff;
+  border: 3px solid var(--paper);
   box-shadow: 0 1px 4px rgba(22, 26, 34, 0.22);
 }
 .slider::-moz-range-track { height: 3px; background: var(--line); border-radius: var(--r-pill); }
 .slider::-moz-range-thumb {
   width: 14px; height: 14px; border-radius: var(--r-pill);
-  background: var(--sim); border: 3px solid #fff;
+  background: var(--sim); border: 3px solid var(--paper);
 }
 
 .ticks {

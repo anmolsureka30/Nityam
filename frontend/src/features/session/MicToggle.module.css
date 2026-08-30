@@ -85,10 +85,10 @@
 .muted {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--paper);
   box-shadow: 0 6px 22px rgba(178, 58, 49, 0.36);
 }
-.muted:hover { background: #9E332B; border-color: #9E332B; }
+.muted:hover { background: var(--danger-deep); border-color: var(--danger-deep); }
 
 /* Two strokes so the slash reads as cutting through the mic: a wide one in the
    button's own fill first, then the line itself on top. */
@@ -96,9 +96,9 @@
   stroke: var(--danger) !important;
   stroke-width: 5 !important;
 }
-.muted:hover .slashCut { stroke: #9E332B !important; }
+.muted:hover .slashCut { stroke: var(--danger-deep) !important; }
 .slash {
-  stroke: #fff !important;
+  stroke: var(--paper) !important;
   stroke-width: 2.1 !important;
 }
 
@@ -106,7 +106,7 @@
    "Listening" here would be a lie, and it is the lie that wastes an hour. */
 .blocked {
   background: var(--warn-wash);
-  border-color: #E6CFA8;
+  border-color: var(--warn-tint);
   color: var(--warn);
 }
 

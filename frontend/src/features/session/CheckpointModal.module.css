@@ -59,8 +59,8 @@
   transition: border-color 0.14s ease, background 0.14s ease;
 }
 .option:hover { border-color: var(--accent); }
-.optionWrong { border-color: #E9C9C5; background: #FDF3F2; }
-.optionRight { border-color: #CDEBDF; background: #F1FAF6; }
+.optionWrong { border-color: var(--danger-tint); background: var(--danger-wash); }
+.optionRight { border-color: var(--good-tint); background: var(--good-wash); }
 
 .letter {
   width: 24px; height: 24px;
@@ -72,8 +72,8 @@
   font-size: 11px;
   color: var(--ink-mid);
 }
-.letterWrong { background: var(--danger); color: #fff; }
-.letterRight { background: var(--good); color: #fff; }
+.letterWrong { background: var(--danger); color: var(--paper); }
+.letterRight { background: var(--good); color: var(--paper); }
 
 .optionText { flex: 1; font-size: 15px; }
 
@@ -92,7 +92,7 @@
 .rebuttal {
   margin-top: 16px;
   background: var(--warn-wash);
-  border: 1px solid #F2E3CB;
+  border: 1px solid var(--warn-tint);
   border-radius: var(--r-chip);
   padding: 14px 16px;
   animation: n-fade 0.28s ease both;

@@ -94,7 +94,7 @@
      from making the page look narrow and stretched. */
   height: 340px;
   overflow: hidden;
-  background: #fff;
+  background: var(--paper);
   border-top: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
 }
@@ -118,7 +118,7 @@
   right: 0;
   bottom: 0;
   height: 46px;
-  background: linear-gradient(transparent, #fff 78%);
+  background: linear-gradient(transparent, var(--paper) 78%);
   pointer-events: none;
 }
 

@@ -60,7 +60,7 @@
   padding: 0;
   cursor: pointer;
 }
-.min:hover { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.16); color: #fff; }
+.min:hover { border-color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.16); color: var(--paper); }
 
 /* Collapsed: a little thought-cloud left hovering where the tail used to
    point, so it still reads as coming out of her head. */
@@ -127,8 +127,8 @@
   align-items: center;
   gap: 7px;
   margin-top: 12px;
-  background: #F1FAF6;
-  border: 1px solid #CDEBDF;
+  background: var(--good-wash);
+  border: 1px solid var(--good-tint);
   border-radius: var(--r-pill);
   padding: 4px 11px;
   font-family: var(--mono);

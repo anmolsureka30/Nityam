@@ -158,7 +158,7 @@
 .btnPrimary {
   background: var(--accent-gradient);
   border-color: transparent;
-  color: #fff;
+  color: var(--paper);
   box-shadow: var(--e-accent);
 }
 .btnPrimary:hover {
@@ -281,4 +281,19 @@
   .stat, .stat:first-child { padding: var(--s-4) 0; }
   .choice { grid-template-columns: minmax(0, 1fr); padding: var(--s-5) var(--s-5); }
   .choiceAside { display: none; }
+}
+
+/* The drawing at the end of an action row. Hidden on narrow screens: the row
+   collapses there and the art would push the title into two lines. */
+.choiceArt {
+  display: flex;
+  flex: none;
+  width: 64px;
+}
+.choiceArt svg { display: block; width: 100%; height: auto; }
+/* On the dark primary row the drawing's paper reads as a bright hole, so it
+   is dimmed to sit in the surface rather than on top of it. */
+.choicePrimary .choiceArt { opacity: 0.62; }
+@media (max-width: 720px) {
+  .choiceArt { display: none; }
 }
