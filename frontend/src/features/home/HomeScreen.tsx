@@ -8,7 +8,7 @@ import {
 import { useAuth } from "../../lib/auth/AuthContext";
 import { conceptName } from "../../lib/conceptCatalog";
 import { classRecap, concepts, daysToUnitTest } from "../../lib/data";
-import { masteryPct, useStudentMemory } from "../../lib/memory";
+import { masteryPct, useCurrentTopic, useStudentMemory } from "../../lib/memory";
 import ShrutiIngest from "./ShrutiIngest";
 import s from "./HomeScreen.module.css";
 
@@ -39,11 +39,17 @@ export default function HomeScreen() {
     ? Math.round(realWeaknesses.reduce((sum, [, w]) => sum + masteryPct(w), 0) / realWeaknesses.length)
     : null;
 
-  // "Revise today's class" still points at tonight's classRecap concept —
-  // that recap comes from Shruti's board/lecture capture (lib/data.ts's own
-  // header comment), which isn't wired into this dashboard yet. Real per-
-  // concept mastery above does not depend on that piece being done.
+  // "Revise today's class" used to point at a permanently hardcoded demo
+  // concept (PHY-11-K2, "the 45° topic") no matter what had actually been
+  // taught. currentTopic is real: app/memory/shruti_sync.py writes it the
+  // moment a Shruti ingest finishes, so uploading a class recording changes
+  // this card. The static demo concept is kept as the fallback for a fresh
+  // install where nothing has ever been uploaded — not a special case, just
+  // currentTopic's own "none" state.
+  const currentTopic = useCurrentTopic(user?.uid);
+  const topic = currentTopic.status === "ready" ? currentTopic.data : null;
   const target = concepts.find((c) => c.id === "PHY-11-K2")!;
+  const targetConceptId = topic?.concept_id || target.id;
 
   return (
     <Shell>
@@ -60,8 +66,12 @@ export default function HomeScreen() {
         <div className="body">
           <h1 className="display">{greeting}, {firstName}.</h1>
           <p className={`lede ${s.subline}`}>
-            Your class covered {classRecap.subject.toLowerCase()} today. I listened to all
-            of it — there are two things worth going over.
+            {topic ? (
+              <>Picked up from what you uploaded{topic.video_title ? ` — "${topic.video_title}"` : ""}. Let's carry on from there.</>
+            ) : (
+              <>Your class covered {classRecap.subject.toLowerCase()} today. I listened to all
+              of it — there are two things worth going over.</>
+            )}
           </p>
         </div>
       </section>
@@ -74,9 +84,13 @@ export default function HomeScreen() {
               primary
               eyebrow="Start here"
               title="Revise today's class"
-              body="Projectile motion — range, angle, symmetry. We pick up exactly where Mr. Deshpande ran out of time."
+              body={
+                topic
+                  ? `${topic.heading} — from what you uploaded.`
+                  : "Projectile motion — range, angle, symmetry. We pick up exactly where Mr. Deshpande ran out of time."
+              }
               footer={<span className={s.rowMeta}>≈ 20 min</span>}
-              onClick={() => nav(`/intensity/${target.id}`)}
+              onClick={() => nav(`/intensity/${encodeURIComponent(targetConceptId)}`)}
             />
             <ActionCard
               eyebrow="Anytime"

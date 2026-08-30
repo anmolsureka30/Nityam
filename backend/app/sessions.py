@@ -24,12 +24,14 @@ won — one module, one lock, one seam.)
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from app.canvas import doc as D
+from app.memory import store
 
 log = logging.getLogger("nityam.sessions")
 
@@ -38,9 +40,41 @@ log = logging.getLogger("nityam.sessions")
 # before-that-arrives placeholder, and deliberately generic rather than
 # naming a specific concept, per the no-hardcoded-subject principle
 # (docs/superpowers/specs/2026-08-28-agent-orchestration-redesign-design.md §6).
+#
+# Also the fallback for the *board's opening state* (_new_board, below) when
+# no current_topic record exists yet in the memory store -- i.e. nobody has
+# ever run a Shruti ingest. Left exactly as they were rather than defaulted
+# to a projectile-motion string here, so this file stays subject-agnostic;
+# whatever a deployment's .env sets is what a fresh install opens on.
 OPENING_EYEBROW = os.getenv("NITYAM_TOPIC_EYEBROW", "Today's session")
 OPENING_HEADING = os.getenv("NITYAM_TOPIC_HEADING", "Let's get started")
 OPENING_CONCEPT = os.getenv("NITYAM_TOPIC_CONCEPT", "")
+
+
+@functools.cache
+def _topic_store_conn():
+    return store.connect()
+
+
+def _opening_topic(student_id: str) -> tuple[str, str, str]:
+    """(concept_id, eyebrow, heading) for a fresh board, for THIS student.
+
+    Prefers the current_topic record app/memory/shruti_sync.py writes for
+    `student_id` the moment their own Shruti ingest finishes -- so uploading
+    a class recording changes what that student's very next session opens
+    on, with no redeploy or env var edit, and with no effect on anyone
+    else's. Falls back to the static OPENING_* env vars above if this
+    student hasn't ingested anything yet, or if the store is unreachable (a
+    missing/misconfigured credential must never block a session starting).
+    """
+    try:
+        topic = store.get_current_topic(_topic_store_conn(), student_id)
+    except Exception:
+        log.warning("current_topic lookup failed; falling back to NITYAM_TOPIC_* env vars", exc_info=True)
+        topic = None
+    if topic is None:
+        return OPENING_CONCEPT, OPENING_EYEBROW, OPENING_HEADING
+    return topic.concept_id, topic.eyebrow, topic.heading
 
 
 @dataclass
@@ -106,20 +140,21 @@ class SessionState:
 _SESSIONS: dict[str, SessionState] = {}
 
 
-def _new_board(session_id: str) -> D.CanvasDoc:
+def _new_board(session_id: str, student_id: str) -> D.CanvasDoc:
     """A near-empty board: one heading, and nothing else.
 
     Deliberate. Every other block on screen got there because an agent called
     a write tool, so what you see is what the tutor actually did.
     """
+    concept_id, eyebrow, heading = _opening_topic(student_id)
     return D.CanvasDoc(
         id=f"nb_{session_id}",
-        conceptId=OPENING_CONCEPT,
+        conceptId=concept_id,
         pages=[
             D.Page(
                 page=1,
-                eyebrow=OPENING_EYEBROW,
-                blocks=[D.Heading(id="b_topic", text=OPENING_HEADING)],
+                eyebrow=eyebrow,
+                blocks=[D.Heading(id="b_topic", text=heading)],
             )
         ],
     )
@@ -131,7 +166,7 @@ def get(session_id: str, student_id: str = "demo_student") -> SessionState:
         state = SessionState(
             session_id=session_id,
             student_id=student_id,
-            board=_new_board(session_id),
+            board=_new_board(session_id, student_id),
             minter=D.IdMinter(),
             screen=Screen(),
             plan=Plan(),

@@ -7,7 +7,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from app.memory.schemas import DPMProfile, GroundingChunk, SessionLog, TeachingMemory
+from app.memory.schemas import CurrentTopic, DPMProfile, GroundingChunk, SessionLog, TeachingMemory
 
 DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "memory.db"
 
@@ -35,6 +35,16 @@ CREATE TABLE IF NOT EXISTS session_log (
     payload TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_session_log_student ON session_log(student_id);
+CREATE TABLE IF NOT EXISTS current_topic (
+    student_id TEXT PRIMARY KEY,
+    payload TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS topic_history (
+    student_id TEXT NOT NULL,
+    recording_slug TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    PRIMARY KEY (student_id, recording_slug)
+);
 """
 
 
@@ -90,6 +100,38 @@ def list_concept_ids(conn: sqlite3.Connection) -> list[str]:
         "SELECT DISTINCT concept_id FROM grounding_chunk_concept ORDER BY concept_id"
     ).fetchall()
     return [r[0] for r in rows]
+
+
+def get_current_topic(conn: sqlite3.Connection, student_id: str) -> CurrentTopic | None:
+    row = conn.execute(
+        "SELECT payload FROM current_topic WHERE student_id = ?", (student_id,)
+    ).fetchone()
+    return CurrentTopic.model_validate_json(row[0]) if row else None
+
+
+def put_current_topic(conn: sqlite3.Connection, topic: CurrentTopic) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO current_topic (student_id, payload) VALUES (?, ?)",
+        (topic.student_id, topic.model_dump_json()),
+    )
+    conn.commit()
+
+
+def add_topic_history(conn: sqlite3.Connection, topic: CurrentTopic) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO topic_history (student_id, recording_slug, payload) VALUES (?, ?, ?)",
+        (topic.student_id, topic.recording_slug, topic.model_dump_json()),
+    )
+    conn.commit()
+
+
+def list_topic_history(conn: sqlite3.Connection, student_id: str) -> list[CurrentTopic]:
+    rows = conn.execute(
+        "SELECT payload FROM topic_history WHERE student_id = ? "
+        "ORDER BY json_extract(payload, '$.updated_at') DESC",
+        (student_id,),
+    ).fetchall()
+    return [CurrentTopic.model_validate_json(r[0]) for r in rows]
 
 
 def get_dpm(conn: sqlite3.Connection, student_id: str) -> DPMProfile | None:

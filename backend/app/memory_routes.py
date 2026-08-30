@@ -16,6 +16,7 @@ from types import SimpleNamespace
 
 import redis as redis_sync
 from fastapi import APIRouter, Header, HTTPException
+from pydantic import BaseModel
 
 from app import config, seeding, user_auth
 from app.memory import short_term, store
@@ -48,6 +49,59 @@ async def session_state_endpoint(session_id: str, student_id: str):
             "teaching_memory": memory.model_dump(mode="json") if memory else None,
         },
     }
+
+
+@router.get("/current-topic")
+async def current_topic_endpoint(student_id: str):
+    """Whatever THIS student's next session will open on -- the same record
+    app/sessions.py._new_board() reads for them, so the dashboard's "revise
+    today's class" card can never promise a topic the tutor doesn't actually
+    open on. `null` means this student hasn't run a Shruti ingest yet;
+    callers should fall back to their own static default (matches
+    sessions.py's own fallback to NITYAM_TOPIC_* env vars). Per-student, not
+    global -- one person's upload must never change what somebody else's
+    session opens on."""
+    topic = store.get_current_topic(_firestore_client(), student_id)
+    return topic.model_dump(mode="json") if topic else None
+
+
+@router.get("/topics")
+async def topic_history_endpoint(student_id: str):
+    """Every video this student has ever uploaded, newest first — the
+    dashboard's "study this instead" picker. Read-only, like current-topic
+    above; selecting one goes through the authenticated POST below."""
+    topics = store.list_topic_history(_firestore_client(), student_id)
+    return {"topics": [t.model_dump(mode="json") for t in topics]}
+
+
+class SelectTopicRequest(BaseModel):
+    recording_slug: str
+
+
+@router.post("/students/{student_id}/current-topic")
+async def select_topic_endpoint(
+    student_id: str, req: SelectTopicRequest, authorization: str = Header(default=""),
+):
+    """Pick which of this student's own past uploads their next session
+    opens on. Authenticated exactly like /reset and /ensure: a path
+    parameter is not proof of anything, so the caller's Firebase token must
+    itself belong to `student_id`, or any signed-in user could redirect
+    someone else's next session."""
+    claims = await _caller(authorization)
+    if claims.get("uid") != student_id:
+        raise HTTPException(status_code=403, detail="you can only change your own topic")
+
+    db = _firestore_client()
+    match = next(
+        (t for t in store.list_topic_history(db, student_id)
+         if t.recording_slug == req.recording_slug),
+        None,
+    )
+    if match is None:
+        raise HTTPException(status_code=404, detail="no upload with that recording_slug")
+
+    store.put_current_topic(db, match)
+    return match.model_dump(mode="json")
 
 
 def _read_recent_events(session_id: str) -> list[MemoryEvent]:

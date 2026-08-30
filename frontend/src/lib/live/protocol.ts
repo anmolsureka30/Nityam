@@ -45,7 +45,11 @@ export type ClientMessage =
       optionId: string;
       optionText: string;
       correct: boolean;
-    };
+    }
+  /** Sent when the student presses "End session", before the socket closes —
+   *  gives her one turn to say a real goodbye instead of being cut off
+   *  mid-sentence by the raw disconnect that follows a few seconds later. */
+  | { type: "end" };
 
 /** What the tutor sees when it calls read_screen. Sent on change, throttled —
  *  it is state, not conversation, so it never becomes a model turn by itself. */

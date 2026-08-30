@@ -18,7 +18,7 @@ from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from app import config
-from app.memory.schemas import DPMProfile, GroundingChunk, SessionLog, TeachingMemory
+from app.memory.schemas import CurrentTopic, DPMProfile, GroundingChunk, SessionLog, TeachingMemory
 
 log = logging.getLogger("nityam.store")
 
@@ -155,6 +155,40 @@ def search_grounding_semantic(
         GroundingChunk.model_validate({k: v for k, v in d.to_dict().items() if k != "embedding"})
         for d in docs
     ]
+
+
+def get_current_topic(db: firestore.Client, student_id: str) -> CurrentTopic | None:
+    doc = db.collection("current_topic").document(student_id).get()
+    return CurrentTopic.model_validate(doc.to_dict()) if doc.exists else None
+
+
+def put_current_topic(db: firestore.Client, topic: CurrentTopic) -> None:
+    db.collection("current_topic").document(topic.student_id).set(topic.model_dump(mode="json"))
+
+
+def _topic_history_doc_id(student_id: str, recording_slug: str) -> str:
+    return f"{student_id}__{recording_slug}"
+
+
+def add_topic_history(db: firestore.Client, topic: CurrentTopic) -> None:
+    """One entry per (student, recording) — re-ingesting the same video
+    updates its entry rather than duplicating it. This is the student's
+    full upload history; `current_topic` (above) is only ever the one
+    entry from here their next session actually opens on."""
+    doc_id = _topic_history_doc_id(topic.student_id, topic.recording_slug)
+    db.collection("topic_history").document(doc_id).set(topic.model_dump(mode="json"))
+
+
+def list_topic_history(db: firestore.Client, student_id: str) -> list[CurrentTopic]:
+    """Every video this student has ever uploaded, newest first — what the
+    dashboard's "study this instead" picker lists."""
+    docs = (
+        db.collection("topic_history")
+        .where(filter=FieldFilter("student_id", "==", student_id))
+        .stream()
+    )
+    topics = [CurrentTopic.model_validate(d.to_dict()) for d in docs]
+    return sorted(topics, key=lambda t: t.updated_at, reverse=True)
 
 
 def get_dpm(db: firestore.Client, student_id: str) -> DPMProfile | None:

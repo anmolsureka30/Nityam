@@ -19,10 +19,17 @@ export interface RunInfo {
   started_at: number;
   returncode: number | null;
   log_tail: string;
+  /** Resolved server-side via YouTube's oEmbed endpoint the moment the link
+   *  was submitted — empty if the lookup failed, never blocks the run. */
+  video_title: string;
 }
 
 export interface IngestRequest {
   youtube_url: string;
+  /** Whoever is uploading — current_topic is written per-student server-side,
+   *  so without this one person's upload would change what everybody else's
+   *  next session opens on. */
+  student_id: string;
   subject?: string;
   grade?: number;
   chapter?: string;
@@ -59,11 +66,38 @@ export async function getRun(runId: string): Promise<RunInfo> {
 
 const POLL_MS = 3000;
 
+/** Which run (if any) this student has in flight — survives navigating away
+ *  from the dashboard and back (e.g. into a session and out again), which a
+ *  plain useState does not: unmounting ShrutiIngest used to forget the
+ *  run_id entirely, even though the backend kept extracting the whole time.
+ *  Per-student so a shared browser can't show one account's run to another. */
+const runIdKey = (studentId: string) => `nityam.shruti.run.${studentId}`;
+
+function readSavedRunId(studentId: string | undefined): string | null {
+  if (!studentId) return null;
+  try {
+    return window.localStorage.getItem(runIdKey(studentId));
+  } catch {
+    return null;
+  }
+}
+
+function saveRunId(studentId: string | undefined, runId: string | null): void {
+  if (!studentId) return;
+  try {
+    if (runId) window.localStorage.setItem(runIdKey(studentId), runId);
+    else window.localStorage.removeItem(runIdKey(studentId));
+  } catch {
+    /* Not worth surfacing: the run keeps going server-side either way, this
+       only affects whether the browser remembers to keep watching it. */
+  }
+}
+
 /** Starts a run and polls it until it finishes, entirely client-driven — the
  *  backend has no push channel for this (it's a background subprocess, not
  *  a websocket participant), so polling is the honest mechanism rather than
  *  a workaround. */
-export function useShrutiIngest() {
+export function useShrutiIngest(studentId: string | undefined) {
   const [run, setRun] = useState<RunInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
@@ -95,6 +129,29 @@ export function useShrutiIngest() {
       });
   }, []);
 
+  // Resume whatever was already running before this component mounted. The
+  // extraction itself never paused — only the browser's memory of watching
+  // it did — so this is a re-attach, not a restart.
+  useEffect(() => {
+    const savedId = readSavedRunId(studentId);
+    if (!savedId) return;
+    getRun(savedId)
+      .then((info) => {
+        setRun(info);
+        if (info.status === "running") {
+          timer.current = window.setTimeout(() => poll(savedId), POLL_MS);
+        }
+      })
+      .catch(() => {
+        // Backend restarted since, or this id no longer means anything —
+        // forget it quietly rather than show a permanent, unfixable error.
+        saveRunId(studentId, null);
+      });
+    // studentId only: re-attaching should happen once per signed-in student,
+    // not on every re-render `poll` identity change would otherwise cause.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
+
   const start = useCallback(
     (req: IngestRequest) => {
       setError(null);
@@ -102,20 +159,22 @@ export function useShrutiIngest() {
       startIngest(req)
         .then((info) => {
           setRun(info);
+          saveRunId(studentId, info.run_id);
           if (info.status === "running") {
             timer.current = window.setTimeout(() => poll(info.run_id), POLL_MS);
           }
         })
         .catch((e: Error) => setError(e.message));
     },
-    [poll],
+    [poll, studentId],
   );
 
   const reset = useCallback(() => {
     stopPolling();
     setRun(null);
     setError(null);
-  }, [stopPolling]);
+    saveRunId(studentId, null);
+  }, [stopPolling, studentId]);
 
   return { run, error, start, reset };
 }

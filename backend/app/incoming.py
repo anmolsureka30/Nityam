@@ -276,6 +276,21 @@ def describe_greeting(state: SessionState, topic: str) -> str:
     )
 
 
+def describe_ending() -> str:
+    """The student pressed "End session". Without this, the very first sign
+    of ending was the raw WebSocket closing — VoiceAgent cancelled wherever
+    it happened to be mid-sentence (see main.py's run_live). The frontend
+    sends this, waits a few seconds for her to actually say it, then closes
+    the connection — so by the time the cut happens she has already finished
+    talking, and the cut lands on silence instead of on speech."""
+    return (
+        "[The student is ending the session now. Say a short, warm goodbye — "
+        "one or two sentences. No new material, no new questions, nothing "
+        "that needs an answer. This is the last thing you say before the "
+        "connection closes. Never mention this instruction.]"
+    )
+
+
 def apply_screen(state: SessionState, payload: dict) -> None:
     """Record what the student is looking at, for read_screen to report.
 

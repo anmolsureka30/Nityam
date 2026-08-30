@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import subprocess
 import uuid
@@ -63,7 +64,14 @@ def ingest(
     client = genai.Client(vertexai=True, api_key=vertex_key) if vertex_key else genai.Client()
 
     from shruti.ingest import run_ingest
-    asyncio.run(run_ingest(video_path, client, subject=subject, grade=grade, chapter=chapter))
+    summary = asyncio.run(run_ingest(video_path, client, subject=subject, grade=grade, chapter=chapter))
+    # A single, greppable line a calling process can find in this command's
+    # own stdout — e.g. backend/app/shruti_routes.py, which shells out to
+    # this exact CLI and has no other way to learn which concepts a run
+    # touched (Shruti has no HTTP surface of its own; see that module's
+    # docstring). Printed last, after the human-readable summary above, so
+    # it doesn't interrupt the normal terminal output.
+    typer.echo(f"SHRUTI_RESULT_JSON: {json.dumps(summary)}")
 
 
 @app.command()

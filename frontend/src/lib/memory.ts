@@ -8,7 +8,8 @@
  * contract, this is its frontend mirror, the same relationship lib/types.ts
  * already has with the wire protocol.
  */
-import { useEffect, useState } from "react";
+import type { User } from "firebase/auth";
+import { useCallback, useEffect, useState } from "react";
 
 export interface Persona {
   preferred_pace?: "fast" | "moderate" | "deliberate" | null;
@@ -114,6 +115,113 @@ export async function fetchStudentMemory(studentId: string): Promise<StudentMemo
     throw new MemoryFetchError(`memory service returned ${res.status}`);
   }
   return (await res.json()) as StudentMemoryState;
+}
+
+export interface CurrentTopic {
+  student_id: string;
+  concept_id: string;
+  heading: string;
+  eyebrow: string;
+  subject: string;
+  recording_slug: string;
+  video_title: string;
+  youtube_url: string;
+  updated_at: string;
+}
+
+export type CurrentTopicState =
+  | { status: "loading" }
+  | { status: "none" }
+  | { status: "ready"; data: CurrentTopic };
+
+/** What THIS student's next session actually opens on — the live
+ *  counterpart to lib/data.ts's static demo topic. Per-student, not global:
+ *  one person uploading a class recording must never change what somebody
+ *  else's dashboard promises. `"none"` means this student hasn't run a
+ *  Shruti ingest yet (or isn't signed in); callers should render their own
+ *  static default in that case, same as backend/app/sessions.py falls back
+ *  to its NITYAM_TOPIC_* env vars. Never throws on a fetch failure — a
+ *  broken dashboard card is not worth blocking the page over, so that case
+ *  is folded into "none" too. */
+export function useCurrentTopic(studentId: string | undefined): CurrentTopicState {
+  const [state, setState] = useState<CurrentTopicState>({ status: "loading" });
+
+  useEffect(() => {
+    if (!studentId) {
+      setState({ status: "none" });
+      return;
+    }
+    let cancelled = false;
+    fetch(`/memory/current-topic?student_id=${encodeURIComponent(studentId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: CurrentTopic | null) => {
+        if (cancelled) return;
+        setState(data ? { status: "ready", data } : { status: "none" });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: "none" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId]);
+
+  return state;
+}
+
+export type TopicHistoryState =
+  | { status: "loading"; refetch: () => void }
+  | { status: "ready"; data: CurrentTopic[]; refetch: () => void };
+
+/** Every video this student has ever uploaded, newest first — lets the
+ *  dashboard offer "study this instead" once there's more than one to pick
+ *  from. A fetch failure renders as an empty, still-"ready" list rather than
+ *  a separate error state: nothing already on screen (current-topic, the
+ *  ingest form) depends on this succeeding. `refetch` is exposed so a caller
+ *  can pull in a just-finished upload without waiting for a remount — the
+ *  list otherwise only loads once, on mount. */
+export function useTopicHistory(studentId: string | undefined): TopicHistoryState {
+  const [data, setData] = useState<CurrentTopic[] | null>(null);
+
+  const refetch = useCallback(() => {
+    if (!studentId) {
+      setData([]);
+      return;
+    }
+    fetch(`/memory/topics?student_id=${encodeURIComponent(studentId)}`)
+      .then((res) => (res.ok ? res.json() : { topics: [] }))
+      .then((body: { topics: CurrentTopic[] }) => {
+        setData(body.topics ?? []);
+      })
+      .catch(() => {
+        setData([]);
+      });
+  }, [studentId]);
+
+  useEffect(() => {
+    setData(null);
+    refetch();
+  }, [refetch]);
+
+  if (data === null) return { status: "loading", refetch };
+  return { status: "ready", data, refetch };
+}
+
+/** Point this student's next session at a video they already uploaded.
+ *  Authenticated the same way /reset already is (a fresh Firebase ID
+ *  token) — this changes what THEIR next session opens on, so it needs to
+ *  provably be them asking. */
+export async function selectTopic(user: User, recordingSlug: string): Promise<void> {
+  const token = await user.getIdToken();
+  const res = await fetch(`/memory/students/${encodeURIComponent(user.uid)}/current-topic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ recording_slug: recordingSlug }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `server returned ${res.status}`);
+  }
 }
 
 export type MemoryLoadState =

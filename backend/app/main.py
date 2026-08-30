@@ -667,6 +667,15 @@ async def read_client(ws: WebSocket, session_id: str, sink) -> None:
             sink.text(incoming.describe_quiz_answer(payload),
                       partial=retry_while_talking)
 
+        elif kind == "end":
+            # The student pressed "End session". The frontend waits a few
+            # seconds after sending this before it actually closes the
+            # socket (see SessionScreen.tsx's onEnd) — that gap is what lets
+            # this turn complete instead of getting cancelled mid-word by
+            # the disconnect that follows.
+            log.info("session ending: student pressed End")
+            sink.text(incoming.describe_ending())
+
 
 # --------------------------------------------------------------- real path
 

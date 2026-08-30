@@ -37,6 +37,10 @@ export default function SessionControls({
   specialist?: Specialist | null;
 }) {
   const [draft, setDraft] = useState("");
+  // Ending now takes a few seconds (she gets one turn to say goodbye — see
+  // SessionScreen.tsx's onEnd) instead of being instant, so the button has
+  // to say so rather than sitting there looking unresponsive.
+  const [ending, setEnding] = useState(false);
 
   return (
     <>
@@ -116,7 +120,16 @@ export default function SessionControls({
         </form>
 
         <span className={s.divider} />
-        <button className={s.end} onClick={onEnd}>End session</button>
+        <button
+          className={s.end}
+          disabled={ending}
+          onClick={() => {
+            setEnding(true);
+            onEnd();
+          }}
+        >
+          {ending ? "Ending…" : "End session"}
+        </button>
       </div>
     </>
   );

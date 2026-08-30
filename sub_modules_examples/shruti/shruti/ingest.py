@@ -590,6 +590,7 @@ async def run_ingest(video_path: str, client, subject: str | None = None,
         "recording_id": recording.id,
         "recording_slug": recording.slug,
         "citation_prefix": f"shruti:{recording.slug}",
+        "concept_ids": [c.id for c in concepts],
         "counts": {
             "utterances": len(utterances), "beats": len(beats), "concepts": len(concepts),
             "relations": len(edges), "misconceptions": len(misconceptions),

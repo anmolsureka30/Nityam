@@ -35,6 +35,12 @@ const cx = (...p: (string | false | undefined)[]) => p.filter(Boolean).join(" ")
    whatever it was about. */
 const FALLBACK_PLAN = ["Warm up", "Work it through", "Check it"];
 
+/* How long to let her goodbye play before the socket actually closes.
+   Long enough for a genuinely short 1-2 sentence line (first-word latency
+   plus speech, per real session logs, comfortably fits inside this); not so
+   long that pressing "End" feels like it did nothing. */
+const END_GRACE_MS = 6000;
+
 export default function SessionScreen() {
   const nav = useNavigate();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -448,7 +454,16 @@ export default function SessionScreen() {
         onSend={(text) => send({ type: "text", text })}
         thinking={tutor.thinking}
         specialist={tutor.specialist}
-        onEnd={() => nav("/summary")}
+        onEnd={() => {
+          // Give her one turn to say a real goodbye before the socket closes
+          // — without this the raw disconnect cuts her off mid-sentence
+          // wherever she happened to be (backend/app/incoming.py's
+          // describe_ending() is the stage direction; main.py's read_client
+          // is what sends it on). The nav below is what actually closes the
+          // connection, via useLiveSession's unmount cleanup.
+          send({ type: "end" });
+          window.setTimeout(() => nav("/summary"), END_GRACE_MS);
+        }}
       />
       </div>
 

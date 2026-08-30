@@ -24,6 +24,25 @@ class GroundingChunk(BaseModel):
     text: str
 
 
+class CurrentTopic(BaseModel):
+    """Which concept the next session opens on — one record per student,
+    replacing what used to be a hand-set NITYAM_TOPIC_* env var shared by
+    everyone. Written by app/memory/shruti_sync.py the moment a Shruti
+    ingest finishes for that student; read by sessions.py._new_board(). A
+    missing record (this student hasn't uploaded anything yet) is not an
+    error — sessions.py falls back to the same env vars as before."""
+
+    student_id: str
+    concept_id: str
+    heading: str
+    eyebrow: str
+    subject: str = ""
+    recording_slug: str = ""
+    video_title: str = ""
+    youtube_url: str = ""
+    updated_at: datetime
+
+
 class Weakness(BaseModel):
     mastery: Literal["unknown", "misconceived", "partial", "known", "durable"]
     strength: Literal["weak", "strong"]

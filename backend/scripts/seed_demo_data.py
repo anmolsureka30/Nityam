@@ -6,7 +6,6 @@ Run directly: `.venv/bin/python -m scripts.seed_demo_data`
 """
 from __future__ import annotations
 
-import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -14,7 +13,6 @@ from app.memory import store
 from app.memory.schemas import (
     CoveredConcept,
     DPMProfile,
-    GroundingChunk,
     OpenDoubt,
     Persona,
     SessionLog,
@@ -22,38 +20,12 @@ from app.memory.schemas import (
     Turn,
     Weakness,
 )
+from app.memory.shruti_sync import parse_wiki_file
 
 # backend/scripts/ -> backend/ -> repo root. (This file moved up one level
 # when it came out of sub_modules_examples/tutor/, so the walk is 3, not 4.)
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 WIKI_DIR = REPO_ROOT / "sub_modules_examples" / "shruti" / "vault" / "wiki"
-
-_SECTION = re.compile(
-    r"## Taught in (?P<source_ref>shruti:\S+) @(?P<location>[\d:]+)\n"
-    r"(?P<body>.*?)(?=\n## Taught in|\Z)",
-    re.DOTALL,
-)
-
-
-def parse_wiki_file(path: Path) -> list[GroundingChunk]:
-    """One GroundingChunk per '## Taught in ...' section — each carries its
-    own real citation (recording id + timestamp) straight from Shruti."""
-    text = path.read_text()
-    slug = path.stem
-    concept_id = f"projectile.{slug}"
-
-    chunks = []
-    for match in _SECTION.finditer(text):
-        location = match.group("location")
-        chunks.append(GroundingChunk(
-            chunk_id=f"{slug}_{location.replace(':', '')}",
-            source_type="lecture",
-            source_ref=match.group("source_ref"),
-            location=location,
-            concept_ids=[concept_id],
-            text=match.group("body").strip(),
-        ))
-    return chunks
 
 
 def seed(conn) -> None:

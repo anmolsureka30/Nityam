@@ -93,6 +93,18 @@ get_dpm = instrumentation.emit_memory_event(
 put_dpm = instrumentation.emit_memory_event(
     "long_term", "dpm_profile", "write", _ids_from_profile,
 )(_impl.put_dpm)
+get_current_topic = instrumentation.emit_memory_event(
+    "long_term", "current_topic", "read", _ids_student_from_arg1,
+)(_impl.get_current_topic)
+put_current_topic = instrumentation.emit_memory_event(
+    "long_term", "current_topic", "write", _ids_from_profile,
+)(_impl.put_current_topic)
+add_topic_history = instrumentation.emit_memory_event(
+    "long_term", "topic_history", "write", _ids_from_profile,
+)(_impl.add_topic_history)
+list_topic_history = instrumentation.emit_memory_event(
+    "long_term", "topic_history", "read", _ids_student_from_arg1,
+)(_impl.list_topic_history)
 get_teaching_memory = instrumentation.emit_memory_event(
     "long_term", "teaching_memory", "read", _ids_student_from_arg1,
 )(_impl.get_teaching_memory)
