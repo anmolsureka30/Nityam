@@ -119,6 +119,7 @@ def _read_recent_events(session_id: str) -> list[dict]:
         client = redis_sync.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True)
         raw_events = client.lrange("smriti:events:recent", 0, -1)
     except Exception:
+        log.exception("_read_recent_events: failed to read smriti:events:recent from Redis")
         return []
     events = []
     for raw in raw_events:

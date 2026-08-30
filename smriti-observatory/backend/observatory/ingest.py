@@ -7,6 +7,7 @@ infinite loop.
 """
 from __future__ import annotations
 
+import logging
 from typing import Callable
 
 import redis.asyncio as redis
@@ -15,6 +16,8 @@ from observatory.broadcaster import Broadcaster
 from observatory.diff import diff_dpm, diff_teaching_memory
 from observatory.events import EnrichedEvent, EnrichedToolCallEvent, MemoryEvent, ToolCallEvent
 from observatory.snapshot_cache import SnapshotCache
+
+log = logging.getLogger("observatory.ingest")
 
 _CHANNEL = "smriti:events:live"
 
@@ -69,7 +72,16 @@ async def run_ingest_loop(
         async for message in pubsub.listen():
             if message["type"] != "message":
                 continue
-            await ingest_one_message(message["data"], cache, broadcaster, get_dpm, get_teaching_memory)
+            try:
+                await ingest_one_message(message["data"], cache, broadcaster, get_dpm, get_teaching_memory)
+            except Exception:
+                # One malformed/unexpected message (a future event kind
+                # nobody's updated this dispatch for, a publish that raced a
+                # schema change) must not take down the whole loop — a
+                # bare asyncio.create_task with nobody watching it means a
+                # single bad message would otherwise kill live Observatory
+                # updates for the rest of the process's life, silently.
+                log.exception("failed to ingest one Observatory event; continuing")
     finally:
         await pubsub.aclose()
         await client.aclose()

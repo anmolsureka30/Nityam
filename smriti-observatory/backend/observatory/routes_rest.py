@@ -10,11 +10,14 @@ change.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Awaitable, Callable
 
 import httpx
 import redis as redis_sync
 from fastapi import APIRouter, Request
+
+log = logging.getLogger("observatory.routes_rest")
 
 MemoryStateFn = Callable[[str, str], Awaitable[dict[str, Any]]]
 MemoryEventsFn = Callable[[str, str, str | None], Awaitable[dict[str, Any]]]
@@ -46,6 +49,7 @@ def build_router(
                 response = await client.get(f"{tutor_base_url}/dev/apps/app/graph", params={"dark_mode": "true"}, timeout=5.0)
             dot_src = response.json().get("dotSrc", "")
         except Exception:
+            log.exception("agent-graph proxy to tutor_base_url failed")
             return {"dot_src": ""}
         _agent_graph_cache["dot_src"] = dot_src
         return {"dot_src": dot_src}
@@ -56,6 +60,7 @@ def build_router(
             client = redis_sync.Redis(host=redis_host, port=redis_port, decode_responses=True)
             raw_events = client.lrange("smriti:events:recent", 0, -1)
         except Exception:
+            log.exception("list_sessions: failed to read smriti:events:recent from Redis")
             return {"sessions": []}
         # smriti:events:recent holds a mix of MemoryEvent and ToolCallEvent
         # JSON (see ingest.py's own kind-based dispatch) — both carry
@@ -68,6 +73,7 @@ def build_router(
             try:
                 parsed = json.loads(raw)
             except Exception:
+                log.exception("list_sessions: skipping an unparseable entry in smriti:events:recent")
                 continue
             session_id = parsed.get("session_id")
             if not session_id:
@@ -87,6 +93,7 @@ def build_router(
             try:
                 entry["status"] = "live" if client.exists(f"session:{session_id}:heartbeat") else "closed"
             except Exception:
+                log.exception("list_sessions: heartbeat check failed for session %s; marking closed", session_id)
                 entry["status"] = "closed"
         return {"sessions": sorted(by_session.values(), key=lambda s: s["last_event_at"], reverse=True)}
 
@@ -95,6 +102,7 @@ def build_router(
         try:
             return await memory_state_fn(session_id, student_id)
         except Exception:
+            log.exception("session_state: memory_state_fn failed for session %s", session_id)
             # A transient failure must not crash the viewer — same
             # graceful-degradation contract as agent_graph() above. Same
             # shape the frontend already handles for "nothing here yet"
@@ -111,6 +119,7 @@ def build_router(
         try:
             return await memory_events_fn(session_id, student_id, None)
         except Exception:
+            log.exception("session_events: memory_events_fn failed for session %s", session_id)
             return {"events": []}
 
     @router.get("/health")
@@ -119,16 +128,19 @@ def build_router(
         try:
             redis_sync.Redis(host=redis_host, port=redis_port).ping()
         except Exception:
+            log.exception("health check: Redis ping failed")
             redis_ok = False
         firestore_ok = True
         try:
             request.app.state.firestore.collection("_healthcheck").document("x").get()
         except Exception:
+            log.exception("health check: Firestore reachability check failed")
             firestore_ok = False
         tutor_ok = True
         try:
             httpx.get(f"{tutor_base_url}/health", timeout=2.0)
         except Exception:
+            log.exception("health check: tutor_base_url reachability check failed")
             tutor_ok = False
         return {"redis": redis_ok, "firestore": firestore_ok, "tutor_reachable": tutor_ok}
 

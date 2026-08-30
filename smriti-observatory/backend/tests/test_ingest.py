@@ -6,7 +6,7 @@ import pytest
 
 from observatory.broadcaster import Broadcaster
 from observatory.events import EnrichedEvent, EnrichedToolCallEvent, MemoryEvent, ToolCallEvent
-from observatory.ingest import ingest_one_message
+from observatory.ingest import ingest_one_message, run_ingest_loop
 from observatory.snapshot_cache import SnapshotCache
 
 
@@ -152,3 +152,70 @@ async def test_ingest_distinguishes_tool_call_from_memory_event_on_the_same_chan
 
     assert isinstance(memory_result, EnrichedEvent)
     assert isinstance(tool_result, EnrichedToolCallEvent)
+
+
+class _FakePubSub:
+    """Stands in for redis.asyncio's PubSub: a fixed, finite sequence of
+    already-received messages, so the real subscribe-forever loop can be
+    exercised without an actual Redis connection."""
+
+    def __init__(self, messages: list[dict]) -> None:
+        self._messages = messages
+        self.subscribed_to: str | None = None
+        self.closed = False
+
+    async def subscribe(self, channel: str) -> None:
+        self.subscribed_to = channel
+
+    async def listen(self):
+        for message in self._messages:
+            yield message
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+class _FakeRedisClient:
+    def __init__(self, messages: list[dict]) -> None:
+        self.pubsub_obj = _FakePubSub(messages)
+        self.closed = False
+
+    def pubsub(self):
+        return self.pubsub_obj
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+@pytest.mark.asyncio
+async def test_run_ingest_loop_survives_a_malformed_message_and_keeps_processing(monkeypatch):
+    """Regression test for the finding this guards against: one bad message
+    (malformed JSON here; equally a future event kind nobody's updated this
+    dispatch for) must not propagate out of the `async for` and end the
+    whole ingest loop -- which, before this fix, silently killed live
+    Observatory updates for the rest of the process's life."""
+    cache = SnapshotCache()
+    broadcaster = Broadcaster()
+    q = broadcaster.subscribe("s1")
+
+    messages = [
+        {"type": "subscribe", "data": 1},  # redis pubsub's own non-"message" control frame
+        {"type": "message", "data": "not json at all {{{"},
+        {"type": "message", "data": _event_json()},
+    ]
+    fake_client = _FakeRedisClient(messages)
+    monkeypatch.setattr("observatory.ingest.redis.Redis", lambda **kwargs: fake_client)
+
+    await run_ingest_loop(
+        "localhost", 6379, cache, broadcaster,
+        get_dpm=lambda sid: None, get_teaching_memory=lambda sid: None,
+    )
+
+    # The malformed message was skipped, not fatal: the good one right
+    # after it still made it all the way through to the broadcaster.
+    delivered = q.get_nowait()
+    assert delivered.event.event_id == "e1"
+    # And the loop still cleaned up its connections on the way out, exactly
+    # as it did before this fix.
+    assert fake_client.pubsub_obj.closed
+    assert fake_client.closed
