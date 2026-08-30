@@ -1,22 +1,78 @@
+/* The landing page and the tutor are one product, so they share one design
+ * system. These tokens are lifted from frontend/src/styles/tokens.css — same
+ * names, same values — rather than being a second palette that happens to
+ * look adjacent.
+ *
+ * WHAT CHANGED AND WHY. This page used to run its own scheme: cream #faf8f3,
+ * indigo ink #241f4e, a lime #d6f45b call to action, orange, lavender and
+ * violet. None of those exist anywhere in the app it links to. A visitor
+ * pressing "Start learning" went from a purple-and-lime marketing site to a
+ * warm-paper, magenta exercise book, which reads as two different companies
+ * and undoes whatever the page just argued.
+ *
+ * The exercise-book idea comes with it: warm paper ground, hairline rules,
+ * magenta spent only on what you should act on, marigold as the second
+ * accent. */
+
 :root {
-  --cream: #faf8f3;
-  --ink: #241f4e;
-  --indigo: #332b7a;
-  --indigo-dark: #241f4e;
-  --orange: #ff6b4a;
-  --lime: #d6f45b;
-  --lime-hover: #c6e845;
-  --lavender: #8b7be8;
-  --violet: #5a48c7;
-  --border: #e7e3f2;
-  --border-strong: #dcd6ee;
-  --border-pill: #e1dcf0;
-  --muted: #5b5677;
-  --muted-2: #6b6688;
-  --muted-3: #46406b;
-  --muted-4: #8a85a8;
-  --placeholder: #9a94b8;
-  --panel-purple: #f2effb;
+  /* ground and surfaces */
+  --ground:      #F7F6F3;
+  --ground-deep: #F1EFEA;
+  --paper:       #FFFFFF;
+  --paper-warm:  #FCFBF9;
+  --cream:       #F2F0EA;
+  --cream-deep:  #EBE8E1;
+
+  /* ink */
+  --ink:         #12151C;
+  --ink-strong:  #0B0E14;
+  --ink-mid:     #4A5160;
+  --ink-dim:     #737B8C;
+  --ink-faint:   #9AA1B0;
+
+  /* rules */
+  --line:        #E5E2DA;
+  --line-soft:   #EDEAE3;
+  --line-hard:   #D6D2C8;
+
+  /* accent — magenta, spent on what the visitor should act on */
+  --accent:      #D92D68;
+  --accent-deep: #A81F4E;
+  --accent-lift: #F04A80;
+  --accent-tint: #F0C6D6;
+  --accent-wash: #FCF2F6;
+  --accent-rule: #E8B4C8;
+
+  /* second accent — marigold. The pair reads as a chosen jewel tone rather
+     than the purple-to-pink gradient that is the generic tell. */
+  --accent-2:      #B8720F;
+  --accent-2-deep: #8F5A0C;
+  --accent-2-tint: #F0DBB0;
+  --accent-2-wash: #FCF6EA;
+
+  /* semantic — state, not brand */
+  --warn:   #B26206;
+  --good:   #0E7F5E;
+  --danger: #B23A31;
+
+  /* shape and motion */
+  --r-sheet: 6px;
+  --r-panel: 12px;
+  --r-slab:  9px;
+  --r-chip:  8px;
+  --r-pill:  99px;
+  --ease: cubic-bezier(0.2, 0.7, 0.25, 1);
+
+  /* type — the app's three families, three jobs */
+  --ui:    var(--font-instrument), -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+  --prose: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --mono:  var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  /* The one face that is landing-only: the teacher's hand on the board in
+     the hero mock. It is the product's subject, not decoration. */
+  --hand:  var(--font-gochi), "Comic Sans MS", cursive;
+
+  --track-micro: 0.12em;
+  --track-tight: -0.015em;
 }
 
 * {
@@ -31,23 +87,28 @@ body {
 }
 
 body {
-  background: var(--cream);
+  background: var(--ground);
   color: var(--ink);
-  font-family: var(--font-instrument), system-ui, sans-serif;
+  font-family: var(--ui);
   -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--indigo);
+  color: var(--accent-deep);
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--orange);
+  color: var(--accent);
 }
 
 input::placeholder {
-  color: var(--placeholder);
+  color: var(--ink-faint);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @keyframes nt-rise {
@@ -59,4 +120,8 @@ input::placeholder {
     opacity: 1;
     transform: none;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
 }

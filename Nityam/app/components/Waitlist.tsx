@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { APP_LOGIN_URL } from "../lib/config";
+import { APP_SIGNUP_URL } from "../lib/config";
 import styles from "./styles.module.css";
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -82,8 +82,12 @@ export default function Waitlist() {
         )}
 
         <p className={styles.waitlistAside}>
+          {/* This is the individual student's door out of a section that is
+              otherwise addressed to schools, and they will not have an
+              account either — so it goes to sign-up like every other primary
+              call to action on the page. */}
           Studying on your own, not through a school?{" "}
-          <a href={APP_LOGIN_URL}>Sign in and start now →</a>
+          <a href={APP_SIGNUP_URL}>Create a free account →</a>
         </p>
       </div>
     </section>

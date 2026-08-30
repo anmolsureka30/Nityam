@@ -5,8 +5,8 @@
   justify-content: space-between;
   gap: 24px;
   padding: 16px 32px;
-  background: var(--cream);
-  border-bottom: 1px solid var(--border);
+  background: var(--ground);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -19,16 +19,16 @@
 }
 
 .logoMark {
-  font-family: var(--font-bricolage), sans-serif;
-  font-weight: 800;
+  font-family: var(--prose);
+  font-weight: 700;
   font-size: 24px;
   letter-spacing: -0.02em;
 }
 
 .logoDevanagari {
-  font-family: var(--font-gochi), cursive;
+  font-family: var(--hand);
   font-size: 16px;
-  color: var(--orange);
+  color: var(--accent-2);
 }
 
 .headerRight {
@@ -40,16 +40,16 @@
 .headerLink {
   font-size: 14px;
   font-weight: 500;
-  color: var(--muted-2);
+  color: var(--ink-dim);
   white-space: nowrap;
 }
-.headerLink:hover { color: var(--indigo); }
+.headerLink:hover { color: var(--accent); }
 
 .btnPrimary {
   display: inline-block;
   padding: 11px 22px;
-  background: var(--indigo);
-  color: var(--cream);
+  background: var(--accent);
+  color: var(--ground);
   font-weight: 600;
   font-size: 14px;
   border-radius: 8px;
@@ -61,20 +61,20 @@
 }
 
 .btnPrimary:hover {
-  background: var(--indigo-dark);
-  color: var(--cream);
+  background: var(--accent-deep);
+  color: var(--ground);
 }
 
 /* ---------- Hero ---------- */
 .hero {
   padding: 104px 32px 88px;
-  background: var(--cream);
+  background: var(--ground);
   background-image: radial-gradient(
       circle at 18% 12%,
-      rgba(214, 244, 91, 0.55),
+      rgba(217, 45, 104, 0.10),
       transparent 46%
     ),
-    radial-gradient(circle at 88% 8%, rgba(139, 123, 232, 0.22), transparent 44%);
+    radial-gradient(circle at 88% 8%, rgba(184, 114, 15, 0.09), transparent 44%);
 }
 
 .heroInner {
@@ -89,12 +89,12 @@
   align-items: center;
   gap: 9px;
   padding: 7px 15px;
-  border: 1px solid var(--border-pill);
+  border: 1px solid var(--line);
   border-radius: 100px;
   font-size: 13px;
   letter-spacing: 0.04em;
-  color: var(--muted-2);
-  background: #ffffff;
+  color: var(--ink-dim);
+  background: var(--paper);
   margin-bottom: 30px;
 }
 
@@ -102,13 +102,13 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--lime);
+  background: var(--accent);
   display: inline-block;
 }
 
 .heroTitle {
-  font-family: var(--font-bricolage), sans-serif;
-  font-weight: 800;
+  font-family: var(--prose);
+  font-weight: 700;
   font-size: 78px;
   line-height: 0.98;
   letter-spacing: -0.038em;
@@ -121,9 +121,9 @@
    "Today on the board" note — a margin comment beside the headline rather
    than competing with it for the same kind of attention. */
 .heroTagline {
-  font-family: var(--font-gochi), cursive;
+  font-family: var(--hand);
   font-size: 22px;
-  color: var(--orange);
+  color: var(--accent-2);
   margin: 0 auto 18px;
   text-align: center;
 }
@@ -133,7 +133,7 @@
   line-height: 1.6;
   max-width: 660px;
   margin: 0 auto 36px;
-  color: var(--muted);
+  color: var(--ink-mid);
   text-wrap: pretty;
 }
 
@@ -145,49 +145,54 @@
   margin-bottom: 64px;
 }
 
-.btnLime {
+/* The one thing to act on, so it is the only filled element on the page —
+   that is what makes it read as the action rather than as one more card.
+   Paper on magenta, NOT ink: the fill used to be lime #d6f45b, which carries
+   dark text; #12151C on #D92D68 is 3.4:1 and fails on a 16px label. */
+.btnAccent {
   display: inline-block;
   padding: 16px 32px;
-  background: var(--lime);
-  color: var(--ink);
-  font-weight: 700;
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 600;
   font-size: 16px;
-  border-radius: 10px;
-  box-shadow: 0 6px 18px rgba(180, 214, 60, 0.45);
-  transition: background-color 0.15s ease;
+  border-radius: var(--r-slab);
+  box-shadow: 0 6px 18px rgba(217, 45, 104, 0.28);
+  transition: background-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
 }
 
-.btnLime:hover {
-  background: var(--lime-hover);
-  color: var(--ink);
+.btnAccent:hover {
+  background: var(--accent-lift);
+  color: var(--paper);
+  box-shadow: 0 8px 22px rgba(217, 45, 104, 0.34);
 }
 
 .btnOutline {
   display: inline-block;
   padding: 16px 28px;
-  color: var(--indigo);
+  color: var(--accent);
   font-weight: 600;
   font-size: 16px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--line-hard);
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--paper);
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
 .btnOutline:hover {
-  border-color: var(--indigo);
-  color: var(--indigo);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ---------- Hero mock card ---------- */
 .mockCard {
   max-width: 960px;
   margin: 0 auto;
-  background: #ffffff;
-  border: 1px solid var(--border);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 24px;
-  box-shadow: 0 24px 60px rgba(36, 31, 78, 0.1);
+  box-shadow: 0 24px 60px rgba(18, 21, 28, 0.09);
   text-align: left;
 }
 
@@ -202,14 +207,14 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--lavender);
+  background: var(--accent-2-tint);
 }
 
 .mockCardLabel {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted-4);
+  color: var(--ink-faint);
 }
 
 .mockCardGrid {
@@ -219,7 +224,7 @@
 }
 
 .mockCardHandwritten {
-  font-family: var(--font-gochi), cursive;
+  font-family: var(--hand);
   font-size: 30px;
   line-height: 1.3;
   color: var(--ink);
@@ -230,7 +235,7 @@
   margin: 0;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--muted-2);
+  color: var(--ink-dim);
 }
 
 .progressList {
@@ -243,14 +248,14 @@
   display: flex;
   justify-content: space-between;
   font-size: 14px;
-  color: var(--muted-3);
+  color: var(--ink-mid);
   margin-bottom: 6px;
 }
 
 .progressTrack {
   height: 8px;
   border-radius: 99px;
-  background: #edeaf7;
+  background: var(--cream);
 }
 
 .progressFill {
@@ -274,8 +279,8 @@
 }
 
 .h2 {
-  font-family: var(--font-bricolage), sans-serif;
-  font-weight: 800;
+  font-family: var(--prose);
+  font-weight: 700;
   font-size: 48px;
   line-height: 1.04;
   letter-spacing: -0.03em;
@@ -288,7 +293,7 @@
   font-size: 19px;
   line-height: 1.65;
   max-width: 760px;
-  color: var(--muted);
+  color: var(--ink-mid);
   margin: 0 0 44px;
   text-wrap: pretty;
 }
@@ -300,17 +305,17 @@
 }
 
 .card {
-  background: var(--cream);
-  border: 1px solid var(--border);
+  background: var(--ground);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 26px;
 }
 
 .statNumber {
-  font-family: var(--font-bricolage), sans-serif;
+  font-family: var(--prose);
   font-size: 34px;
-  font-weight: 800;
-  color: var(--orange);
+  font-weight: 700;
+  color: var(--accent-2);
   line-height: 1;
   margin-bottom: 12px;
 }
@@ -319,7 +324,7 @@
   margin: 0;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--muted);
+  color: var(--ink-mid);
 }
 
 /* ---------- How it works ---------- */
@@ -330,8 +335,8 @@
 }
 
 .howCard {
-  background: #ffffff;
-  border: 1px solid var(--border);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 26px;
 }
@@ -340,10 +345,10 @@
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: var(--lime);
-  color: var(--ink);
-  font-family: var(--font-bricolage), sans-serif;
-  font-weight: 800;
+  background: var(--accent);
+  color: var(--paper);
+  font-family: var(--prose);
+  font-weight: 700;
   font-size: 16px;
   display: flex;
   align-items: center;
@@ -352,7 +357,7 @@
 }
 
 .h3 {
-  font-family: var(--font-bricolage), sans-serif;
+  font-family: var(--prose);
   font-size: 22px;
   font-weight: 700;
   margin: 0 0 10px;
@@ -363,7 +368,7 @@
   margin: 0;
   font-size: 15px;
   line-height: 1.6;
-  color: var(--muted);
+  color: var(--ink-mid);
 }
 
 /* ---------- Audience split ---------- */
@@ -382,14 +387,14 @@
 }
 
 .panelLight {
-  background: #ffffff;
-  border: 1px solid var(--border);
+  background: var(--paper);
+  border: 1px solid var(--line);
 }
 
 .panelDark {
-  background: var(--indigo);
-  color: #f6f4ff;
-  border: 1px solid var(--indigo);
+  background: var(--ink-strong);
+  color: var(--ground);
+  border: 1px solid var(--ink-strong);
 }
 
 .eyebrow {
@@ -400,17 +405,17 @@
 }
 
 .eyebrowOrange {
-  color: var(--orange);
+  color: var(--accent-2);
 }
 
 .eyebrowLime {
-  color: var(--lime);
+  color: var(--accent);
 }
 
 .panelTitle {
-  font-family: var(--font-bricolage), sans-serif;
+  font-family: var(--prose);
   font-size: 34px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   margin: 0;
   line-height: 1.06;
@@ -420,7 +425,7 @@
   margin: 0;
   font-size: 16px;
   line-height: 1.65;
-  color: var(--muted);
+  color: var(--ink-mid);
 }
 
 .panelBodyLight {
@@ -444,14 +449,14 @@
 
 /* ---------- Mission ---------- */
 .missionQuoteMark {
-  font-family: var(--font-gochi), cursive;
+  font-family: var(--hand);
   font-size: 24px;
-  color: var(--orange);
+  color: var(--accent-2);
   margin-bottom: 22px;
 }
 
 .missionQuote {
-  font-family: var(--font-bricolage), sans-serif;
+  font-family: var(--prose);
   font-weight: 700;
   font-size: 50px;
   line-height: 1.1;
@@ -464,7 +469,7 @@
 .missionBody {
   font-size: 19px;
   line-height: 1.65;
-  color: var(--muted);
+  color: var(--ink-mid);
   margin: 0 auto;
   max-width: 640px;
   text-wrap: pretty;
@@ -473,7 +478,7 @@
 /* ---------- Waitlist ---------- */
 .waitlistSection {
   padding: 96px 32px;
-  background: var(--lime);
+  background: var(--ink-strong);
 }
 
 .waitlistInner {
@@ -483,33 +488,35 @@
 }
 
 .waitlistTitle {
-  font-family: var(--font-bricolage), sans-serif;
-  font-weight: 800;
+  font-family: var(--prose);
+  font-weight: 700;
   font-size: 54px;
   line-height: 1.02;
   letter-spacing: -0.035em;
   margin: 0 0 16px;
-  color: var(--ink);
+  color: var(--paper);
   text-wrap: balance;
 }
 
 .waitlistLede {
   font-size: 18px;
   line-height: 1.6;
-  color: #3e4a1c;
+  /* Not full white: a lede at the same weight as the headline flattens the
+     two into one block. */
+  color: rgba(255, 255, 255, 0.78);
   margin: 0 auto 34px;
   max-width: 560px;
 }
 
 .successCard {
-  background: #ffffff;
+  background: var(--paper);
   border-radius: 16px;
   padding: 34px;
-  box-shadow: 0 14px 34px rgba(36, 31, 78, 0.16);
+  box-shadow: 0 14px 34px rgba(18, 21, 28, 0.13);
 }
 
 .successTitle {
-  font-family: var(--font-bricolage), sans-serif;
+  font-family: var(--prose);
   font-size: 28px;
   font-weight: 700;
   margin-bottom: 10px;
@@ -519,7 +526,7 @@
 .successBody {
   margin: 0;
   font-size: 16px;
-  color: var(--muted);
+  color: var(--ink-mid);
 }
 
 .formRow {
@@ -535,9 +542,9 @@
   flex: 1 1 180px;
   padding: 16px 18px;
   font-size: 16px;
-  font-family: var(--font-instrument), sans-serif;
-  background: #ffffff;
-  border: 1px solid #bfd94f;
+  font-family: var(--ui);
+  background: var(--paper);
+  border: 1px solid var(--accent-tint);
   border-radius: 10px;
   color: var(--ink);
   outline: none;
@@ -552,18 +559,18 @@
   padding: 16px 32px;
   font-size: 16px;
   font-weight: 700;
-  font-family: var(--font-instrument), sans-serif;
-  background: var(--indigo-dark);
-  color: var(--cream);
+  font-family: var(--ui);
+  background: var(--accent);
+  color: var(--paper);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-slab);
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 0.15s ease;
 }
 
 .submitBtn:hover {
-  background: #1a1638;
+  background: var(--ink-strong);
 }
 
 .submitBtn:disabled {
@@ -574,18 +581,25 @@
 .formError {
   margin-top: 14px;
   font-size: 14px;
-  color: #3e4a1c;
+  color: var(--paper);
   min-height: 20px;
 }
 
 .waitlistAside {
   margin: 28px 0 0;
   font-size: 15px;
-  color: #3e4a1c;
+  color: rgba(255, 255, 255, 0.72);
 }
+/* The global link colour is --accent-deep, which is 2.1:1 on this band.
+   Inside the dark section links take the lifted accent instead. */
+.waitlistAside a {
+  color: var(--accent-lift);
+  font-weight: 600;
+}
+.waitlistAside a:hover { color: var(--paper); text-decoration: underline; }
 .waitlistAside a {
   font-weight: 700;
-  color: var(--indigo-dark);
+  color: var(--accent-deep);
 }
 .waitlistAside a:hover {
   color: var(--ink);
@@ -593,10 +607,10 @@
 
 /* ---------- Footer ---------- */
 .footer {
-  background: var(--cream);
-  color: var(--muted-2);
+  background: var(--ground);
+  color: var(--ink-dim);
   padding: 40px 32px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 .footerInner {
@@ -618,36 +632,36 @@
 }
 
 .footerLogoMark {
-  font-family: var(--font-bricolage), sans-serif;
-  font-weight: 800;
+  font-family: var(--prose);
+  font-weight: 700;
   font-size: 20px;
   letter-spacing: -0.02em;
 }
 
 .footerLogoDevanagari {
-  font-family: var(--font-gochi), cursive;
+  font-family: var(--hand);
   font-size: 15px;
-  color: var(--orange);
+  color: var(--accent-2);
 }
 
 /* ---------- Backgrounds shared across sections ---------- */
 .bgCream {
-  background: var(--cream);
+  background: var(--ground);
 }
 
 .bgWhite {
-  background: #ffffff;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .bgPanel {
-  background: var(--panel-purple);
+  background: var(--accent-wash);
 }
 
 .bgWhiteTop {
-  background: #ffffff;
-  border-top: 1px solid var(--border);
+  background: var(--paper);
+  border-top: 1px solid var(--line);
 }
 
 .textCenter {
@@ -708,3 +722,20 @@
     display: none;
   }
 }
+
+
+/* Under the hero call to action: the honest small print, and the other door
+   for the minority of visitors who already have an account. */
+.ctaNote {
+  margin-top: 18px;
+  max-width: 52ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+.ctaNoteLink {
+  color: var(--accent-deep);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ctaNoteLink:hover { color: var(--accent); text-decoration: underline; }
