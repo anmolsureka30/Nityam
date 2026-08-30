@@ -49,6 +49,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
+from app import tracing
 from app.memory import short_term
 
 log = logging.getLogger("nityam.specialist_runner")
@@ -144,14 +145,15 @@ class SpecialistRunner:
     ) -> str:
         await self._ensure_session(session_id, student_id)
         said: list[str] = []
-        async for event in self._runner_instance().run_async(
-            user_id=student_id, session_id=session_id,
-            new_message=types.Content(role="user", parts=[types.Part(text=message)]),
-        ):
-            _log_tool_activity(self._app_name, event)
-            for part in event.content.parts if event.content and event.content.parts else []:
-                if part.text:
-                    said.append(part.text)
+        with tracing.tracer.start_as_current_span(f"{self._app_name}.turn"):
+            async for event in self._runner_instance().run_async(
+                user_id=student_id, session_id=session_id,
+                new_message=types.Content(role="user", parts=[types.Part(text=message)]),
+            ):
+                _log_tool_activity(self._app_name, event)
+                for part in event.content.parts if event.content and event.content.parts else []:
+                    if part.text:
+                        said.append(part.text)
         return _speakable(" ".join(said))
 
     async def run_turn(self, session_id: str, student_id: str, message: str) -> str:

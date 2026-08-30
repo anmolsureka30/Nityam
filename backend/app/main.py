@@ -59,6 +59,10 @@ from app import logs  # noqa: E402
 logs.setup()
 log = logging.getLogger("nityam")
 
+from app import tracing  # noqa: E402
+
+tracing.setup_tracing()
+
 APP_NAME = "nityam"
 
 app = FastAPI(title="Nityam backend")
