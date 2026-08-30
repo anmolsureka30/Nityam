@@ -5,7 +5,6 @@ import { Inspector } from "../../components/Inspector";
 import { SessionDrawer, type SessionSummary } from "../../components/SessionDrawer";
 import { SidePanel } from "../../components/SidePanel";
 import { StateOverview } from "../../components/StateOverview";
-import { StatusChips } from "../../components/StatusChips";
 import { mapBacklogEvent } from "../../lib/observatoryEvent";
 import { adkWebUrl } from "../../lib/traceLinks";
 import type { EnrichedEvent, MemoryEvent, ObservatoryEvent, SessionState, Tier, ToolCallEvent } from "../../lib/types";
@@ -15,15 +14,12 @@ const BACKEND_URL = import.meta.env.VITE_OBSERVATORY_BACKEND_URL ?? (import.meta
 const TUTOR_BASE_URL = import.meta.env.VITE_TUTOR_BASE_URL ?? "http://localhost:8000";
 const GCP_PROJECT = import.meta.env.VITE_GCP_PROJECT ?? "nityam-506707";
 
-const EMPTY_COUNTS: Record<Tier, number> = { workflow: 0, episodic: 0, long_term: 0 };
-
 export function SessionView() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [state, setState] = useState<SessionState | null>(null);
   const [events, setEvents] = useState<ObservatoryEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<ObservatoryEvent | null>(null);
-  const [activeTier, setActiveTier] = useState<Tier | null>(null);
   const sessionsRef = useRef<SessionSummary[]>([]);
 
   useEffect(() => {
@@ -75,7 +71,6 @@ export function SessionView() {
     if (!selectedId) return;
     setEvents([]);
     setSelectedEvent(null);
-    setActiveTier(null);
     const studentId = sessionsRef.current.find((s) => s.session_id === selectedId)?.student_id ?? "demo_student";
     fetch(`${BACKEND_URL}/api/sessions/${selectedId}/state?student_id=${studentId}`)
       .then((r) => r.json())
@@ -97,29 +92,15 @@ export function SessionView() {
     });
   }, [selectedId]);
 
-  // Tool-call events have no tier/source_fn — they're not memory operations
-  // — so the per-tier tallies, pulse indicators, and agent/tool graph
-  // highlighting below (all inherited, unchanged UI) stay scoped to the
-  // "memory" half of the union, exactly as before this task's change.
+  // Memory reads/writes are dense and low-signal turn by turn (a "Turn
+  // Buffer / Turn logged" row for every single exchange) and their current
+  // state is already fully visible on the right, in StateOverview -- so the
+  // center timeline shows only tool-call events: which agent called which
+  // tool, in what order, with what outcome. isMemoryEvent stays, scoped to
+  // AgentToolGraph's own tier-highlighting below, which is unrelated to
+  // what the center timeline renders.
   const isMemoryEvent = (e: ObservatoryEvent): e is EnrichedEvent => e.kind === "memory";
-  const memoryEvents = useMemo(() => events.filter(isMemoryEvent), [events]);
-
-  const counts = useMemo(() => {
-    const c: Record<Tier, number> = { ...EMPTY_COUNTS };
-    for (const e of memoryEvents) c[e.event.tier] += 1;
-    return c;
-  }, [memoryEvents]);
-
-  const pulsing = useMemo(() => {
-    const p: Record<Tier, boolean> = { workflow: false, episodic: false, long_term: false };
-    const now = Date.now();
-    for (const e of memoryEvents) {
-      if (now - new Date(e.event.ts).getTime() < 1500) p[e.event.tier] = true;
-    }
-    return p;
-  }, [memoryEvents]);
-
-  const filteredEvents = activeTier ? events.filter((e) => isMemoryEvent(e) && e.event.tier === activeTier) : events;
+  const toolCallEvents = useMemo(() => events.filter((e) => e.kind === "tool_call"), [events]);
   const selectedSession = sessions.find((s) => s.session_id === selectedId);
 
   // The agent/tool graph highlights whichever trace the selected event
@@ -158,10 +139,9 @@ export function SessionView() {
                 Open in ADK web ↗
               </a>
             </header>
-            <StatusChips counts={counts} pulsing={pulsing} activeTier={activeTier} onSelectTier={setActiveTier} />
             <AgentToolGraph backendUrl={BACKEND_URL} activeSourceFns={activeSourceFns} />
             <EventTimeline
-              events={filteredEvents}
+              events={toolCallEvents}
               gcpProject={GCP_PROJECT}
               selectedEventId={selectedEvent?.event.event_id ?? null}
               onSelect={setSelectedEvent}
