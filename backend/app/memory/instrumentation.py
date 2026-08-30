@@ -68,6 +68,26 @@ class MemoryEvent(BaseModel):
     payload: Any = None
 
 
+ToolActor = Literal["voice_agent", "board_agent", "artifact_agent", "quiz_agent", "textbook_agent"]
+ToolCallPhase = Literal["started", "done", "error", "busy"]
+
+
+class ToolCallEvent(BaseModel):
+    kind: Literal["tool_call"] = "tool_call"
+    event_id: str
+    ts: str
+    session_id: str | None
+    student_id: str | None
+    trace_id: str | None
+    span_id: str | None
+    actor: ToolActor
+    tool_name: str
+    phase: ToolCallPhase
+    args_summary: str | None = None
+    result_summary: str | None = None
+    duration_ms: int | None = None
+
+
 _sync_client: redis_sync.Redis | None = None
 
 
@@ -78,6 +98,50 @@ def _get_sync_client() -> redis_sync.Redis:
             host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True
         )
     return _sync_client
+
+
+def _truncate(text: str, max_len: int = 200) -> str:
+    return text if len(text) <= max_len else text[: max_len - 1] + "…"
+
+
+def build_tool_call_event(
+    actor: ToolActor,
+    tool_name: str,
+    phase: ToolCallPhase,
+    session_id: str | None,
+    student_id: str | None,
+    args_summary: str | None = None,
+    result_summary: str | None = None,
+    duration_ms: int | None = None,
+) -> ToolCallEvent:
+    trace_id, span_id = _current_trace_ids()
+    return ToolCallEvent(
+        event_id=str(uuid.uuid4()),
+        ts=datetime.now(timezone.utc).isoformat(),
+        session_id=session_id,
+        student_id=student_id,
+        trace_id=trace_id,
+        span_id=span_id,
+        actor=actor,
+        tool_name=tool_name,
+        phase=phase,
+        args_summary=_truncate(args_summary) if args_summary else None,
+        result_summary=_truncate(result_summary) if result_summary else None,
+        duration_ms=duration_ms,
+    )
+
+
+def publish_tool_call_event(event: ToolCallEvent) -> None:
+    """Fire-and-forget, same contract as _publish_sync: a Redis hiccup here
+    must never break a real tool call."""
+    try:
+        client = _get_sync_client()
+        body = event.model_dump_json()
+        client.publish(_CHANNEL, body)
+        client.rpush(_LIST_KEY, body)
+        client.ltrim(_LIST_KEY, -_LIST_CAP, -1)
+    except Exception:
+        pass
 
 
 def _current_trace_ids() -> tuple[str | None, str | None]:
