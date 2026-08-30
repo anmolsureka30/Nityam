@@ -39,7 +39,7 @@
 }
 .tool:hover { background: var(--cream); color: var(--ink); }
 .toolOn { background: var(--ink-strong); color: var(--paper); }
-.toolOn:hover { background: var(--accent-deep); color: #fff; }
+.toolOn:hover { background: var(--accent-deep); color: var(--paper); }
 
 .divider { width: 1px; height: 20px; background: var(--line); flex: none; margin: 0 var(--s-1); }
 

@@ -282,7 +282,7 @@
   place-items: center;
   border-radius: 7px;
   background: rgba(14, 16, 21, 0.72);
-  color: #fff;
+  color: var(--paper);
   font-size: 14px;
   line-height: 1;
   opacity: 0;
@@ -309,7 +309,7 @@
   margin: var(--s-2) 0 2px;
   border: 1px solid var(--line-cool);
   border-radius: var(--r-sheet);
-  background: #fff;
+  background: var(--paper);
 }
 
 /* Under 1240px she stands in front of the page again, so the page needs the

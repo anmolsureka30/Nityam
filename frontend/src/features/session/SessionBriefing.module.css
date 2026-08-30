@@ -22,9 +22,9 @@
   width: min(560px, 100%);
   max-height: 88vh;
   overflow-y: auto;
-  background: var(--paper, #fff);
+  background: var(--paper, var(--paper));
   border: 1px solid var(--line);
-  border-radius: var(--r-sheet, 3px);
+  border-radius: var(--r-sheet);
   box-shadow: 0 18px 60px rgba(18, 21, 28, 0.16);
   padding: 30px 32px 26px;
   animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.25, 1) both;
@@ -43,7 +43,10 @@
   margin: 0 0 8px;
 }
 .topic {
-  font-family: var(--display);
+  font-family: var(--prose);
+  /* Source Serif 4 carries an optical-size axis and it has to be SET —
+     unset, display type renders with text-size letterforms. */
+  font-variation-settings: "opsz" 32;
   font-size: clamp(24px, 3.4vw, 31px);
   font-weight: 700;
   letter-spacing: -0.02em;

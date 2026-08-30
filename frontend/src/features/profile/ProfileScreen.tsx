@@ -3,6 +3,7 @@ import { Chip, Label, MasteryInline, Panel, Stat, StatStrip } from "../../compon
 import { conceptName } from "../../lib/conceptCatalog";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { masteryPct, useStudentMemory, type Weakness } from "../../lib/memory";
+import { EmptyState, LoadingState } from "../../components/states";
 import s from "./ProfileScreen.module.css";
 
 const MASTERY_LABEL: Record<Weakness["mastery"], string> = {
@@ -40,7 +41,7 @@ export default function ProfileScreen() {
           <div className="margin" />
           <div className="body">
             <Panel>
-              <p className={s.muted}>Loading your profile…</p>
+              <LoadingState label="Loading your profile…" />
             </Panel>
           </div>
         </section>
@@ -51,10 +52,9 @@ export default function ProfileScreen() {
           <div className="margin" />
           <div className="body">
             <Panel>
-              <p className={s.muted}>
-                Couldn't reach your memory just now ({state.error}). Try reloading —
-                nothing about your progress is lost.
-              </p>
+              <EmptyState kind="unreachable" title="Couldn't reach your memory just now.">
+                {state.error}. Try reloading — nothing about your progress is lost.
+              </EmptyState>
             </Panel>
           </div>
         </section>

@@ -128,7 +128,7 @@
   height: auto;
   border: 1px solid var(--line);
   box-shadow: 0 4px 18px rgba(22, 26, 34, 0.08);
-  background: #fff;
+  background: var(--paper);
   /* A crosshair says "drag a box", which a text cursor does not. */
   cursor: crosshair;
   touch-action: none;
@@ -190,7 +190,7 @@
   height: 20px;
   border-radius: var(--r-pill);
   background: var(--accent);
-  color: #fff;
+  color: var(--paper);
   font-family: var(--mono);
   font-size: 10.5px;
   display: grid;

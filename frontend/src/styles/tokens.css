@@ -95,6 +95,17 @@
   --danger-wash: #FCF3F2;
   --good:        #0E7F5E;
   --good-wash:   #F0F8F5;
+
+  /* The TINT rung — the border that goes round a wash. It was missing, so
+     five components each invented their own (#CDEBDF, #C6E4D8, #E9C9C5,
+     #F2E3CB) and the same "correct" green edge was three different greens
+     depending on which screen you were on. Values taken from the most-used
+     of each, so adding them shifts nothing visibly. --danger-deep likewise:
+     MicToggle's mute hover needed one and hardcoded #9E332B. */
+  --good-tint:   #CDEBDF;
+  --warn-tint:   #F2E3CB;
+  --danger-tint: #E9C9C5;
+  --danger-deep: #9E332B;
   --sim:         #2166BF;   /* simulations only — matches artifact_generator */
   --sim-wash:    #F1F5FB;
 

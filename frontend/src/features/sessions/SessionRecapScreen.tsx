@@ -11,6 +11,7 @@ import {
   type MemoryChange,
   type SessionRecap,
 } from "../../lib/memory";
+import { EmptyState, LoadingState } from "../../components/states";
 import s from "./SessionRecapScreen.module.css";
 
 /* One session, and what it did to what the tutor knows.
@@ -89,11 +90,13 @@ export default function SessionRecapScreen() {
           <div className="margin" />
           <div className="body">
             <Panel>
-              <p className={s.muted}>
-                {state.status === "loading"
-                  ? "Loading this session…"
-                  : `Couldn't load this session (${state.error}).`}
-              </p>
+              {state.status === "loading" ? (
+                <LoadingState label="Loading this session…" />
+              ) : (
+                <EmptyState kind="unreachable" title="Couldn't load this session.">
+                  {state.error}
+                </EmptyState>
+              )}
             </Panel>
           </div>
         </section>

@@ -104,7 +104,7 @@
   border-bottom: 1px solid var(--line-cool-3);
 }
 .doubtConcept {
-  font-family: var(--display);
+  font-family: var(--prose);
   font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;

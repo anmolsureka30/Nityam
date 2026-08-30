@@ -115,8 +115,8 @@
   width: 100%;
   padding: 13px 18px;
   border: 1px solid var(--line-hard, var(--line));
-  border-radius: var(--r-panel, 7px);
-  background: var(--paper, #fff);
+  border-radius: var(--r-panel);
+  background: var(--paper, var(--paper));
   color: var(--ink-strong, var(--ink));
   font: inherit;
   font-size: 15px;

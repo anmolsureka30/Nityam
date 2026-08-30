@@ -4,6 +4,7 @@ import { Shell } from "../../components/Shell";
 import { Label, Panel } from "../../components/ui";
 import { useAuth } from "../../lib/auth/AuthContext";
 import { fetchSessions, type SessionListItem } from "../../lib/memory";
+import { EmptyState, LoadingState } from "../../components/states";
 import s from "./SessionsScreen.module.css";
 
 /* Every session you have had, newest first.
@@ -75,23 +76,23 @@ export default function SessionsScreen() {
         <div className="margin" />
         <div className="body">
           {state.status === "loading" && (
-            <Panel><p className={s.muted}>Loading your sessions…</p></Panel>
+            <Panel><LoadingState label="Loading your sessions…" /></Panel>
           )}
 
           {state.status === "error" && (
             <Panel>
-              <p className={s.muted}>
-                Couldn't reach your memory just now ({state.error}).
-              </p>
+              <EmptyState kind="unreachable" title="Couldn't reach your memory just now.">
+                {state.error}
+              </EmptyState>
             </Panel>
           )}
 
           {state.status === "ready" && state.sessions.length === 0 && (
             <Panel>
-              <p className={s.muted}>
-                No sessions yet. Once you finish one it will appear here, with
-                everything it changed.
-              </p>
+              <EmptyState kind="sessions" title="No sessions yet.">
+                Once you finish one it will appear here, with everything it
+                changed about what I know of you.
+              </EmptyState>
             </Panel>
           )}
 
