@@ -56,6 +56,15 @@ SHRUTI_DIR = REPO_ROOT / "sub_modules_examples" / "shruti"
 WIKI_DIR = SHRUTI_DIR / "vault" / "wiki"
 RUN_LOG_DIR = SHRUTI_DIR / ".local" / "dashboard_runs"
 
+# "subprocess" (default): local dev, ./run.sh — shells out to the co-located
+# Shruti CLI exactly as today. "cloud_run_job": production — triggers the
+# nityam-shruti-job Cloud Run Job instead, which has no filesystem or process
+# in common with this one; see docs/superpowers/specs/
+# 2026-08-30-cloud-run-deployment-design.md §2-4 for why. Local dev never
+# needs to set this, so it never needs the google-cloud-run dependency either
+# (imported lazily below, only on the cloud_run_job path).
+_MODE = os.environ.get("NITYAM_SHRUTI_MODE", "subprocess").strip().lower()
+
 _RESULT_LINE = re.compile(r"^SHRUTI_RESULT_JSON: (.*)$", re.MULTILINE)
 
 RunStatus = Literal["running", "done", "failed"]
@@ -234,23 +243,106 @@ def _run_worker(
             state["returncode"] = returncode
 
 
+def _execution_name(run_id: str) -> str:
+    """run_id -> the Execution's full resource name. Kept as a short id (the
+    last path segment) rather than the full
+    `projects/.../locations/.../jobs/.../executions/...` name, because that
+    full name contains slashes — confirmed live: FastAPI's default
+    `{run_id}` path converter does not accept them (even percent-encoded),
+    so GET /shruti/runs/{run_id} silently fell through to the SPA catch-all
+    route instead of matching this one. Reconstructing the full name from
+    the already-known job name avoids putting slashes in a URL at all."""
+    job_name = os.environ.get("NITYAM_SHRUTI_JOB_NAME", "").strip()
+    return f"{job_name}/executions/{run_id}"
+
+
+def _trigger_job(req: IngestRequest, video_title: str) -> str:
+    """Starts a nityam-shruti-job Execution instead of a local subprocess —
+    the cloud_run_job path. Ingest parameters travel as container env
+    overrides, read back out by shruti/job_entrypoint.py (see that file for
+    the other end of this). Returns the Execution's short id (see
+    _execution_name for why not the full resource name) — there is no
+    locally-minted UUID to invent since the Job's own execution IS the run.
+    """
+    from google.cloud import run_v2  # lazy: only the cloud_run_job path needs this
+
+    job_name = os.environ.get("NITYAM_SHRUTI_JOB_NAME", "").strip()
+    if not job_name:
+        raise HTTPException(status_code=503, detail="NITYAM_SHRUTI_JOB_NAME is not configured")
+
+    env_overrides = [
+        run_v2.EnvVar(name="SHRUTI_YOUTUBE_URL", value=req.youtube_url),
+        run_v2.EnvVar(name="SHRUTI_STUDENT_ID", value=req.student_id),
+        run_v2.EnvVar(name="SHRUTI_SUBJECT", value=req.subject or ""),
+        run_v2.EnvVar(name="SHRUTI_GRADE", value=str(req.grade) if req.grade is not None else ""),
+        run_v2.EnvVar(name="SHRUTI_CHAPTER", value=req.chapter or ""),
+        run_v2.EnvVar(name="SHRUTI_VIDEO_TITLE", value=video_title),
+    ]
+    client = run_v2.JobsClient()
+    request = run_v2.RunJobRequest(
+        name=job_name,
+        overrides=run_v2.RunJobRequest.Overrides(
+            container_overrides=[
+                run_v2.RunJobRequest.Overrides.ContainerOverride(env=env_overrides)
+            ],
+        ),
+    )
+    operation = client.run_job(request=request)
+    # metadata.name is the Execution's full resource name, available
+    # immediately — no need to block on operation.result() (which waits for
+    # completion, exactly the multi-minute wait this endpoint must not
+    # impose on its caller; see module docstring on returning promptly
+    # either way). Only the last path segment becomes run_id — see
+    # _execution_name for why the full name can't be.
+    return operation.metadata.name.rsplit("/", 1)[-1]
+
+
+def _job_execution_status(run_id: str) -> tuple[RunStatus, int | None]:
+    """Maps a Cloud Run Job Execution's counters onto this module's
+    RunStatus. Shruti's job runs a single task (task_count defaults to 1),
+    so succeeded/failed are mutually exclusive in practice, not just checked
+    in a hopeful order."""
+    from google.cloud import run_v2
+
+    # Executions are their own resource/client in this API, distinct from
+    # Jobs — confirmed live (JobsClient has no get_execution method at all;
+    # ExecutionsClient does).
+    client = run_v2.ExecutionsClient()
+    execution = client.get_execution(name=_execution_name(run_id))
+    if execution.succeeded_count >= 1:
+        return "done", 0
+    if execution.failed_count >= 1:
+        return "failed", 1
+    return "running", None
+
+
 @router.post("/ingest")
 async def start_ingest(req: IngestRequest) -> RunInfo:
     """Returns as soon as the run is registered — the pipeline itself runs
-    in a background thread (spawned below), never on this request's async
-    task. A caller can poll GET /runs/{run_id} for progress, or not: the run
+    in a background thread (subprocess mode) or a separate Cloud Run Job
+    execution (cloud_run_job mode), never on this request's async task. A
+    caller can poll GET /runs/{run_id} for progress, or not: the run
     proceeds either way, survives the browser tab closing, and only stops if
-    this backend process itself restarts (see module docstring)."""
+    this backend process itself restarts (subprocess mode only — a Job
+    execution is entirely independent of this process; see module
+    docstring)."""
     if not req.youtube_url.strip():
         raise HTTPException(status_code=400, detail="youtube_url is required")
     if not req.student_id.strip():
         raise HTTPException(status_code=400, detail="student_id is required")
 
+    started_at = time.time()
+    video_title = await asyncio.to_thread(_fetch_youtube_title, req.youtube_url)
+
+    if _MODE == "cloud_run_job":
+        run_id = await asyncio.to_thread(_trigger_job, req, video_title)
+        with _runs_lock:
+            _runs[run_id] = {"video_title": video_title}  # only field a Job execution can't tell us
+        return RunInfo(run_id=run_id, status="running", started_at=started_at, log_tail="", video_title=video_title)
+
     RUN_LOG_DIR.mkdir(parents=True, exist_ok=True)
     run_id = uuid.uuid4().hex[:12]
     log_path = RUN_LOG_DIR / f"{run_id}.log"
-    started_at = time.time()
-    video_title = await asyncio.to_thread(_fetch_youtube_title, req.youtube_url)
 
     with _runs_lock:
         _runs[run_id] = {
@@ -274,11 +366,23 @@ async def start_ingest(req: IngestRequest) -> RunInfo:
 @router.get("/runs/{run_id}")
 async def get_run(run_id: str) -> RunInfo:
     with _runs_lock:
-        state = _runs.get(run_id)
-    if state is None:
+        cached = dict(_runs.get(run_id, {}))
+    video_title = cached.get("video_title", "")
+
+    if _MODE == "cloud_run_job":
+        status, returncode = await asyncio.to_thread(_job_execution_status, run_id)
+        # No local log file for a Job execution — its output lives in Cloud
+        # Logging, not this process. Leaving log_tail empty here (rather than
+        # wiring up the Cloud Logging API) is a deliberate, small scope cut
+        # for this pass: it only affects the dashboard's "what Shruti is
+        # finding so far" debug panel, never whether the run itself works.
+        return RunInfo(run_id=run_id, status=status, started_at=0.0, returncode=returncode,
+                       log_tail="", video_title=video_title)
+
+    if not cached:
         raise HTTPException(status_code=404, detail="unknown run_id (or the backend restarted since it started)")
 
-    log_path: Path = state["log_path"]
+    log_path: Path = cached["log_path"]
     tail = ""
     if log_path.exists():
         text = log_path.read_text(errors="replace")
@@ -286,9 +390,9 @@ async def get_run(run_id: str) -> RunInfo:
 
     return RunInfo(
         run_id=run_id,
-        status=state["status"],
-        started_at=state["started_at"],
-        returncode=state["returncode"],
+        status=cached["status"],
+        started_at=cached["started_at"],
+        returncode=cached["returncode"],
         log_tail=tail,
-        video_title=state.get("video_title", ""),
+        video_title=video_title,
     )

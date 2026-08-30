@@ -1,0 +1,17 @@
+**/.git
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.local
+**/logs
+**/data/memory.db
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/vault/notes/*.local
+Nityam/
+smriti-observatory/
+docs/

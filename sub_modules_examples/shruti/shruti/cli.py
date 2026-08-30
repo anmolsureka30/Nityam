@@ -16,15 +16,25 @@ app = typer.Typer()
 def _download_youtube(url: str, out_dir: str = ".local/videos") -> str:
     """Download via the yt-dlp CLI binary (installed separately, e.g.
     `uv tool install yt-dlp` — not a project dependency) into out_dir,
-    merged to mp4 at up to 720p. Returns the local file path."""
+    merged to mp4 at up to 720p. Returns the local file path.
+
+    Confirmed live: YouTube challenges downloads originating from Google
+    Cloud's own IP ranges with "Sign in to confirm you're not a bot" —
+    yt-dlp's own documented fix is real browser cookies
+    (github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp).
+    Never hit on local networks, which is why this was never needed before
+    the Cloud Run Job deployment. YTDLP_COOKIES_FILE is optional and unset
+    by default — local dev is completely unaffected."""
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     video_id = uuid.uuid4().hex[:10]
     out_template = str(Path(out_dir) / f"{video_id}.%(ext)s")
-    result = subprocess.run(
-        ["yt-dlp", "-f", "bestvideo[height<=720]+bestaudio/best[height<=720]",
-         "--merge-output-format", "mp4", "-o", out_template, url],
-        capture_output=True, text=True,
-    )
+    cmd = ["yt-dlp", "-f", "bestvideo[height<=720]+bestaudio/best[height<=720]",
+           "--merge-output-format", "mp4", "-o", out_template]
+    cookies_file = os.environ.get("YTDLP_COOKIES_FILE", "").strip()
+    if cookies_file and Path(cookies_file).is_file():
+        cmd += ["--cookies", cookies_file]
+    cmd.append(url)
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         typer.echo(result.stderr[-2000:])
         raise typer.Exit(code=1)

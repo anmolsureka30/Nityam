@@ -10,3 +10,8 @@ firebase-admin>=7.2
 google-cloud-firestore>=2.19
 google-cloud-storage>=2.18
 redis>=5.0
+
+# Only needed when NITYAM_SHRUTI_MODE=cloud_run_job (app/shruti_routes.py) —
+# triggering/polling the Shruti Cloud Run Job. Installed either way, same
+# reasoning as the two lines above.
+google-cloud-run>=0.16

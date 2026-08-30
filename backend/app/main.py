@@ -44,6 +44,7 @@ from fastapi.responses import FileResponse, HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
 from app import briefing, incoming, sessions, user_auth  # noqa: E402
+from app.admin_routes import router as admin_router  # noqa: E402
 # Imported on both paths, not just the live one: the `start` handler is shared
 # with mock mode, and this module holds nothing but a contextvar, a dict and
 # the ADK Runner plumbing — no client is constructed at import time.
@@ -66,6 +67,7 @@ app = FastAPI(title="Nityam backend")
 # why the Admin SDK was removed from this path.
 app.include_router(memory_router)
 app.include_router(shruti_router)
+app.include_router(admin_router)
 
 # --------------------------------------------------------------- runtime
 

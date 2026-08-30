@@ -34,19 +34,18 @@ _SECTION = re.compile(
 )
 
 
-def parse_wiki_file(path: Path, subject: str = "projectile") -> list[GroundingChunk]:
-    """One GroundingChunk per '## Taught in ...' section — each carries its
-    own real citation (recording id + timestamp) straight from Shruti.
+def parse_wiki_text(text: str, slug: str, subject: str = "projectile") -> list[GroundingChunk]:
+    """Same parsing as parse_wiki_file, for content that already arrived as a
+    string (the sync webhook's request body, once Shruti runs somewhere that
+    doesn't share a filesystem with this process) rather than a local path.
 
     `subject` namespaces the concept id (`"projectile.horizontal_range"`,
     matching what every existing agent/tool already expects — see
     memory/schemas.py's own concept_id convention). Defaults to "projectile"
-    because that is every concept Shruti has ever ingested so far; a request
-    that names a different subject (app/shruti_routes.py's IngestRequest
-    already has the field) is not hardcoded out of this function's reach.
+    because that is every concept Shruti has ever ingested so far; a caller
+    that names a different subject is not hardcoded out of this function's
+    reach.
     """
-    text = path.read_text()
-    slug = path.stem
     concept_id = f"{subject}.{slug}" if subject else slug
 
     chunks = []
@@ -63,6 +62,13 @@ def parse_wiki_file(path: Path, subject: str = "projectile") -> list[GroundingCh
     return chunks
 
 
+def parse_wiki_file(path: Path, subject: str = "projectile") -> list[GroundingChunk]:
+    """One GroundingChunk per '## Taught in ...' section — each carries its
+    own real citation (recording id + timestamp) straight from Shruti. The
+    local-filesystem entry point; see parse_wiki_text for the string one."""
+    return parse_wiki_text(path.read_text(), path.stem, subject=subject)
+
+
 def _humanize(slug: str) -> str:
     """'trajectory_equation_in_two-dimensional_motion' -> 'Trajectory
     equation in two-dimensional motion'. A readable fallback heading — not
@@ -71,42 +77,30 @@ def _humanize(slug: str) -> str:
     return words[:1].upper() + words[1:] if words else slug
 
 
-def sync_ingested_recording(
-    wiki_dir: Path,
+def _sync(
+    chunks_by_slug: dict[str, list[GroundingChunk]],
     recording_slug: str,
-    concept_ids: list[str],
     student_id: str,
-    subject: str = "projectile",
-    video_title: str = "",
-    youtube_url: str = "",
+    subject: str,
+    video_title: str,
+    youtube_url: str,
 ) -> int:
-    """Call once a `shruti ingest` run has finished. Writes every touched
-    concept's wiki content into grounding_chunks (shared, citable knowledge —
-    not owned by whoever uploaded it), then points `current_topic` at the
-    first one for `student_id` specifically — so it's the uploader's own
-    next session that opens on what they just uploaded, not every student's.
-
-    Returns how many grounding chunks were written (0 if nothing matched,
-    e.g. the wiki files aren't reachable from this process — a real
-    possibility once Shruti and Nityam stop being co-located, at which point
-    this function's caller becomes the thing to change, not this one).
-    """
-    if not concept_ids:
-        return 0
-
+    """Shared core: writes every concept's chunks into grounding_chunks, then
+    points current_topic/topic_history at the first one, for `student_id`.
+    `chunks_by_slug` is ordered — the first key becomes the new topic — so
+    both public entry points below must build it in touched-concept order,
+    same as the summary JSON Shruti's own CLI already reports in."""
     conn = store.connect()
     written = 0
-    for slug in concept_ids:
-        path = wiki_dir / f"{slug}.md"
-        if not path.exists():
-            log.warning("shruti_sync: wiki page missing for concept %r (%s)", slug, path)
-            continue
-        for chunk in parse_wiki_file(path, subject=subject):
+    first_slug: str | None = None
+    for slug, chunks in chunks_by_slug.items():
+        if first_slug is None and chunks:
+            first_slug = slug
+        for chunk in chunks:
             store.put_grounding_chunk(conn, chunk)
             written += 1
 
-    if written:
-        first_slug = concept_ids[0]
+    if written and first_slug:
         concept_id = f"{subject}.{first_slug}" if subject else first_slug
         topic = CurrentTopic(
             student_id=student_id,
@@ -130,3 +124,52 @@ def sync_ingested_recording(
             written, recording_slug, student_id, concept_id,
         )
     return written
+
+
+def sync_ingested_recording(
+    wiki_dir: Path,
+    recording_slug: str,
+    concept_ids: list[str],
+    student_id: str,
+    subject: str = "projectile",
+    video_title: str = "",
+    youtube_url: str = "",
+) -> int:
+    """Call once a co-located `shruti ingest` run has finished — reads each
+    touched concept's wiki page straight off disk. The subprocess/local-dev
+    path (NITYAM_SHRUTI_MODE=subprocess); see sync_ingested_recording_from_text
+    for the Cloud Run Job path, which doesn't share a filesystem with this
+    process.
+
+    Returns how many grounding chunks were written (0 if nothing matched,
+    e.g. the wiki files aren't reachable from this process).
+    """
+    if not concept_ids:
+        return 0
+    chunks_by_slug: dict[str, list[GroundingChunk]] = {}
+    for slug in concept_ids:
+        path = wiki_dir / f"{slug}.md"
+        if not path.exists():
+            log.warning("shruti_sync: wiki page missing for concept %r (%s)", slug, path)
+            continue
+        chunks_by_slug[slug] = parse_wiki_file(path, subject=subject)
+    return _sync(chunks_by_slug, recording_slug, student_id, subject, video_title, youtube_url)
+
+
+def sync_ingested_recording_from_text(
+    wiki_markdown_by_slug: dict[str, str],
+    recording_slug: str,
+    student_id: str,
+    subject: str = "projectile",
+    video_title: str = "",
+    youtube_url: str = "",
+) -> int:
+    """The `/admin/sync-grounding` webhook's entry point (see
+    app/admin_routes.py) — the Shruti Cloud Run Job reads its own wiki pages
+    off its own container's disk and sends the markdown text directly,
+    since it has no filesystem in common with this process."""
+    chunks_by_slug = {
+        slug: parse_wiki_text(text, slug, subject=subject)
+        for slug, text in wiki_markdown_by_slug.items()
+    }
+    return _sync(chunks_by_slug, recording_slug, student_id, subject, video_title, youtube_url)
