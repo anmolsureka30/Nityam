@@ -1,21 +1,26 @@
 import { APP_LOGIN_URL, APP_SIGNUP_URL } from "../lib/config";
+import { BoardSketch, TutorPortrait } from "./Illustrations";
 import styles from "./styles.module.css";
 
 export default function Hero() {
   return (
     <section className={styles.hero}>
       <div className={styles.heroInner}>
-        <div className={styles.badge}>
-          <span className={styles.badgeDot} />
-          Piloting now with Tier-1 schools in India
-        </div>
-
         <h1 className={styles.heroTitle}>
           A personal teacher for every student, built on what their class
           actually taught today.
         </h1>
 
         <p className={styles.heroTagline}>Learn the way you want.</p>
+
+        {/* She is the product and the hero was entirely type. Aria-hidden
+            here only: the same drawing is labelled where it carries the
+            argument, and repeating the label in the headline block would
+            interrupt the sentence a screen reader is mid-way through. */}
+        <div className={styles.heroFigure} aria-hidden="true">
+          <TutorPortrait className={styles.heroTutor} />
+          <BoardSketch className={styles.heroBoard} />
+        </div>
 
         <p className={styles.heroSubtitle}>
           Nityam records the lesson in the classroom, learns how each student
