@@ -7,8 +7,8 @@ export default function Hero() {
     <section className={styles.hero}>
       <div className={styles.heroInner}>
         <h1 className={styles.heroTitle}>
-          A personal teacher for every student, built on what their class
-          actually taught today.
+          A tutor that teaches like a great one does: personalized to you,
+          grounded in what you're actually studying.
         </h1>
 
         <p className={styles.heroTagline}>Learn the way you want.</p>
@@ -23,15 +23,16 @@ export default function Hero() {
         </div>
 
         <p className={styles.heroSubtitle}>
-          Nityam records the lesson in the classroom, learns how each student
-          thinks, and teaches that same lesson back to them at their own
-          speed. Teachers can see who is ahead, who is stuck, and what to do
-          about it the next day.
+          Nityam teaches the way a good tutor does (asking before telling,
+          checking understanding with a question before moving on), grounded
+          in the textbooks and lectures you're actually covering, so one
+          conversation can hold learning something new, revising what's
+          shaky, and chasing a question you're curious about.
         </p>
 
         <div className={styles.heroCtas}>
           {/* Says what pressing it does. "Start learning free" implied you
-              could begin reading right there; you cannot — the tutor needs an
+              could begin reading right there; you cannot, since the tutor needs an
               account before it has anywhere to keep what it learns about you,
               which is the whole product. Better to be plain about it here
               than to have the login form say it for us. */}
@@ -44,7 +45,7 @@ export default function Hero() {
         </div>
 
         <p className={styles.ctaNote}>
-          Free to start. Sign up with Google or an email address — Nityam needs
+          Free to start. Sign up with Google or an email address; Nityam needs
           an account to remember what you have covered.{" "}
           <a href={APP_LOGIN_URL} className={styles.ctaNoteLink}>
             Already have one? Sign in

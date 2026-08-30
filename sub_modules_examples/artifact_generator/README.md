@@ -20,7 +20,7 @@ peaks at 45°, rather than be told.
 Needs Python 3 only. No pip install, no build step, no network.
 
 ```bash
-cd sub_modules/artifact_generator
+cd sub_modules_examples/artifact_generator
 
 python3 build.py --all --open        # ALL THREE lessons + an index page
 python3 build.py --open              # just lesson 1

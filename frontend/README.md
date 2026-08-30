@@ -199,7 +199,9 @@ from `lib/data.ts`. `backend/INTEGRATION.md` lists each one.
 - The textbook drawer renders one hardcoded page, not a real PDF. Adding PDF.js
   is a real dependency decision, not an afternoon.
 - Annotations are not persisted; a reload clears the page.
-- No auth, no routing guards. `/teacher` is reachable by anyone.
+- ~~No auth, no routing guards. `/teacher` is reachable by anyone.~~ **Resolved.**
+  Firebase Auth is wired in; every route, `/teacher*` included, is wrapped in
+  `<ProtectedRoute>` (`App.tsx`).
 - The mic needs a real microphone, so headless tests exercise the typed path
   instead — same upstream messages, no audio device. Her mouth reads the model's
   actual waveform via `attachAudio`; the syllable engine is now only the

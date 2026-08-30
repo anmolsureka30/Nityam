@@ -1,4 +1,4 @@
-/* Where the real product lives — a separate Vite app (../frontend), not part
+/* Where the real product lives: a separate Vite app (../frontend), not part
  * of this Next.js project. `NEXT_PUBLIC_*` env vars are inlined at build
  * time, so this is configurable per environment without a code change;
  * unset, it falls back to the port frontend/'s own dev server uses
@@ -13,7 +13,7 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:5173
 export const APP_LOGIN_URL = `${APP_URL}/login`;
 
 /** For everyone else, which on a landing page is almost everyone. The tutor's
- *  LoginScreen reads this parameter and opens on Create account — without it
+ *  LoginScreen reads this parameter and opens on Create account; without it
  *  the page's main call to action landed on the sign-in form and asked new
  *  visitors for a password they had never set. */
 export const APP_SIGNUP_URL = `${APP_URL}/login?mode=signup`;

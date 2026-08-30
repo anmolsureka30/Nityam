@@ -11,7 +11,7 @@ const steps = [
   {
     art: ClassroomCapture,
     title: "Capture the lesson",
-    body: "A camera and mic in the classroom record the lesson: the teacher's examples, her words, what she wrote on the board.",
+    body: "A recording of the lesson (filmed in class, or a YouTube link) becomes a transcript of the teacher's examples, her words, and what she wrote on the board.",
   },
   {
     art: ProfileBuild,

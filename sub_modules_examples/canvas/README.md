@@ -21,7 +21,7 @@ sub-module; everything else is scaffolding for it.
 Python 3 only. No pip install, no build step, no network at render.
 
 ```bash
-cd sub_modules/canvas
+cd sub_modules_examples/canvas
 python3 build.py --open
 ```
 

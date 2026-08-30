@@ -2,7 +2,7 @@ import { ClassOfForty, TwoSyllabuses, WideningGap } from "./Illustrations";
 import styles from "./styles.module.css";
 
 /* A number and a paragraph is an assertion; the drawing under it is the
-   shape of the claim — forty dots with the edges missed, two lines coming
+   shape of the claim: forty dots with the edges missed, two lines coming
    apart over four years, two syllabuses that never meet. */
 const stats = [
   {

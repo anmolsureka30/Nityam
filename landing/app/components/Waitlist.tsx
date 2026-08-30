@@ -84,7 +84,7 @@ export default function Waitlist() {
         <p className={styles.waitlistAside}>
           {/* This is the individual student's door out of a section that is
               otherwise addressed to schools, and they will not have an
-              account either — so it goes to sign-up like every other primary
+              account either, so it goes to sign-up like every other primary
               call to action on the page. */}
           Studying on your own, not through a school?{" "}
           <a href={APP_SIGNUP_URL}>Create a free account →</a>

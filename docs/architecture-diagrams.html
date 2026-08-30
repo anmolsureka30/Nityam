@@ -1,0 +1,958 @@
+<title>Nityam Blueprints</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --paper: #F1F3EF;
+    --paper-raised: #FFFFFF;
+    --ink: #191B1A;
+    --ink-soft: #4B524C;
+    --line: #C7CFC7;
+    --rule: #DDE3DC;
+    --shadow: 0 1px 2px rgba(25,27,26,0.06), 0 6px 20px rgba(25,27,26,0.05);
+
+    --voice: #2E4374;
+    --voice-ink: #F2F4FA;
+    --specialist: #C6952F;
+    --specialist-ink: #241A05;
+    --mem-workflow: #8FCB9E;
+    --mem-workflow-ink: #14301F;
+    --mem-episodic: #2E8B57;
+    --mem-episodic-ink: #F2FAF4;
+    --mem-longterm: #16472F;
+    --mem-longterm-ink: #EAF6EE;
+    --shruti: #6B4C8A;
+    --shruti-ink: #F6F1FA;
+    --observatory: #A23E5C;
+
+    --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14161A;
+      --paper-raised: #1B1F1C;
+      --ink: #ECEFEA;
+      --ink-soft: #A9B2AA;
+      --line: #3A423C;
+      --rule: #282E29;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14161A;
+    --paper-raised: #1B1F1C;
+    --ink: #ECEFEA;
+    --ink-soft: #A9B2AA;
+    --line: #3A423C;
+    --rule: #282E29;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  ::selection { background: var(--voice); color: var(--voice-ink); }
+
+  .wrap { max-width: 1220px; margin: 0 auto; padding: 0 28px 120px; }
+
+  header.page-head {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 64px 28px 40px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(2.4rem, 5vw, 3.6rem);
+    line-height: 1.04;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 14ch;
+  }
+  .lede {
+    font-size: 1.1rem;
+    max-width: 68ch;
+    color: var(--ink);
+    margin: 0 0 8px;
+  }
+  .lede-sub {
+    font-size: 0.97rem;
+    max-width: 68ch;
+    color: var(--ink-soft);
+    margin: 0 0 30px;
+  }
+  .lede-sub em { color: var(--ink); font-style: normal; font-family: var(--font-mono); font-size: 0.9em; }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .badges li {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    background: var(--paper-raised);
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--rule);
+  }
+  nav.toc ol {
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 22px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
+  nav.toc a { color: var(--ink-soft); text-decoration: none; }
+  nav.toc a:hover { color: var(--ink); }
+  nav.toc .n { color: var(--ink); font-weight: 500; }
+
+  section.legend {
+    margin: 44px 0 8px;
+    padding: 22px 24px;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .legend h2 { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 16px; font-weight: 500; }
+  .legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px 26px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+  .legend-item .swatch { flex: none; }
+  .swatch svg { display: block; }
+  .legend-item .lbl b { display: block; font-size: 13px; }
+  .legend-item .lbl span { display: block; color: var(--ink-soft); font-size: 12px; }
+
+  article.diagram {
+    margin: 76px 0 0;
+    scroll-margin-top: 60px;
+  }
+  .d-eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 8px; }
+  .d-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.6rem, 3vw, 2.15rem); margin: 0 0 14px; text-wrap: balance; }
+  .d-intro { max-width: 74ch; color: var(--ink); font-size: 1rem; margin: 0 0 28px; }
+  .d-intro .warn { color: var(--observatory); font-weight: 500; }
+
+  figure.dia {
+    margin: 0 0 20px;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  figure.dia svg { display: block; width: 100%; height: auto; min-width: 720px; color: var(--ink); }
+  figcaption {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--rule);
+  }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0 0; }
+  table.spec caption { text-align: left; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 10px; }
+  table.spec th { text-align: left; font-weight: 500; color: var(--ink-soft); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  table.spec td { padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.spec td.mono, table.spec code { font-family: var(--font-mono); font-size: 12.5px; }
+  table.spec tr:last-child td { border-bottom: none; }
+  .spec-wrap { overflow-x: auto; background: var(--paper-raised); border: 1px solid var(--rule); border-radius: 12px; padding: 6px 18px 14px; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-family: var(--font-mono); font-size: 11.5px; }
+
+  footer.status {
+    max-width: 1220px;
+    margin: 96px auto 0;
+    padding: 32px 28px 0;
+    border-top: 1px solid var(--rule);
+  }
+  footer.status h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; margin: 0 0 6px; }
+  footer.status p { max-width: 70ch; color: var(--ink-soft); font-size: 14.5px; }
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 22px 0 40px; }
+  .status-card { border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; background: var(--paper-raised); }
+  .status-card .k { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .status-card .k.live { color: var(--mem-episodic); }
+  .status-card .k.manual { color: var(--specialist); }
+  .status-card .k.open { color: var(--observatory); }
+  .status-card p { margin: 6px 0 0; font-size: 13px; color: var(--ink); }
+  .stamp { font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); padding-bottom: 48px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    article.diagram { transition: opacity .2s ease; }
+  }
+</style>
+
+<header class="page-head">
+  <p class="eyebrow">Architecture reference — built for 1:1 recreation in Excalidraw</p>
+  <h1>Nityam Blueprints</h1>
+  <p class="lede">
+    Three Sanskrit names carry the whole system: <em style="font-family: var(--font-mono); font-style: normal;">Nityam</em>
+    — the constant, the tutor that's always there — is built on <em style="font-family: var(--font-mono); font-style: normal;">Smriti</em>,
+    remembered knowledge of the student, and <em style="font-family: var(--font-mono); font-style: normal;">Shruti</em>,
+    "that which is heard" — the teacher's own lecture, preserved rather than paraphrased. These five diagrams
+    are the mechanism behind that: five agents, three memory tiers, one ingest pipeline, one deploy path.
+  </p>
+  <p class="lede-sub">
+    Every box below carries a build note: shape, fill, and where a real Google Cloud icon replaces a
+    dashed placeholder. <span class="warn" style="color:var(--observatory)">⚠</span> marks a place where the
+    diagram shows a known gap rather than a finished path — read those before pasting them into a pitch deck.
+  </p>
+  <ul class="badges">
+    <li>Gemini Live (gemini&#8209;live&#8209;2.5&#8209;flash)</li>
+    <li>Gemini (gemini&#8209;3.7&#8209;flash)</li>
+    <li>Agent Development Kit</li>
+    <li>Cloud Run</li>
+    <li>Cloud Run Jobs</li>
+    <li>Cloud Build</li>
+    <li>Artifact Registry</li>
+    <li>Secret Manager</li>
+    <li>Firestore</li>
+    <li>Memorystore for Redis</li>
+    <li>Cloud Storage</li>
+    <li>Firebase Auth</li>
+    <li>Cloud SQL + pgvector</li>
+  </ul>
+</header>
+
+<nav class="toc">
+  <ol>
+    <li><span class="n">01</span> <a href="#legend">Build key</a></li>
+    <li><span class="n">02</span> <a href="#d1">Master system</a></li>
+    <li><span class="n">03</span> <a href="#d2">Agent orchestration</a></li>
+    <li><span class="n">04</span> <a href="#d3">Shruti pipeline</a></li>
+    <li><span class="n">05</span> <a href="#d4">Memory layer (SMRITI)</a></li>
+    <li><span class="n">06</span> <a href="#d5">Inside one specialist</a></li>
+    <li><span class="n">07</span> <a href="#status">Honest status</a></li>
+  </ol>
+</nav>
+
+<div class="wrap">
+
+<section class="legend" id="legend">
+  <h2>Build key — the same convention across all five diagrams</h2>
+  <div class="legend-grid">
+    <div class="legend-item">
+      <span class="swatch"><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14" fill="var(--voice)"/></svg></span>
+      <span class="lbl"><b>Filled circle</b><span>An LLM agent — its own ADK Runner</span></span>
+    </div>
+    <div class="legend-item">
+      <span class="swatch"><svg width="34" height="34" viewBox="0 0 34 34"><rect x="3" y="8" width="28" height="18" rx="5" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.4"/></svg></span>
+      <span class="lbl"><b>Filled rectangle</b><span>A service or module Nityam owns</span></span>
+    </div>
+    <div class="legend-item">
+      <span class="swatch"><svg width="34" height="34" viewBox="0 0 34 34"><rect x="3" y="8" width="28" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="3 4" opacity="0.7"/></svg></span>
+      <span class="lbl"><b>Dashed rectangle</b><span>External Google Cloud service — paste the real icon here</span></span>
+    </div>
+    <div class="legend-item">
+      <span class="swatch"><svg width="34" height="34" viewBox="0 0 34 34"><line x1="2" y1="17" x2="30" y2="17" stroke="currentColor" stroke-width="1.6" marker-end="url(#lg-arrow)"/><defs><marker id="lg-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs></svg></span>
+      <span class="lbl"><b>Solid arrow</b><span>A call that blocks until it returns — label states the verb</span></span>
+    </div>
+    <div class="legend-item">
+      <span class="swatch"><svg width="34" height="34" viewBox="0 0 34 34"><line x1="2" y1="17" x2="30" y2="17" stroke="currentColor" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#lg-arrow2)"/><defs><marker id="lg-arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs></svg></span>
+      <span class="lbl"><b>Dashed arrow</b><span>Async event, side-channel, or feedback loop</span></span>
+    </div>
+    <div class="legend-item">
+      <span class="swatch"><svg width="80" height="34" viewBox="0 0 80 34"><circle cx="10" cy="17" r="8" fill="var(--voice)"/><circle cx="34" cy="17" r="8" fill="var(--specialist)"/><rect x="50" y="9" width="16" height="16" rx="4" fill="var(--mem-episodic)"/><rect x="68" y="9" width="10" height="16" rx="4" fill="var(--shruti)"/></svg></span>
+      <span class="lbl"><b>Colour = subsystem</b><span>Indigo router · gold specialists · green memory tiers · violet Shruti</span></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<article class="diagram" id="d1">
+  <p class="d-eyebrow">Diagram 1 of 5 — the one to hand a judge</p>
+  <h2 class="d-title">Nityam, end to end</h2>
+  <p class="d-intro">
+    One browser tab, one WebSocket, one Cloud Run service holding five agents and a single storage
+    gateway. Everything outside the dashed boundary is a managed Google Cloud product — that's
+    where the real icons go. The lower band is the other axis entirely: what runs to get code
+    <em>into</em> that box, not what runs while a student is talking.
+  </p>
+
+  <figure class="dia">
+    <svg viewBox="0 0 1160 860" role="img" aria-label="Nityam's full system: a browser holds one WebSocket to a Cloud Run service running VoiceAgent and four specialist agents behind a single storage gateway, which talks to Firestore, Memorystore, and Cloud Storage; Shruti runs as a separate Cloud Run Job feeding Firestore offline; Cloud Build deploys the whole service on every push to main.">
+      <defs>
+        <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="a1d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" opacity="0.8"/></marker>
+      </defs>
+
+      <text x="40" y="30" font-family="var(--font-mono)" font-size="11.5" letter-spacing="0.1em" fill="currentColor" opacity="0.55">REQUEST TIME</text>
+
+      <!-- Browser -->
+      <rect x="40" y="173" width="130" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="105" y="196" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">Browser</text>
+      <text x="105" y="211" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.6">React · AudioWorklet</text>
+
+      <!-- Cloud Run boundary -->
+      <rect x="230" y="60" width="520" height="560" rx="18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 7" opacity="0.55"/>
+      <text x="252" y="84" font-family="var(--font-mono)" font-size="11" letter-spacing="0.04em" fill="currentColor" opacity="0.7">CLOUD RUN · nityam-backend</text>
+      <text x="252" y="98" font-family="var(--font-mono)" font-size="9.5" fill="currentColor" opacity="0.45">session-affinity · min-instances=1 · timeout=3600</text>
+
+      <!-- main.py -->
+      <rect x="260" y="173" width="170" height="54" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.3"/>
+      <text x="345" y="196" text-anchor="middle" font-size="13" font-weight="600" fill="currentColor">main.py</text>
+      <text x="345" y="211" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.6">WS gateway · verifies token</text>
+
+      <!-- VoiceAgent -->
+      <circle cx="345" cy="360" r="58" fill="var(--voice)"/>
+      <text x="345" y="356" text-anchor="middle" font-size="14" font-weight="600" fill="var(--voice-ink)">VoiceAgent</text>
+      <text x="345" y="372" text-anchor="middle" font-size="10.5" fill="var(--voice-ink)" opacity="0.85">router · Live</text>
+
+      <!-- specialists -->
+      <circle cx="620" cy="130" r="42" fill="var(--specialist)"/>
+      <text x="620" y="126" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--specialist-ink)">Board</text>
+      <text x="620" y="140" text-anchor="middle" font-size="9.5" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <circle cx="620" cy="250" r="42" fill="var(--specialist)"/>
+      <text x="620" y="246" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--specialist-ink)">Textbook</text>
+      <text x="620" y="260" text-anchor="middle" font-size="9.5" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <circle cx="620" cy="370" r="42" fill="var(--specialist)"/>
+      <text x="620" y="366" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--specialist-ink)">Quiz</text>
+      <text x="620" y="380" text-anchor="middle" font-size="9.5" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <circle cx="620" cy="490" r="42" fill="var(--specialist)"/>
+      <text x="620" y="486" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--specialist-ink)">Artifact</text>
+      <text x="620" y="500" text-anchor="middle" font-size="9.5" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <!-- store.py -->
+      <rect x="520" y="580" width="210" height="52" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.3"/>
+      <text x="625" y="602" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">store.py</text>
+      <text x="625" y="617" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">the one storage gateway</text>
+
+      <!-- arrows: browser -> main -->
+      <line x1="170" y1="200" x2="256" y2="200" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <text x="212" y="192" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">WS /ws/{uid}/{sid}</text>
+
+      <!-- main -> voice -->
+      <path d="M345,227 Q345,270 345,302" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#a1)"/>
+      <text x="400" y="262" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">run_live</text>
+
+      <!-- voice -> specialists -->
+      <line x1="401" y1="335" x2="580" y2="150" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <line x1="403" y1="352" x2="580" y2="262" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <line x1="403" y1="368" x2="580" y2="378" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <line x1="401" y1="385" x2="580" y2="475" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <text x="500" y="120" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.65">ask_*() — NON_BLOCKING</text>
+
+      <!-- specialists -> store.py -->
+      <path d="M620,172 Q690,300 625,578" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="1 4" opacity="0.7" marker-end="url(#a1d)"/>
+      <path d="M620,292 Q680,420 625,578" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="1 4" opacity="0.7" marker-end="url(#a1d)"/>
+      <path d="M620,412 Q660,490 625,578" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="1 4" opacity="0.7" marker-end="url(#a1d)"/>
+      <path d="M615,532 Q615,555 620,578" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="1 4" opacity="0.7" marker-end="url(#a1d)"/>
+      <text x="710" y="470" font-size="10" fill="currentColor" opacity="0.6">get_dpm · get_teaching_memory ·</text>
+      <text x="710" y="483" font-size="10" fill="currentColor" opacity="0.6">search_grounding · write_lesson</text>
+
+      <!-- external slots -->
+      <g>
+        <rect x="880" y="70" width="230" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+        <text x="900" y="93" font-size="12.5" font-weight="600" fill="currentColor">Firebase Auth</text>
+        <text x="900" y="108" font-size="10" fill="currentColor" opacity="0.55">[ paste icon ]</text>
+      </g>
+      <path d="M430,190 Q680,120 878,97" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#a1d)"/>
+      <text x="700" y="112" font-size="10" fill="currentColor" opacity="0.6">verify ID token</text>
+
+      <g>
+        <rect x="880" y="150" width="230" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+        <text x="900" y="173" font-size="12.5" font-weight="600" fill="currentColor">Gemini Live API</text>
+        <text x="900" y="188" font-size="10" fill="currentColor" opacity="0.55">[ paste icon ]</text>
+      </g>
+      <line x1="403" y1="345" x2="878" y2="180" stroke="currentColor" stroke-width="1.3" marker-end="url(#a1)"/>
+      <text x="640" y="240" font-size="10" fill="currentColor" opacity="0.6">gemini-live-2.5-flash · BIDI audio</text>
+
+      <g>
+        <rect x="880" y="230" width="230" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+        <text x="900" y="253" font-size="12.5" font-weight="600" fill="currentColor">Gemini API</text>
+        <text x="900" y="268" font-size="10" fill="currentColor" opacity="0.55">reasoning — [ paste icon ]</text>
+      </g>
+      <path d="M662,130 Q800,150 878,255" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="1 4" opacity="0.6" marker-end="url(#a1d)"/>
+      <path d="M662,370 Q800,320 878,260" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="1 4" opacity="0.6" marker-end="url(#a1d)"/>
+      <text x="770" y="215" font-size="10" fill="currentColor" opacity="0.6">gemini-3.7-flash (shared)</text>
+
+      <g>
+        <rect x="880" y="310" width="230" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+        <text x="900" y="333" font-size="12.5" font-weight="600" fill="currentColor">Memorystore</text>
+        <text x="900" y="348" font-size="10" fill="currentColor" opacity="0.55">for Redis — [ paste icon ]</text>
+      </g>
+      <path d="M730,590 Q820,470 878,337" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <text x="780" y="440" font-size="10" fill="currentColor" opacity="0.6">workflow tier</text>
+
+      <g>
+        <rect x="880" y="390" width="230" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+        <text x="900" y="413" font-size="12.5" font-weight="600" fill="currentColor">Firestore</text>
+        <text x="900" y="428" font-size="10" fill="currentColor" opacity="0.55">db "smriti" — [ paste icon ]</text>
+      </g>
+      <path d="M730,606 Q830,510 878,417" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <text x="780" y="530" font-size="10" fill="currentColor" opacity="0.6">episodic + long-term + grounding</text>
+
+      <g>
+        <rect x="880" y="470" width="230" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+        <text x="900" y="493" font-size="12.5" font-weight="600" fill="currentColor">Cloud Storage</text>
+        <text x="900" y="508" font-size="10" fill="currentColor" opacity="0.55">[ paste icon ]</text>
+      </g>
+      <path d="M662,505 Q800,500 878,497" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a1)"/>
+      <text x="770" y="490" font-size="10" fill="currentColor" opacity="0.6">generated artifacts</text>
+
+      <!-- observatory -->
+      <rect x="940" y="560" width="200" height="52" rx="9" fill="none" stroke="var(--observatory)" stroke-width="1.3" stroke-dasharray="3 3"/>
+      <text x="1040" y="582" text-anchor="middle" font-size="12" font-weight="600" fill="var(--observatory)">smriti-observatory</text>
+      <text x="1040" y="596" text-anchor="middle" font-size="9.5" fill="var(--observatory)" opacity="0.8">reads events, not the DB</text>
+      <path d="M995,364 Q1030,470 1035,558" fill="none" stroke="var(--observatory)" stroke-width="1.1" stroke-dasharray="3 3" marker-end="url(#a1d)"/>
+      <text x="1040" y="470" font-size="9.5" fill="var(--observatory)">MemoryEvent pub/sub</text>
+
+      <!-- divider -->
+      <line x1="30" y1="650" x2="1130" y2="650" stroke="currentColor" stroke-width="1" stroke-dasharray="1 5" opacity="0.4"/>
+      <text x="30" y="676" font-family="var(--font-mono)" font-size="11.5" letter-spacing="0.1em" fill="currentColor" opacity="0.55">BUILD TIME / OFFLINE</text>
+
+      <!-- deploy strip -->
+      <rect x="40" y="700" width="170" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+      <text x="60" y="723" font-size="12.5" font-weight="600" fill="currentColor">Cloud Build</text>
+      <text x="60" y="738" font-size="10" fill="currentColor" opacity="0.55">[ paste icon ]</text>
+
+      <rect x="250" y="700" width="170" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+      <text x="270" y="723" font-size="12.5" font-weight="600" fill="currentColor">Artifact Registry</text>
+      <text x="270" y="738" font-size="10" fill="currentColor" opacity="0.55">[ paste icon ]</text>
+
+      <rect x="460" y="700" width="170" height="54" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.65"/>
+      <text x="480" y="723" font-size="12.5" font-weight="600" fill="currentColor">Secret Manager</text>
+      <text x="480" y="738" font-size="10" fill="currentColor" opacity="0.55">GOOGLE_API_KEY</text>
+
+      <line x1="210" y1="727" x2="246" y2="727" stroke="currentColor" stroke-width="1.3" marker-end="url(#a1)"/>
+      <line x1="420" y1="727" x2="456" y2="727" stroke="currentColor" stroke-width="1.3" marker-end="url(#a1)"/>
+      <path d="M545,700 Q545,660 500,622" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#a1)"/>
+      <text x="560" y="672" font-size="10" fill="currentColor" opacity="0.65">on push to main</text>
+
+      <!-- shruti -->
+      <rect x="750" y="700" width="210" height="54" rx="9" fill="var(--shruti)"/>
+      <text x="855" y="723" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--shruti-ink)">Shruti</text>
+      <text x="855" y="738" text-anchor="middle" font-size="10" fill="var(--shruti-ink)" opacity="0.85">Cloud Run Job</text>
+      <path d="M900,700 Q950,560 900,420" fill="none" stroke="var(--specialist)" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a1d)"/>
+      <text x="960" y="600" font-size="10" fill="var(--specialist)">grounding_chunks</text>
+      <text x="960" y="614" font-size="10" fill="var(--specialist)" font-weight="600">⚠ manual bridge today — Diagram 3</text>
+    </svg>
+  </figure>
+  <figcaption>The full request-time topology plus the separate build-time path. See Diagram 3 for what "manual bridge" means.</figcaption>
+
+  <div class="spec-wrap">
+  <table class="spec">
+    <caption>Build spec — Diagram 1</caption>
+    <thead><tr><th>Element</th><th>Excalidraw shape</th><th>Fill</th><th>Icon slot</th></tr></thead>
+    <tbody>
+      <tr><td>VoiceAgent</td><td class="mono">Ellipse</td><td><span class="chip" style="background:var(--voice);color:var(--voice-ink)">indigo</span></td><td>none — custom component</td></tr>
+      <tr><td>Board / Textbook / Quiz / Artifact Agent</td><td class="mono">Ellipse ×4</td><td><span class="chip" style="background:var(--specialist);color:var(--specialist-ink)">gold</span></td><td>none — custom component</td></tr>
+      <tr><td>main.py, store.py</td><td class="mono">Rectangle, rounded</td><td>neutral / white</td><td>none</td></tr>
+      <tr><td>Cloud Run boundary</td><td class="mono">Rectangle, dashed, large</td><td>transparent</td><td>Cloud Run logo, top-left corner</td></tr>
+      <tr><td>Firebase Auth</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Firebase Authentication icon</td></tr>
+      <tr><td>Gemini Live API</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Gemini icon</td></tr>
+      <tr><td>Gemini API (reasoning)</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Gemini icon</td></tr>
+      <tr><td>Memorystore for Redis</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Memorystore icon</td></tr>
+      <tr><td>Firestore</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Firestore icon</td></tr>
+      <tr><td>Cloud Storage</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Cloud Storage icon</td></tr>
+      <tr><td>Cloud Build / Artifact Registry / Secret Manager</td><td class="mono">Rectangle, dashed ×3</td><td>transparent</td><td>respective Cloud icons</td></tr>
+      <tr><td>Shruti (ingest)</td><td class="mono">Rectangle, filled</td><td><span class="chip" style="background:var(--shruti);color:var(--shruti-ink)">violet</span></td><td>small Cloud Run Job badge inside</td></tr>
+      <tr><td>smriti-observatory</td><td class="mono">Rectangle, dashed, rose stroke</td><td>transparent</td><td>none — internal tool</td></tr>
+    </tbody>
+  </table>
+  </div>
+</article>
+
+<!-- ============================================================ -->
+<article class="diagram" id="d2">
+  <p class="d-eyebrow">Diagram 2 of 5</p>
+  <h2 class="d-title">How VoiceAgent routes</h2>
+  <p class="d-intro">
+    VoiceAgent never blocks. Calling a specialist hands the tool off to ADK's background-task
+    registry and immediately returns a synthetic, free "pending" response — the mechanism that
+    keeps her talking while a specialist works underneath her. Three timers gate whether a chunk
+    is allowed to interrupt; one lock keeps the same specialist from being called twice at once.
+  </p>
+
+  <figure class="dia">
+    <svg viewBox="0 0 1040 580" role="img" aria-label="VoiceAgent calls four specialist agents through non-blocking tools; each returns progress chunks on a WHEN_IDLE schedule and a final summary she speaks as her own words; three interruption gates and one per-specialist concurrency lock govern the whole exchange.">
+      <defs>
+        <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="a2d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" opacity="0.8"/></marker>
+      </defs>
+
+      <circle cx="170" cy="290" r="66" fill="var(--voice)"/>
+      <text x="170" y="286" text-anchor="middle" font-size="15" font-weight="600" fill="var(--voice-ink)">VoiceAgent</text>
+      <text x="170" y="303" text-anchor="middle" font-size="10.5" fill="var(--voice-ink)" opacity="0.85">hears · speaks · routes</text>
+
+      <!-- gate panel -->
+      <rect x="30" y="430" width="280" height="120" rx="10" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <text x="50" y="453" font-size="11.5" font-weight="600" fill="currentColor">Interruption gates</text>
+      <text x="50" y="474" font-family="var(--font-mono)" font-size="11" fill="currentColor" opacity="0.75">student_is_talking → 2.0s</text>
+      <text x="50" y="494" font-family="var(--font-mono)" font-size="11" fill="currentColor" opacity="0.75">she_just_spoke → 3.5s</text>
+      <text x="50" y="514" font-family="var(--font-mono)" font-size="11" fill="currentColor" opacity="0.75">mid_exchange → 10.0s</text>
+      <text x="50" y="537" font-size="10" fill="currentColor" opacity="0.55">gates every spoken chunk below</text>
+      <line x1="170" y1="356" x2="170" y2="428" stroke="currentColor" stroke-width="1.1" stroke-dasharray="3 3" marker-end="url(#a2d)"/>
+
+      <!-- specialists -->
+      <circle cx="570" cy="90" r="48" fill="var(--specialist)"/>
+      <text x="570" y="86" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--specialist-ink)">Board</text>
+      <text x="570" y="101" text-anchor="middle" font-size="10" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <circle cx="570" cy="230" r="48" fill="var(--specialist)"/>
+      <text x="570" y="226" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--specialist-ink)">Textbook</text>
+      <text x="570" y="241" text-anchor="middle" font-size="10" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <circle cx="570" cy="370" r="48" fill="var(--specialist)"/>
+      <text x="570" y="366" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--specialist-ink)">Quiz</text>
+      <text x="570" y="381" text-anchor="middle" font-size="10" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <circle cx="570" cy="510" r="48" fill="var(--specialist)"/>
+      <text x="570" y="506" text-anchor="middle" font-size="12.5" font-weight="600" fill="var(--specialist-ink)">Artifact</text>
+      <text x="570" y="521" text-anchor="middle" font-size="10" fill="var(--specialist-ink)" opacity="0.8">Agent</text>
+
+      <!-- voice -> board (fully labelled example) -->
+      <path d="M234,262 Q380,150 522,100" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#a2)"/>
+      <text x="360" y="140" font-size="10.5" fill="currentColor" opacity="0.7">ask_board() — NON_BLOCKING</text>
+      <path d="M522,78 Q380,20 236,255" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="4 3" marker-end="url(#a2d)"/>
+      <text x="330" y="45" font-size="10" fill="currentColor" opacity="0.65">progress chunk · WHEN_IDLE · every 4.5s</text>
+      <path d="M522,112 Q400,270 236,318" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#a2)"/>
+      <text x="330" y="298" font-size="10" fill="currentColor" opacity="0.75" font-weight="600">final summary → her own words</text>
+
+      <!-- voice -> other 3 (same pattern, unlabelled to avoid repetition) -->
+      <path d="M236,275 Q380,255 522,225" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a2)"/>
+      <path d="M522,240 Q400,265 236,283" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a2d)"/>
+
+      <path d="M236,300 Q380,340 522,368" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a2)"/>
+      <path d="M522,383 Q400,350 236,308" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a2d)"/>
+
+      <path d="M225,343 Q400,460 522,500" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a2)"/>
+      <path d="M522,522 Q400,480 228,352" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#a2d)"/>
+
+      <text x="570" y="580" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.5">(same ask → progress → summary pattern on all four)</text>
+
+      <!-- concurrency note -->
+      <rect x="700" y="235" width="300" height="90" rx="10" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <text x="720" y="258" font-size="11.5" font-weight="600" fill="currentColor">Concurrency rule</text>
+      <text x="720" y="278" font-family="var(--font-mono)" font-size="10.5" fill="currentColor" opacity="0.75">_in_flight: 1 call per specialist</text>
+      <text x="720" y="296" font-size="10.5" fill="currentColor" opacity="0.75">Two <tspan font-weight="600">different</tspan> specialists at once — fine.</text>
+      <line x1="700" y1="280" x2="618" y2="280" stroke="currentColor" stroke-width="1" stroke-dasharray="2 3" opacity="0.6"/>
+    </svg>
+  </figure>
+  <figcaption>The delegation timeline shown once, fully labelled, on BoardAgent — the other three specialists follow the identical shape.</figcaption>
+
+  <div class="spec-wrap">
+  <table class="spec">
+    <caption>Build spec — Diagram 2</caption>
+    <thead><tr><th>Element</th><th>Excalidraw shape</th><th>Fill</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>VoiceAgent</td><td class="mono">Ellipse, large</td><td><span class="chip" style="background:var(--voice);color:var(--voice-ink)">indigo</span></td><td>Center-left anchor</td></tr>
+      <tr><td>4 specialists</td><td class="mono">Ellipse ×4, medium</td><td><span class="chip" style="background:var(--specialist);color:var(--specialist-ink)">gold</span></td><td>Stacked right column</td></tr>
+      <tr><td>Interruption gates</td><td class="mono">Rectangle, plain</td><td>none</td><td>Text list, no icon — internal logic</td></tr>
+      <tr><td>Concurrency rule</td><td class="mono">Rectangle, plain</td><td>none</td><td>Callout, dashed connector only</td></tr>
+      <tr><td>ask_*() arrows</td><td class="mono">Curved arrow, solid</td><td>—</td><td>Label once, repeat pattern implied</td></tr>
+      <tr><td>progress chunk arrows</td><td class="mono">Curved arrow, dashed</td><td>—</td><td>WHEN_IDLE — not a timer, a scheduling tag</td></tr>
+      <tr><td>final summary arrow</td><td class="mono">Curved arrow, bold solid</td><td>—</td><td>Visually distinct from progress pings</td></tr>
+    </tbody>
+  </table>
+  </div>
+</article>
+
+<!-- ============================================================ -->
+<article class="diagram" id="d3">
+  <p class="d-eyebrow">Diagram 3 of 5</p>
+  <h2 class="d-title">Shruti — from lecture to citation</h2>
+  <p class="d-intro">
+    Ten stages turn a recording into a queryable knowledge substrate, each one independently
+    re-runnable against its own cached input. <span class="warn">⚠ The last hop is honest, not
+    finished:</span> Shruti's own store (Cloud SQL + pgvector) is not the same place the tutor
+    reads from at runtime (Firestore) — today a person runs <code>seed_demo_data.py</code> to
+    bridge the two by hand.
+  </p>
+
+  <figure class="dia">
+    <svg viewBox="0 0 1360 500" role="img" aria-label="Shruti's ten-stage pipeline: Gate, Pulse, a parallel Perceive stage of Slate, Echo and Point, then Weave, Glyph, Atlas, Vault and Lens, running as a Cloud Run Job against Cloud SQL and Cloud Storage, with a manual, not-yet-automated bridge into Nityam's Firestore grounding corpus.">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="a3d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" opacity="0.85"/></marker>
+      </defs>
+
+      <rect x="14" y="96" width="1074" height="148" rx="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="2 7" opacity="0.5"/>
+      <text x="34" y="118" font-family="var(--font-mono)" font-size="11" fill="currentColor" opacity="0.65">CLOUD RUN JOB · shruti</text>
+
+      <!-- GATE -->
+      <rect x="30" y="150" width="120" height="60" rx="9" fill="var(--shruti)"/>
+      <text x="90" y="176" text-anchor="middle" font-size="12" font-weight="600" fill="var(--shruti-ink)">① GATE</text>
+      <text x="90" y="192" text-anchor="middle" font-size="9" fill="var(--shruti-ink)" opacity="0.85">admit + fingerprint</text>
+
+      <!-- PULSE -->
+      <rect x="190" y="150" width="120" height="60" rx="9" fill="var(--shruti)"/>
+      <text x="250" y="176" text-anchor="middle" font-size="12" font-weight="600" fill="var(--shruti-ink)">② PULSE</text>
+      <text x="250" y="192" text-anchor="middle" font-size="9" fill="var(--shruti-ink)" opacity="0.85">ink curve · shots</text>
+
+      <!-- PERCEIVE -->
+      <rect x="350" y="130" width="180" height="100" rx="9" fill="var(--shruti)"/>
+      <text x="440" y="150" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--shruti-ink)">PERCEIVE (parallel)</text>
+      <line x1="360" y1="157" x2="520" y2="157" stroke="var(--shruti-ink)" stroke-width="0.6" opacity="0.4"/>
+      <text x="440" y="176" text-anchor="middle" font-size="10" fill="var(--shruti-ink)" opacity="0.9">③ SLATE — board recovery</text>
+      <text x="440" y="194" text-anchor="middle" font-size="10" fill="var(--shruti-ink)" opacity="0.9">④ ECHO — code-mixed transcript</text>
+      <text x="440" y="212" text-anchor="middle" font-size="10" fill="var(--shruti-ink)" opacity="0.9">⑤ POINT — deixis resolution</text>
+
+      <!-- WEAVE -->
+      <rect x="570" y="150" width="120" height="60" rx="9" fill="var(--shruti)"/>
+      <text x="630" y="176" text-anchor="middle" font-size="12" font-weight="600" fill="var(--shruti-ink)">⑥ WEAVE</text>
+      <text x="630" y="192" text-anchor="middle" font-size="9" fill="var(--shruti-ink)" opacity="0.85">fuse into Beats</text>
+
+      <!-- GLYPH -->
+      <rect x="730" y="150" width="120" height="60" rx="9" fill="var(--shruti)"/>
+      <text x="790" y="176" text-anchor="middle" font-size="12" font-weight="600" fill="var(--shruti-ink)">⑦ GLYPH</text>
+      <text x="790" y="192" text-anchor="middle" font-size="9" fill="var(--shruti-ink)" opacity="0.85">read the board</text>
+
+      <!-- ATLAS -->
+      <rect x="890" y="150" width="120" height="60" rx="9" fill="var(--shruti)"/>
+      <text x="950" y="176" text-anchor="middle" font-size="12" font-weight="600" fill="var(--shruti-ink)">⑧ ATLAS</text>
+      <text x="950" y="192" text-anchor="middle" font-size="9" fill="var(--shruti-ink)" opacity="0.85">concepts + edges</text>
+
+      <!-- chain arrows -->
+      <line x1="150" y1="180" x2="186" y2="180" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+      <line x1="310" y1="180" x2="346" y2="180" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+      <line x1="530" y1="180" x2="566" y2="180" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+      <line x1="690" y1="180" x2="726" y2="180" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+      <line x1="850" y1="180" x2="886" y2="180" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+
+      <!-- VAULT (outside job boundary — storage) -->
+      <rect x="1080" y="60" width="200" height="150" rx="10" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <text x="1180" y="82" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">⑨ VAULT</text>
+      <line x1="1100" y1="92" x2="1260" y2="92" stroke="currentColor" stroke-width="0.6" opacity="0.4"/>
+      <text x="1180" y="112" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.75">L1 Reel — immutable</text>
+      <text x="1180" y="132" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.75">L2 Ledger — board states</text>
+      <text x="1180" y="152" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.75">L3 Atlas — rebuildable</text>
+      <text x="1180" y="172" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.75">Index — pgvector</text>
+      <text x="1180" y="196" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.5">Cloud SQL + pgvector</text>
+
+      <path d="M1010,180 Q1050,130 1076,140" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+
+      <!-- LENS -->
+      <rect x="1080" y="250" width="200" height="60" rx="9" fill="var(--shruti)"/>
+      <text x="1180" y="276" text-anchor="middle" font-size="12" font-weight="600" fill="var(--shruti-ink)">⑩ LENS</text>
+      <text x="1180" y="292" text-anchor="middle" font-size="9.5" fill="var(--shruti-ink)" opacity="0.85">routed retrieval → ADK tools</text>
+      <line x1="1180" y1="210" x2="1180" y2="246" stroke="currentColor" stroke-width="1.3" marker-end="url(#a3)"/>
+
+      <!-- storage slots below job -->
+      <rect x="30" y="300" width="200" height="52" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.6"/>
+      <text x="50" y="322" font-size="11.5" font-weight="600" fill="currentColor">Cloud SQL</text>
+      <text x="50" y="337" font-size="9.5" fill="currentColor" opacity="0.55">+ pgvector — [ paste icon ]</text>
+
+      <rect x="260" y="300" width="200" height="52" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.6"/>
+      <text x="280" y="322" font-size="11.5" font-weight="600" fill="currentColor">Cloud Storage</text>
+      <text x="280" y="337" font-size="9.5" fill="currentColor" opacity="0.55">board images, audio</text>
+
+      <!-- bridge to Nityam Firestore -->
+      <rect x="900" y="400" width="380" height="70" rx="10" fill="none" stroke="var(--specialist)" stroke-width="1.4" stroke-dasharray="3 3"/>
+      <text x="920" y="424" font-size="12.5" font-weight="600" fill="var(--specialist)">Nityam grounding_chunks — Firestore</text>
+      <text x="920" y="442" font-size="10.5" fill="var(--specialist)">⚠ today: manual — a person runs seed_demo_data.py,</text>
+      <text x="920" y="457" font-size="10.5" fill="var(--specialist)">which parses vault/wiki/*.md into Firestore by hand.</text>
+      <path d="M1180,312 Q1150,370 1090,398" fill="none" stroke="var(--specialist)" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a3d)"/>
+    </svg>
+  </figure>
+  <figcaption>Every node here corresponds to a real module in <code>sub_modules_examples/shruti/shruti/</code> — the pipeline exists; the last hop into the tutor's live corpus is still a human step.</figcaption>
+
+  <div class="spec-wrap">
+  <table class="spec">
+    <caption>Build spec — Diagram 3</caption>
+    <thead><tr><th>Element</th><th>Excalidraw shape</th><th>Fill</th><th>Icon slot</th></tr></thead>
+    <tbody>
+      <tr><td>Gate → Atlas (8 stages)</td><td class="mono">Rectangle, rounded ×8</td><td><span class="chip" style="background:var(--shruti);color:var(--shruti-ink)">violet</span></td><td>none — owned pipeline code</td></tr>
+      <tr><td>Cloud Run Job boundary</td><td class="mono">Rectangle, dashed, large</td><td>transparent</td><td>Cloud Run icon, corner badge</td></tr>
+      <tr><td>Vault (L1/L2/L3 + Index)</td><td class="mono">Rectangle, plain, tall</td><td>neutral / white</td><td>none — storage schema, not a service box</td></tr>
+      <tr><td>Cloud SQL + pgvector</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Cloud SQL icon</td></tr>
+      <tr><td>Cloud Storage</td><td class="mono">Rectangle, dashed</td><td>transparent</td><td>Cloud Storage icon</td></tr>
+      <tr><td>Firestore bridge callout</td><td class="mono">Rectangle, dashed, gold stroke</td><td>transparent</td><td>flag as a known gap, not a finished arrow</td></tr>
+    </tbody>
+  </table>
+  </div>
+</article>
+
+<!-- ============================================================ -->
+<article class="diagram" id="d4">
+  <p class="d-eyebrow">Diagram 4 of 5</p>
+  <h2 class="d-title">SMRITI — read every turn, write once, cite everything</h2>
+  <p class="d-intro">
+    Three tiers, ordered by how far back they reach. Reads happen continuously, from four call
+    sites. Writes to the two permanent long-term documents happen exactly once — at session close
+    — through a validated-operation gate, never a raw model overwrite. Every claim those documents
+    hold cites a <code>session_id#turn</code> that has to resolve into a real Episodic entry.
+  </p>
+
+  <figure class="dia">
+    <svg viewBox="0 0 1200 780" role="img" aria-label="Three memory tiers — workflow in Redis, episodic session logs and long-term profiles in Firestore — are read continuously by specialists and the brief composer, and written exactly once at session close through a nine-step sequence ending in a single validated Reflect call; the Observatory taps every read and write as an event.">
+      <defs>
+        <marker id="a4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="a4d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" opacity="0.85"/></marker>
+      </defs>
+
+      <!-- tier bands -->
+      <rect x="40" y="60" width="720" height="140" rx="14" fill="var(--mem-workflow)" opacity="0.16"/>
+      <text x="60" y="82" font-family="var(--font-mono)" font-size="11" letter-spacing="0.06em" fill="var(--mem-workflow-ink)" opacity="0.8">WORKFLOW — one session, ephemeral</text>
+      <rect x="80" y="100" width="320" height="60" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.2"/>
+      <text x="240" y="124" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Memorystore (Redis)</text>
+      <text x="240" y="140" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">+ ADK session.state</text>
+
+      <rect x="40" y="220" width="720" height="140" rx="14" fill="var(--mem-episodic)" opacity="0.16"/>
+      <text x="60" y="242" font-family="var(--font-mono)" font-size="11" letter-spacing="0.06em" fill="var(--mem-episodic-ink)" opacity="0.85">EPISODIC — forever, append-once</text>
+      <rect x="80" y="260" width="320" height="60" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.2"/>
+      <text x="240" y="284" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">Firestore</text>
+      <text x="240" y="300" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">session_logs — the evidence ledger</text>
+
+      <rect x="40" y="380" width="720" height="140" rx="14" fill="var(--mem-longterm)" opacity="0.18"/>
+      <text x="60" y="402" font-family="var(--font-mono)" font-size="11" letter-spacing="0.06em" fill="currentColor" opacity="0.75">LONG-TERM — forever, written only at close</text>
+      <rect x="80" y="420" width="150" height="60" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.2"/>
+      <text x="155" y="446" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">dpm_profile</text>
+      <text x="155" y="461" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">who I'm teaching</text>
+      <rect x="250" y="420" width="150" height="60" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.2"/>
+      <text x="325" y="446" text-anchor="middle" font-size="11.5" font-weight="600" fill="currentColor">teaching_memory</text>
+      <text x="325" y="461" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.6">where we are, right now</text>
+
+      <rect x="80" y="560" width="320" height="60" rx="9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 4" opacity="0.7"/>
+      <text x="240" y="584" text-anchor="middle" font-size="12" font-weight="600" fill="currentColor">grounding_chunks</text>
+      <text x="240" y="600" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.55">Firestore, vector search — written by Shruti</text>
+
+      <!-- citation loop -->
+      <path d="M230,420 Q470,340 230,290" fill="none" stroke="var(--specialist)" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#a4d)"/>
+      <text x="440" y="360" font-size="10" fill="var(--specialist)">evidence: [session_id#turn] → must resolve here</text>
+
+      <!-- read merge -->
+      <rect x="470" y="300" width="150" height="60" rx="9" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1.2"/>
+      <text x="545" y="322" text-anchor="middle" font-size="11" font-weight="600" fill="currentColor">READ</text>
+      <text x="545" y="337" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">get_dpm · get_teaching_memory</text>
+      <text x="545" y="349" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">search_grounding · list_concepts</text>
+
+      <line x1="400" y1="140" x2="530" y2="298" stroke="currentColor" stroke-width="1.1" marker-end="url(#a4)"/>
+      <line x1="400" y1="290" x2="500" y2="320" stroke="currentColor" stroke-width="1.1" marker-end="url(#a4)"/>
+      <line x1="400" y1="450" x2="500" y2="358" stroke="currentColor" stroke-width="1.1" marker-end="url(#a4)"/>
+      <line x1="400" y1="588" x2="512" y2="360" stroke="currentColor" stroke-width="1.1" marker-end="url(#a4)"/>
+
+      <!-- brief -->
+      <rect x="660" y="300" width="140" height="60" rx="9" fill="var(--voice)"/>
+      <text x="730" y="324" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--voice-ink)">THE BRIEF</text>
+      <text x="730" y="340" text-anchor="middle" font-size="9" fill="var(--voice-ink)" opacity="0.85">compose_brief()</text>
+      <line x1="620" y1="330" x2="656" y2="330" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+      <text x="700" y="290" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.55">→ VoiceAgent, every turn</text>
+
+      <!-- write sequence -->
+      <text x="900" y="40" font-family="var(--font-mono)" font-size="11" letter-spacing="0.06em" fill="currentColor" opacity="0.6">WRITE — only at session close</text>
+      <g font-family="var(--font-mono)" font-size="10.5">
+        <rect x="880" y="55" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="79" fill="currentColor">1. WS closes (clean or dropped)</text>
+        <rect x="880" y="103" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="127" fill="currentColor">2. read turn buffer from Redis</text>
+        <rect x="880" y="151" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="175" fill="currentColor">3. build_session_log — deterministic</text>
+        <rect x="880" y="199" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="223" fill="currentColor">4. put_session_log — 1st write</text>
+        <rect x="880" y="247" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="271" fill="currentColor">5. snapshot dpm + teaching_memory</text>
+        <rect x="880" y="295" width="280" height="38" rx="7" fill="var(--voice)"/>
+        <text x="900" y="319" fill="var(--voice-ink)" font-weight="600">6. reflect() — ONE model call</text>
+        <rect x="880" y="343" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="367" fill="currentColor">7. apply_operations — validated</text>
+        <rect x="880" y="391" width="280" height="38" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="415" fill="currentColor">8. snapshot again — the "after"</text>
+        <rect x="880" y="439" width="280" height="46" rx="7" fill="var(--paper-raised)" stroke="currentColor" stroke-width="1"/>
+        <text x="900" y="459" fill="currentColor">9. put_session_log +diff,</text>
+        <text x="900" y="474" fill="currentColor">   put_dpm, put_teaching_memory</text>
+      </g>
+      <line x1="1020" y1="93" x2="1020" y2="101" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="141" x2="1020" y2="149" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="189" x2="1020" y2="197" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="237" x2="1020" y2="245" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="285" x2="1020" y2="293" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="333" x2="1020" y2="341" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="381" x2="1020" y2="389" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+      <line x1="1020" y1="429" x2="1020" y2="437" stroke="currentColor" stroke-width="1" marker-end="url(#a4)"/>
+
+      <path d="M880,220 Q820,240 400,290" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+      <text x="640" y="245" font-size="9.5" fill="currentColor" opacity="0.55">writes, twice (crash-safe)</text>
+      <path d="M880,465 Q700,530 400,450" fill="none" stroke="currentColor" stroke-width="1.2" marker-end="url(#a4)"/>
+      <text x="640" y="510" font-size="9.5" fill="currentColor" opacity="0.55">writes, once, validated</text>
+
+      <!-- observatory -->
+      <rect x="900" y="620" width="260" height="60" rx="9" fill="none" stroke="var(--observatory)" stroke-width="1.3" stroke-dasharray="3 3"/>
+      <text x="1030" y="645" text-anchor="middle" font-size="12" font-weight="600" fill="var(--observatory)">smriti-observatory</text>
+      <text x="1030" y="661" text-anchor="middle" font-size="9.5" fill="var(--observatory)" opacity="0.8">every read + write emits a MemoryEvent</text>
+      <path d="M1020,151 Q1160,300 1160,500 Q1160,580 1040,618" fill="none" stroke="var(--observatory)" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#a4d)"/>
+      <path d="M620,330 Q1150,450 1080,622" fill="none" stroke="var(--observatory)" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#a4d)"/>
+    </svg>
+  </figure>
+  <figcaption>Long-term memory is never written mid-session — a file write inside a turn is latency the voice path doesn't need to pay.</figcaption>
+
+  <div class="spec-wrap">
+  <table class="spec">
+    <caption>Build spec — Diagram 4</caption>
+    <thead><tr><th>Element</th><th>Excalidraw shape</th><th>Fill</th><th>Icon slot</th></tr></thead>
+    <tbody>
+      <tr><td>3 tier bands (background)</td><td class="mono">Rectangle, large, low opacity</td><td>mem-workflow / episodic / long-term at ~16% opacity</td><td>none — zone, not a service</td></tr>
+      <tr><td>Memorystore (Redis)</td><td class="mono">Rectangle</td><td>white / neutral</td><td>Memorystore icon</td></tr>
+      <tr><td>Firestore (session_logs, dpm_profile, teaching_memory, grounding_chunks)</td><td class="mono">Rectangle ×4</td><td>white / neutral</td><td>Firestore icon (once, or on each — your call)</td></tr>
+      <tr><td>THE BRIEF</td><td class="mono">Rectangle</td><td><span class="chip" style="background:var(--voice);color:var(--voice-ink)">indigo</span></td><td>none — feeds VoiceAgent directly</td></tr>
+      <tr><td>reflect() step</td><td class="mono">Rectangle, in sequence, emphasized</td><td><span class="chip" style="background:var(--voice);color:var(--voice-ink)">indigo</span></td><td>the one LLM judgment call in the whole close path</td></tr>
+      <tr><td>smriti-observatory</td><td class="mono">Rectangle, dashed, rose stroke</td><td>transparent</td><td>none — internal tool</td></tr>
+    </tbody>
+  </table>
+  </div>
+</article>
+
+<!-- ============================================================ -->
+<article class="diagram" id="d5">
+  <p class="d-eyebrow">Diagram 5 of 5</p>
+  <h2 class="d-title">Inside one specialist call</h2>
+  <p class="d-intro">
+    Zooming into a single <code>ask_board()</code> call: VoiceAgent's own lifeline stays free the
+    whole time. The specialist gets its own ADK Runner and session, seeded with
+    <code>{session_id, student_id}</code>, and runs to a hard 70-second cap. Any exception —
+    the same blanket handler for all four specialists — becomes a spoken error chunk, never a
+    silent failure.
+  </p>
+
+  <figure class="dia">
+    <svg viewBox="0 0 1200 480" role="img" aria-label="Timeline of one specialist call: VoiceAgent stays free while a SpecialistRunner looks up grounding, reads memory, optionally calculates or writes to the board, sends periodic progress chunks, and finally returns a spoken summary.">
+      <defs>
+        <marker id="a5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="a5d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" opacity="0.85"/></marker>
+      </defs>
+
+      <text x="10" y="35" font-size="11" font-family="var(--font-mono)" fill="currentColor" opacity="0.6">VoiceAgent lane</text>
+      <rect x="40" y="45" width="200" height="50" rx="9" fill="var(--voice)"/>
+      <text x="140" y="66" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--voice-ink)">calls ask_board(request)</text>
+      <text x="140" y="82" text-anchor="middle" font-size="9.5" fill="var(--voice-ink)" opacity="0.85">then keeps talking</text>
+      <line x1="240" y1="70" x2="1150" y2="70" stroke="currentColor" stroke-width="1" stroke-dasharray="1 4" opacity="0.5"/>
+      <text x="650" y="62" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.55">not blocked — free the entire time</text>
+
+      <rect x="960" y="45" width="200" height="50" rx="9" fill="var(--voice)"/>
+      <text x="1060" y="66" text-anchor="middle" font-size="11" font-weight="600" fill="var(--voice-ink)">speaks the summary</text>
+      <text x="1060" y="82" text-anchor="middle" font-size="9.5" fill="var(--voice-ink)" opacity="0.85">"never mentions a tool"</text>
+
+      <text x="10" y="185" font-size="11" font-family="var(--font-mono)" fill="currentColor" opacity="0.6">Specialist Runner lane</text>
+
+      <rect x="40" y="200" width="200" height="60" rx="9" fill="var(--specialist)"/>
+      <text x="140" y="224" text-anchor="middle" font-size="11" font-weight="600" fill="var(--specialist-ink)">Runner init</text>
+      <text x="140" y="240" text-anchor="middle" font-size="9" fill="var(--specialist-ink)" opacity="0.85">own ADK session, seeded</text>
+      <text x="140" y="252" text-anchor="middle" font-size="8.5" fill="var(--specialist-ink)" opacity="0.7">{session_id, student_id}</text>
+
+      <rect x="270" y="200" width="150" height="60" rx="9" fill="var(--specialist)"/>
+      <text x="345" y="234" text-anchor="middle" font-size="11" font-weight="600" fill="var(--specialist-ink)">search_grounding()</text>
+
+      <rect x="450" y="200" width="180" height="60" rx="9" fill="var(--specialist)"/>
+      <text x="540" y="228" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--specialist-ink)">get_dpm()</text>
+      <text x="540" y="244" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--specialist-ink)">get_teaching_memory()</text>
+
+      <rect x="660" y="200" width="150" height="60" rx="9" fill="none" stroke="var(--specialist)" stroke-width="1.3" stroke-dasharray="3 3"/>
+      <text x="735" y="228" text-anchor="middle" font-size="10.5" font-weight="600" fill="currentColor">calculate()</text>
+      <text x="735" y="244" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">if needed — AST sandbox</text>
+
+      <rect x="840" y="200" width="150" height="60" rx="9" fill="none" stroke="var(--specialist)" stroke-width="1.3" stroke-dasharray="3 3"/>
+      <text x="915" y="222" text-anchor="middle" font-size="10.5" font-weight="600" fill="currentColor">write_lesson()</text>
+      <text x="915" y="238" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">BoardAgent only →</text>
+      <text x="915" y="251" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">board patch</text>
+
+      <rect x="1020" y="200" width="150" height="60" rx="9" fill="var(--specialist)"/>
+      <text x="1095" y="224" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--specialist-ink)">compose summary</text>
+      <text x="1095" y="240" text-anchor="middle" font-size="9" fill="var(--specialist-ink)" opacity="0.8">_speakable() strips</text>
+      <text x="1095" y="252" text-anchor="middle" font-size="9" fill="var(--specialist-ink)" opacity="0.8">LaTeX / markdown</text>
+
+      <line x1="240" y1="230" x2="266" y2="230" stroke="currentColor" stroke-width="1.3" marker-end="url(#a5)"/>
+      <line x1="420" y1="230" x2="446" y2="230" stroke="currentColor" stroke-width="1.3" marker-end="url(#a5)"/>
+      <line x1="630" y1="230" x2="656" y2="230" stroke="currentColor" stroke-width="1.3" marker-end="url(#a5)"/>
+      <line x1="810" y1="230" x2="836" y2="230" stroke="currentColor" stroke-width="1.3" marker-end="url(#a5)"/>
+      <line x1="990" y1="230" x2="1016" y2="230" stroke="currentColor" stroke-width="1.3" marker-end="url(#a5)"/>
+
+      <line x1="140" y1="200" x2="140" y2="97" stroke="currentColor" stroke-width="1.2" marker-end="url(#a5)"/>
+
+      <!-- progress pings -->
+      <line x1="345" y1="198" x2="345" y2="97" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#a5d)"/>
+      <text x="345" y="130" text-anchor="middle" font-size="9" fill="currentColor" opacity="0.6">chunk</text>
+      <text x="345" y="112" text-anchor="middle" font-size="8.5" fill="currentColor" opacity="0.5">WHEN_IDLE · ~4.5s</text>
+      <line x1="540" y1="198" x2="540" y2="97" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#a5d)"/>
+      <line x1="735" y1="198" x2="735" y2="97" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#a5d)"/>
+      <line x1="915" y1="198" x2="915" y2="97" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#a5d)"/>
+
+      <line x1="1095" y1="198" x2="1060" y2="97" stroke="currentColor" stroke-width="1.4" marker-end="url(#a5)"/>
+
+      <!-- time axis -->
+      <line x1="40" y1="330" x2="1170" y2="330" stroke="currentColor" stroke-width="1" opacity="0.4"/>
+      <text x="40" y="352" font-family="var(--font-mono)" font-size="9.5" fill="currentColor" opacity="0.5">t=0</text>
+      <text x="345" y="352" font-family="var(--font-mono)" font-size="9.5" fill="currentColor" opacity="0.5">~15s</text>
+      <text x="735" y="352" font-family="var(--font-mono)" font-size="9.5" fill="currentColor" opacity="0.5">~35s</text>
+      <text x="1130" y="352" font-family="var(--font-mono)" font-size="9.5" fill="currentColor" opacity="0.5">70s cap</text>
+
+      <text x="40" y="400" font-family="var(--font-mono)" font-size="11" fill="currentColor" opacity="0.65">TURN_TIMEOUT_S = 70 — hard cap, then a graceful error chunk</text>
+      <text x="40" y="420" font-family="var(--font-mono)" font-size="11" fill="currentColor" opacity="0.65">any exception, anywhere in this lane → error chunk (one blanket handler, all four specialists)</text>
+    </svg>
+  </figure>
+  <figcaption>The same shape runs for all four specialists — only the tool set in the middle changes (BoardAgent alone can write_lesson).</figcaption>
+
+  <div class="spec-wrap">
+  <table class="spec">
+    <caption>Build spec — Diagram 5</caption>
+    <thead><tr><th>Element</th><th>Excalidraw shape</th><th>Fill</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>VoiceAgent lane boxes</td><td class="mono">Rectangle ×2</td><td><span class="chip" style="background:var(--voice);color:var(--voice-ink)">indigo</span></td><td>Start and end of the same lifeline</td></tr>
+      <tr><td>Specialist steps (solid)</td><td class="mono">Rectangle ×4</td><td><span class="chip" style="background:var(--specialist);color:var(--specialist-ink)">gold</span></td><td>Runner init, search_grounding, memory reads, compose summary</td></tr>
+      <tr><td>Specialist steps (conditional)</td><td class="mono">Rectangle ×2, dashed</td><td>transparent</td><td>calculate() and write_lesson() — not every call uses these</td></tr>
+      <tr><td>Progress pings</td><td class="mono">Vertical dashed line ×4</td><td>—</td><td>Roughly every 4.5s, tagged WHEN_IDLE not wall-clock</td></tr>
+      <tr><td>Time axis</td><td class="mono">Horizontal line + ticks</td><td>—</td><td>0 → 70s hard cap</td></tr>
+    </tbody>
+  </table>
+  </div>
+</article>
+
+<!-- ============================================================ -->
+<footer class="status" id="status">
+  <h2>Honest status — what to actually claim</h2>
+  <p>
+    This project's own documentation has a rule worth keeping here: corrections get appended in
+    place, not silently smoothed over. Before these diagrams go on a slide, know which parts are
+    live, which are a disclosed workaround, and which are still an open question.
+  </p>
+  <div class="status-grid">
+    <div class="status-card">
+      <p class="k live">Live</p>
+      <p>Cloud Run, Cloud Build CI/CD, Artifact Registry, Secret Manager, Firestore ("smriti" db), Cloud Storage for artifacts, Firebase Auth, and Memorystore for Redis are all deployed and wired into the running service.</p>
+    </div>
+    <div class="status-card">
+      <p class="k manual">Manual, disclosed</p>
+      <p>Shruti's pipeline runs end to end and produces real, citable grounding chunks — but nothing yet automates the hop from its vault output into Firestore. <code>seed_demo_data.py</code> does that by hand today.</p>
+    </div>
+    <div class="status-card">
+      <p class="k open">Open</p>
+      <p>Citation faithfulness (does the tutor's claim match what it retrieved) scored 5/5 in eval. Personalization and memory-causality — does the tutor visibly use what it remembers — is the system's own sharpest, still-unresolved finding.</p>
+    </div>
+    <div class="status-card">
+      <p class="k manual">Demo convenience</p>
+      <p>New sign-ins are auto-seeded with a fabricated memory history (<code>NITYAM_SEED_NEW_STUDENTS</code>) so a first session already looks personalized. Disclosed in-repo as a demo aid, not a real feature — turn it off for real students.</p>
+    </div>
+  </div>
+  <p class="stamp">Nityam Blueprints · five diagrams, one build key · draw against the code, not against a memory of it.</p>
+</footer>
+</div>

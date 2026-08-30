@@ -4,7 +4,7 @@ The tutor's face. She breathes, blinks, drifts, changes expression, and moves
 her mouth to what she is saying.
 
 ```bash
-cd sub_modules/avatar
+cd sub_modules_examples/avatar
 python3 build.py --open
 node tests/avatar.js
 ```

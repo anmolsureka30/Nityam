@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts the Nityam backend, its frontend, the Observatory (the live
 # memory-visualization pair in ../smriti-observatory), and the marketing
-# landing page (../Nityam) — one command, five processes.
+# landing page (../landing) — one command, five processes.
 #   ./run.sh                  everything: backend + frontend + Observatory + landing
 #   ./run.sh --no-observatory backend + frontend + landing, no Observatory
 #   ./run.sh --no-landing     backend + frontend + Observatory, no landing page
@@ -224,10 +224,10 @@ else
 fi
 
 if [[ "$SKIP_LANDING" == 0 ]]; then
-  LANDING=../Nityam
+  LANDING=../landing
   npm_sync "$LANDING"
   # Points the landing page's "Sign in" / "Start learning" CTAs at wherever
-  # the real app's dev server actually ended up (see Nityam/app/lib/config.ts).
+  # the real app's dev server actually ended up (see landing/app/lib/config.ts).
   spawn env -C "$LANDING" NEXT_PUBLIC_APP_URL="http://localhost:$WEB_PORT" \
     npm run dev -- --port "$LANDING_PORT"
   echo "Landing page on http://localhost:$LANDING_PORT"

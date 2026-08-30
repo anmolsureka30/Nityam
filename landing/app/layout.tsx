@@ -33,9 +33,9 @@ const gochiHand = Gochi_Hand({
 });
 
 export const metadata: Metadata = {
-  title: "Nityam — a tutor that sat in your class",
+  title: "Nityam: learn the way you want",
   description:
-    "A personal teacher for every student, built on what their class actually taught today.",
+    "A personalized, collaborative tutor that teaches the way a good one does, grounded in the textbooks and lectures you're actually studying.",
 };
 
 export const viewport: Viewport = {

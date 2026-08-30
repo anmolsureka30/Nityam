@@ -67,7 +67,7 @@
 
 /* ---------- Hero ---------- */
 .hero {
-  /* Was 104px below a 68px header — a screen and a half of nothing before
+  /* Was 104px below a 68px header, a screen and a half of nothing before
      the first word. Trimmed again when the pilot badge came out, since that
      badge was carrying its own 30px below it. */
   padding: 64px 32px 88px;
@@ -101,7 +101,7 @@
 }
 
 /* The platform tagline, in the same handwritten voice as the mock card's
-   "Today on the board" note — a margin comment beside the headline rather
+   "Today on the board" note: a margin comment beside the headline rather
    than competing with it for the same kind of attention. */
 .heroTagline {
   font-family: var(--hand);
@@ -131,7 +131,7 @@
   margin-bottom: 0;
 }
 
-/* The one thing to act on, so it is the only filled element on the page —
+/* The one thing to act on, so it is the only filled element on the page;
    that is what makes it read as the action rather than as one more card.
    Paper on magenta, NOT ink: the fill used to be lime #d6f45b, which carries
    dark text; #12151C on #D92D68 is 3.4:1 and fails on a 16px label. */
@@ -736,7 +736,7 @@
    page wider than it is. */
 
 /* Hero: the tutor and her board, side by side under the tagline. Below 900px
-   the board is dropped rather than shrunk — at that width it becomes an
+   the board is dropped rather than shrunk: at that width it becomes an
    unreadable smudge of grey bars, and the portrait alone still says who this
    is. */
 .heroFigure {

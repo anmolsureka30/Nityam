@@ -10,7 +10,7 @@ read and lifted, not the product. It is deliberately small enough to read in
 one sitting.
 
 ```
-sub_modules/adk/
+sub_modules_examples/adk/
 ├── .env                    Credentials + mode. One file, gitignored.
 ├── backend/
 │   ├── main.py             FastAPI + WebSocket. The only file that knows about HTTP.
@@ -317,7 +317,7 @@ path would have missed each:
 - `frontend/src/liveSession.js` is deliberately framework-free — it is the piece
   to move first, with `useLiveSession.js` as the example of wrapping it.
 - `liveSession.analyser` is an `AnalyserNode` sitting between playback and the
-  speakers. That is the hook `sub_modules/avatar`'s `attachAudio()` was written
+  speakers. That is the hook `sub_modules_examples/avatar`'s `attachAudio()` was written
   against: connect them and the avatar lip-syncs to the real voice.
 - The tool → UI path (`show_formula` → a card) is the seam where
   `artifact_generator` and `canvas` attach. A tool that returns an artifact IR

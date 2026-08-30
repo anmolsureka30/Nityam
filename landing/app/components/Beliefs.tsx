@@ -6,7 +6,7 @@ import styles from "./styles.module.css";
 /* One drawing per belief, inside the belief it belongs to.
  *
  * There were two drawings for three beliefs, floated above the grid, and
- * neither depicted any of them — a page of a textbook and a simulation, both
+ * neither depicted any of them: a page of a textbook and a simulation, both
  * true of the product and both silent about what was written underneath.
  * A picture that does not argue the sentence next to it is worse than none,
  * because the reader spends a moment trying to connect them.

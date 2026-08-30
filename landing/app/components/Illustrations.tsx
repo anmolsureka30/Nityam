@@ -1,13 +1,13 @@
 /* Drawings of the actual product, not stock spot-art.
  *
  * Every one of these depicts something that really exists: the tutor is the
- * avatar frontend/src/lib/avatar/rig.js draws (same colouring — dark hair,
+ * avatar frontend/src/lib/avatar/rig.js draws (same colouring: dark hair,
  * warm skin, the mint dupatta #96C6B4 and gold #C0A64B it uses); the board is
  * the real notebook with its margin rule and its real block kinds (heading,
  * equation with a pointable anchor, callout, struck line); the memory card
  * uses the five mastery levels the schema actually has and their real labels.
  *
- * Inline SVG, no libraries, no external images — the page is statically
+ * Inline SVG, no libraries, no external images: the page is statically
  * rendered and these ship as markup. Chrome is drawn from the shared tokens
  * so the illustrations restyle with the palette; skin, hair and cloth are
  * literals because they are not brand colours and must not shift with it.
@@ -98,7 +98,7 @@ export function TutorPortrait({ className }: P) {
 /* ── the board ─────────────────────────────────────────────────────────
    The real notebook page: margin rule down the left, a heading, an equation
    with one term marked as a pointable anchor, a callout, and a struck line
-   — every block kind canvas/tools.py can publish. */
+   every block kind canvas/tools.py can publish. */
 export function BoardSketch({ className }: P) {
   return (
     <svg
@@ -158,7 +158,7 @@ export function MemoryCard({ className }: P) {
 
       <rect x="18" y="16" width="74" height="7" rx="3.5" fill="var(--ink-dim)" />
 
-      {/* row one — moved forward */}
+      {/* row one: moved forward */}
       <rect x="18" y="38" width="264" height="42" rx="6" fill="var(--ground)" />
       <rect x="30" y="48" width="96" height="7" rx="3.5" fill="var(--ink)" />
       <rect x="30" y="63" width="54" height="10" rx="5" fill="var(--line-hard)" />
@@ -168,7 +168,7 @@ export function MemoryCard({ className }: P) {
       <rect x="214" y="61" width="68" height="14" rx="4" fill="var(--good-wash, #F0F8F5)" />
       <rect x="222" y="66" width="52" height="5" rx="2.5" fill="var(--good)" />
 
-      {/* row two — still where it was */}
+      {/* row two: still where it was */}
       <rect x="18" y="88" width="264" height="34" rx="6" fill="var(--ground)" />
       <rect x="30" y="97" width="118" height="7" rx="3.5" fill="var(--ink)" />
       <rect x="30" y="110" width="46" height="8" rx="4" fill="var(--warn)" />
@@ -179,7 +179,7 @@ export function MemoryCard({ className }: P) {
       <rect x="32" y="142" width="62" height="6" rx="3" fill="var(--warn)" />
       <rect x="32" y="156" width="228" height="5.5" rx="2.75" fill="var(--ink-mid)" />
       <rect x="32" y="167" width="164" height="5.5" rx="2.75" fill="var(--ink-mid)" />
-      {/* the citation — every claim points at a real turn */}
+      {/* the citation: every claim points at a real turn */}
       <rect x="210" y="164" width="56" height="12" rx="3" fill="var(--paper)" stroke="var(--line-hard)" />
       <rect x="216" y="168" width="44" height="4" rx="2" fill="var(--ink-dim)" />
     </svg>
@@ -469,7 +469,7 @@ export function SimulationSketch({ className }: P) {
 
 /* ── the class, section by section ────────────────────────────────────
    Distinct from TeacherView on purpose: that one is a single cohort of
-   forty, this is what the panel copy promises — several sections, each with
+   forty, this is what the panel copy promises: several sections, each with
    its own share understood and its own share quietly stuck. */
 export function ClassRoster({ className }: P) {
   const sections = [
@@ -483,7 +483,7 @@ export function ClassRoster({ className }: P) {
       className={className}
       viewBox="0 0 300 170"
       role="img"
-      aria-label="Four sections of the same class, each showing how much of it understood today's topic — 11-B and 11-D are behind."
+      aria-label="Four sections of the same class, each showing how much of it understood today's topic; 11-B and 11-D are behind."
     >
       <rect x="1" y="1" width="298" height="168" rx="8" fill="var(--paper)" stroke="var(--line)" />
       <rect x="20" y="18" width="86" height="7" rx="3.5" fill="var(--ink)" />

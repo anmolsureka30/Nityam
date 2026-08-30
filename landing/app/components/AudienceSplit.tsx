@@ -9,14 +9,17 @@ export default function AudienceSplit() {
           <div className={`${styles.eyebrow} ${styles.eyebrowOrange}`}>
             For students and parents
           </div>
-          <h3 className={styles.panelTitle}>A tutor who sat in the class.</h3>
+          <h3 className={styles.panelTitle}>A tutor that teaches you, not just the syllabus.</h3>
           <p className={styles.panelBody}>
-            Not a chatbot pulling answers off the internet. Nityam knows
-            which chapter was covered, which example went on the board, and
-            which steps your child did not follow. It starts right there, in
-            the language they think in, whenever they sit down to study.
+            Not a chatbot pulling answers off the internet, and not a video
+            on autoplay. Nityam has a real conversation: it asks before it
+            tells, checks understanding with a question instead of assuming,
+            and picks up exactly where your child left off. Grounded in the
+            textbooks and lectures they're actually covering, so they can
+            learn something new, revise what's shaky, or go research a
+            question that came up in class.
           </p>
-          {/* What it holds about one child — the real mastery levels, and a
+          {/* What it holds about one child: the real mastery levels, and a
               doubt still open with the turn it came from. */}
           <MemoryCard className={styles.panelArt} />
           {/* And what it builds when the words are not landing. */}

@@ -175,18 +175,17 @@ It has since been deleted outright, along with `brain.py`.
 
 ## 5. `student_id` is hardcoded
 
-`app/sessions.py:get` — `student_id: str = "demo_student"`, and
-`frontend/src/features/session/SessionScreen.tsx` — `const USER_ID = "demo_student"`.
-
-**To swap:** the WebSocket path is already `/ws/{user_id}/{session_id}`, and
-`main.py` seeds both into ADK session state at creation, so the plumbing exists.
-Replace the constant with the Firebase Auth uid and verify the ID token in
-`ws_endpoint` before `accept()`.
+**Resolved.** `frontend/src/features/session/SessionScreen.tsx` now reads
+`user!.uid` from Firebase Auth, and `main.py` passes it through as
+`sessions.get(session_id, student_id=user_id)`. `"demo_student"` remains only
+as `app/sessions.py:get`'s default parameter value — unused on the real path.
 
 ## 6. There is no auth on the WebSocket
 
-`app/main.py:ws_endpoint` accepts any connection and will happily read and write
-any `session_id` you name. Fine on localhost, not fine anywhere else.
+**Resolved.** `app/main.py:ws_endpoint` now verifies the Firebase ID token
+(`app.user_auth.verify_token`, off the event loop via `asyncio.to_thread`)
+before `accept()`, and rejects a connection whose token uid doesn't match the
+`{user_id}` in the URL.
 
 ## 7. Tonight's topic is three env vars
 

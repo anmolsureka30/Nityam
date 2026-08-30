@@ -3,7 +3,7 @@ import styles from "./styles.module.css";
 
 /* Two doors, and the one for new visitors is the filled one. The header used
  * to offer a single "Sign in" button, which is the wrong door for almost
- * everyone arriving on a landing page — they have no account yet, and being
+ * everyone arriving on a landing page: they have no account yet, and being
  * asked for a password you never set reads as a dead end. */
 export default function Header() {
   return (

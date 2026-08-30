@@ -1,6 +1,6 @@
 /* The landing page and the tutor are one product, so they share one design
- * system. These tokens are lifted from frontend/src/styles/tokens.css — same
- * names, same values — rather than being a second palette that happens to
+ * system. These tokens are lifted from frontend/src/styles/tokens.css (same
+ * names, same values) rather than being a second palette that happens to
  * look adjacent.
  *
  * WHAT CHANGED AND WHY. This page used to run its own scheme: cream #faf8f3,
@@ -35,7 +35,7 @@
   --line-soft:   #EDEAE3;
   --line-hard:   #D6D2C8;
 
-  /* accent — magenta, spent on what the visitor should act on */
+  /* accent: magenta, spent on what the visitor should act on */
   --accent:      #D92D68;
   --accent-deep: #A81F4E;
   --accent-lift: #F04A80;
@@ -43,14 +43,14 @@
   --accent-wash: #FCF2F6;
   --accent-rule: #E8B4C8;
 
-  /* second accent — marigold. The pair reads as a chosen jewel tone rather
+  /* second accent: marigold. The pair reads as a chosen jewel tone rather
      than the purple-to-pink gradient that is the generic tell. */
   --accent-2:      #B8720F;
   --accent-2-deep: #8F5A0C;
   --accent-2-tint: #F0DBB0;
   --accent-2-wash: #FCF6EA;
 
-  /* semantic — state, not brand */
+  /* semantic: state, not brand */
   --warn:   #B26206;
   --good:   #0E7F5E;
   --danger: #B23A31;
@@ -63,7 +63,7 @@
   --r-pill:  99px;
   --ease: cubic-bezier(0.2, 0.7, 0.25, 1);
 
-  /* type — the app's three families, three jobs */
+  /* type: the app's three families, three jobs */
   --ui:    var(--font-instrument), -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
   --prose: var(--font-source-serif), Georgia, "Times New Roman", serif;
   --mono:  var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
