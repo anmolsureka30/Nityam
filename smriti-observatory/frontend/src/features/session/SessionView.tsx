@@ -7,7 +7,7 @@ import { SidePanel } from "../../components/SidePanel";
 import { StateOverview } from "../../components/StateOverview";
 import { StatusChips } from "../../components/StatusChips";
 import { adkWebUrl } from "../../lib/traceLinks";
-import type { EnrichedEvent, MemoryEvent, ObservatoryEvent, SessionState, Tier } from "../../lib/types";
+import type { EnrichedEvent, MemoryEvent, ObservatoryEvent, SessionState, Tier, ToolCallEvent } from "../../lib/types";
 import { connectSessionSocket } from "../../lib/ws";
 
 const BACKEND_URL = import.meta.env.VITE_OBSERVATORY_BACKEND_URL ?? (import.meta.env.DEV ? "http://localhost:8100" : "/observatory");
@@ -83,11 +83,18 @@ export function SessionView() {
     fetch(`${BACKEND_URL}/api/sessions/${selectedId}/events`)
       .then((r) => r.json())
       .then((body) =>
-        // The REST backlog only ever proxies SMRITI's own memory event log
-        // (see observatory/main.py's _proxy_memory_events) -- tool-call
-        // events are live-only, pushed straight from the broadcaster, so
-        // every backlog item is unambiguously "memory".
-        setEvents((body.events ?? []).map((event: MemoryEvent): ObservatoryEvent => ({ kind: "memory", event, diff: [] }))),
+        // smriti:events:recent (what this backlog reads) holds both memory
+        // and tool-call event JSON on one list -- a MemoryEvent's own JSON
+        // never carries a "kind" field (see app/memory/instrumentation.py),
+        // while a ToolCallEvent's does, which is exactly how ingest.py's own
+        // live dispatch tells them apart too.
+        setEvents(
+          (body.events ?? []).map((event: MemoryEvent | ToolCallEvent): ObservatoryEvent =>
+            "kind" in event && event.kind === "tool_call"
+              ? { kind: "tool_call", event }
+              : { kind: "memory", event: event as MemoryEvent, diff: [] },
+          ),
+        ),
       )
       .catch(() => {});
 

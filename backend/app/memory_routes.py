@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import json
 import logging
 from types import SimpleNamespace
 
@@ -20,7 +21,6 @@ from pydantic import BaseModel
 
 from app import config, seeding, user_auth
 from app.memory import short_term, store
-from app.memory.instrumentation import MemoryEvent
 
 log = logging.getLogger("nityam.memory_routes")
 
@@ -104,22 +104,39 @@ async def select_topic_endpoint(
     return match.model_dump(mode="json")
 
 
-def _read_recent_events(session_id: str) -> list[MemoryEvent]:
+def _read_recent_events(session_id: str) -> list[dict]:
+    """The raw JSON dicts of every event for this session, memory AND tool-call
+    alike — smriti:events:recent holds both kinds on one list (see
+    app/memory/instrumentation.py's publish_tool_call_event and
+    smriti-observatory/backend/observatory/ingest.py's own kind-based
+    dispatch). Returned as plain dicts rather than parsed MemoryEvent objects:
+    a ToolCallEvent dict has no source_fn/record_type, so
+    MemoryEvent.model_validate_json() raised on it as soon as any tool call
+    had ever fired — confirmed live in production before this fix, and
+    silently masked here by the caller's own try/except (see routes_rest.py's
+    session_events, which degrades to {"events": []} on any exception)."""
     try:
         client = redis_sync.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses=True)
         raw_events = client.lrange("smriti:events:recent", 0, -1)
     except Exception:
         return []
-    events = [MemoryEvent.model_validate_json(raw) for raw in raw_events]
-    return [e for e in events if e.session_id == session_id]
+    events = []
+    for raw in raw_events:
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            continue
+        if parsed.get("session_id") == session_id:
+            events.append(parsed)
+    return events
 
 
 @router.get("/sessions/{session_id}/events")
 async def session_events_endpoint(session_id: str, student_id: str, trace_id: str | None = None):
     events = _read_recent_events(session_id)
     if trace_id:
-        events = [e for e in events if e.trace_id == trace_id]
-    return {"events": [e.model_dump(mode="json") for e in events]}
+        events = [e for e in events if e.get("trace_id") == trace_id]
+    return {"events": events}
 
 
 # ─────────────────────────────────────────────── what the student can see
