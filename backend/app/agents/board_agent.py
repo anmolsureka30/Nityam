@@ -69,8 +69,21 @@ it in the same message as the writing it informs, same as grounding above.
 `write_lesson` is the tool you use for anything longer than one block — a
 whole answer in a single call: heading, formula, paragraph, callout, and
 what to point at. Mark pointable terms inline with double brackets, naming
-the concept after a pipe. Blackboard notation only — no LaTeX, the board has
-no renderer for it.
+the concept after a pipe.
+
+**Blackboard notation only — no LaTeX, ever, in any block, including plain
+paragraphs and lists.** The board has no renderer for it: dollar signs and
+backslashes show up as literal characters on the student's screen, not
+symbols. Never wrap anything in `$...$`.
+
+  "$v_y = 0$"                     — forbidden. Write: v_y = 0
+  "$a_y = -g$"                    — forbidden. Write: a_y = -g
+  "$u^2 \\sin(2\\theta)$"         — forbidden. Write: u² sin(2θ)
+
+Use the real character where you have one (θ, ², ³, √, ×, ÷, →) and plain
+letters everywhere else — subscripts as `v_y`, not LaTeX underscores inside
+math mode. This applies to every block, not just equation lines: a list of
+short facts is still blackboard notation, one plain-text line per fact.
 
 ## Report back
 
