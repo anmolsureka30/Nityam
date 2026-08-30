@@ -9,13 +9,12 @@ change.
 """
 from __future__ import annotations
 
+import json
 from typing import Any, Awaitable, Callable
 
 import httpx
 import redis as redis_sync
 from fastapi import APIRouter, Request
-
-from observatory.events import MemoryEvent
 
 MemoryStateFn = Callable[[str, str], Awaitable[dict[str, Any]]]
 MemoryEventsFn = Callable[[str, str, str | None], Awaitable[dict[str, Any]]]
@@ -58,20 +57,32 @@ def build_router(
             raw_events = client.lrange("smriti:events:recent", 0, -1)
         except Exception:
             return {"sessions": []}
-        events = [MemoryEvent.model_validate_json(raw) for raw in raw_events]
+        # smriti:events:recent holds a mix of MemoryEvent and ToolCallEvent
+        # JSON (see ingest.py's own kind-based dispatch) — both carry
+        # session_id/student_id/ts, which is all a session listing needs, so
+        # this reads those three fields directly rather than fully validating
+        # either pydantic model. A per-session listing must never drop a
+        # session just because its only activity so far was a tool call.
         by_session: dict[str, dict] = {}
-        for event in events:
-            if not event.session_id:
+        for raw in raw_events:
+            try:
+                parsed = json.loads(raw)
+            except Exception:
                 continue
-            entry = by_session.setdefault(event.session_id, {
-                "session_id": event.session_id,
-                "student_id": event.student_id,
-                "started_at": event.ts,
-                "last_event_at": event.ts,
+            session_id = parsed.get("session_id")
+            if not session_id:
+                continue
+            student_id = parsed.get("student_id")
+            ts = parsed.get("ts")
+            entry = by_session.setdefault(session_id, {
+                "session_id": session_id,
+                "student_id": student_id,
+                "started_at": ts,
+                "last_event_at": ts,
             })
-            entry["last_event_at"] = event.ts
-            if event.student_id:
-                entry["student_id"] = event.student_id
+            entry["last_event_at"] = ts
+            if student_id:
+                entry["student_id"] = student_id
         for session_id, entry in by_session.items():
             try:
                 entry["status"] = "live" if client.exists(f"session:{session_id}:heartbeat") else "closed"

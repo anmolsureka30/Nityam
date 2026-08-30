@@ -207,3 +207,30 @@ def test_list_sessions_marks_a_session_with_a_live_heartbeat_as_live(client_app,
         assert match["status"] == "live"
     finally:
         redis_client.delete("smriti:events:recent", "session:test_rest_session_live:heartbeat")
+
+
+def test_list_sessions_does_not_crash_on_a_tool_call_event_in_the_same_list(client_app, redis_client):
+    """Regression test: smriti:events:recent holds a mix of MemoryEvent and
+    ToolCallEvent JSON on the same list (see ingest.py's own kind-based
+    dispatch) — list_sessions used to call MemoryEvent.model_validate_json()
+    on every entry unconditionally, which raised a pydantic ValidationError
+    (missing source_fn/record_type) the moment any ToolCallEvent had ever
+    been published, a 500 confirmed live in production before this fix."""
+    redis_client.delete("smriti:events:recent")
+    from observatory.events import ToolCallEvent
+
+    tool_call = ToolCallEvent(
+        event_id="tc1", ts="2026-08-30T00:00:00Z", session_id="test_rest_session_toolcall",
+        student_id="stu_toolcall", trace_id=None, span_id=None,
+        actor="board_agent", tool_name="search_grounding", phase="done",
+        args_summary=None, result_summary=None, duration_ms=100,
+    )
+    redis_client.rpush("smriti:events:recent", tool_call.model_dump_json())
+    try:
+        response = client_app.get("/api/sessions")
+        assert response.status_code == 200
+        sessions = response.json()["sessions"]
+        match = next(s for s in sessions if s["session_id"] == "test_rest_session_toolcall")
+        assert match["student_id"] == "stu_toolcall"
+    finally:
+        redis_client.delete("smriti:events:recent")
