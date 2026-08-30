@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import DashboardMemory from "./DashboardMemory";
 import { Shell } from "../../components/Shell";
 import {
   ActionCard, Choices, Chip, Label, MasteryInline, Panel,
@@ -103,7 +104,7 @@ export default function HomeScreen() {
             />
             <ActionCard
               eyebrow={readinessPct !== null ? `Readiness · ${readinessPct}%` : "Readiness"}
-              title="Exam readiness"
+              title="Prepare for exam"
               body={
                 readinessPct !== null
                   ? `${realWeaknesses.length} concept${realWeaknesses.length === 1 ? "" : "s"} tracked so far.`
@@ -132,6 +133,8 @@ export default function HomeScreen() {
           </Choices>
         </div>
       </section>
+
+      <DashboardMemory />
 
       <section className={`ruled ${s.band}`}>
         <div className="margin"><Label>From class</Label></div>

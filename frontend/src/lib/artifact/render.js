@@ -42,6 +42,104 @@ import { NS } from "./ns.js";
 
   /* ─────────────────────────────────────────────────────────── the scene */
 
+  /* The scene the axes are sized for — fixed while the student explores.
+   *
+   * WHY NOT JUST SWEEP EVERYTHING. Range goes as u squared, so sweeping a
+   * 5-to-40 speed slider gives an envelope four times wider than any
+   * trajectory the student is actually looking at: the axes would be rock
+   * steady and the curve would be a scribble in the corner. Measured on the
+   * real projectile IR — envelope x=175 against a default path of x=41.
+   *
+   * So a control is only swept if doing so does not blow the scale. Angle
+   * qualifies: the whole point of this artifact is that range peaks at 45
+   * degrees, and you cannot see a peak if the ruler stretches to fit every
+   * value as you drag. Speed does not, so it is PINNED at its current value
+   * and becomes part of the cache key — change the speed and the axes resize
+   * once, which is honest, because you have changed the size of the problem.
+   */
+  var SWEEP_INFLATION_LIMIT = 2.5;
+
+  function pathExtent(ir, state, theme) {
+    var x = 1, y = 1;
+    var path = NS.evaluate(ir, state, theme).kernel.path || [];
+    path.forEach(function (pt) {
+      if (pt.x > x) x = pt.x;
+      if (pt.y > y) y = pt.y;
+    });
+    return { x: x, y: y };
+  }
+
+  function sampled(def, i, n) {
+    return def.min + (def.max - def.min) * (i / (n - 1));
+  }
+
+  function worldBounds(ir, frame) {
+    var current = frame.state || NS.defaultState(ir);
+
+    try {
+      var ranged = [];
+      for (var k in ir.state) {
+        var v = ir.state[k];
+        if (v && typeof v.min === 'number' && typeof v.max === 'number' && v.max > v.min) {
+          ranged.push(k);
+        }
+      }
+      if (!ranged.length) throw new Error('nothing to sweep');
+
+      var now = pathExtent(ir, current, frame.theme);
+
+      // Which controls can be swept without the curve shrinking to nothing.
+      var sweep = ranged.filter(function (name) {
+        var widest = now.x;
+        for (var i = 0; i < 5; i++) {
+          var probe = Object.assign({}, current);
+          probe[name] = sampled(ir.state[name], i, 5);
+          var e = pathExtent(ir, probe, frame.theme);
+          if (e.x > widest) widest = e.x;
+        }
+        return widest <= now.x * SWEEP_INFLATION_LIMIT;
+      });
+      if (!sweep.length) throw new Error('every control blows the scale');
+
+      // Pinned controls are part of the key: the axes hold still while the
+      // swept ones move, and resize once when a pinned one changes.
+      var key = ranged
+        .filter(function (n) { return sweep.indexOf(n) < 0; })
+        .map(function (n) { return n + '=' + current[n]; })
+        .join(',');
+      if (ir.__bounds && ir.__boundsKey === key) return ir.__bounds;
+
+      var per = sweep.length <= 2 ? 7 : (sweep.length === 3 ? 5 : 3);
+      var total = Math.pow(per, sweep.length);
+      if (total > 128) throw new Error('sweep too large');
+
+      var xmax = 1, ymax = 1;
+      for (var c = 0; c < total; c++) {
+        var state = Object.assign({}, current), n = c;
+        for (var j = 0; j < sweep.length; j++) {
+          state[sweep[j]] = sampled(ir.state[sweep[j]], n % per, per);
+          n = Math.floor(n / per);
+        }
+        var ext = pathExtent(ir, state, frame.theme);
+        if (ext.x > xmax) xmax = ext.x;
+        if (ext.y > ymax) ymax = ext.y;
+      }
+
+      // Same headroom the per-frame version used, so nothing downstream had
+      // to change.
+      xmax *= 1.07;
+      ymax = Math.max(ymax * 1.25, xmax * 0.30);
+      ir.__bounds = { x: xmax, y: ymax };
+      ir.__boundsKey = key;
+      return ir.__bounds;
+    } catch (e) {
+      // A mis-sized grid is worth far less than a broken artifact: fall back
+      // to the old per-frame behaviour rather than failing to draw.
+      var f = pathExtent(ir, current, frame.theme);
+      return { x: f.x * 1.07, y: Math.max(f.y * 1.25, f.x * 1.07 * 0.30) };
+    }
+  }
+
   NS.drawScene = function (canvas, ir, frame, snapshots, theme, anim) {
     var dpr = window.devicePixelRatio || 1;
     var W = canvas.clientWidth, H = canvas.clientHeight;
@@ -64,14 +162,28 @@ import { NS } from "./ns.js";
     var vecLayer = ir.layers.filter(function (l) { return l.type === 'vector'; })[0];
     var vecSet = ir.layers.filter(function (l) { return l.type === 'vector_set'; })[0];
 
-    /* world bounds across the live path and every pinned ghost */
+    /* World bounds, FIXED for the life of the artifact.
+     *
+     * These used to be measured off the current trajectory every frame, so
+     * dragging the angle rescaled the axes underneath the curve: the gridlines
+     * slid, the numbers on them changed, and the path stayed roughly the same
+     * size on screen. That hides the very thing a projectile simulation exists
+     * to show — that 45 degrees goes FURTHER. You cannot see further if the
+     * ruler stretches to fit.
+     *
+     * So the envelope is computed once, from what the controls can actually
+     * reach, and the curve moves within it. */
     var live = traceLayer ? (NS.resolveRef(traceLayer.points, frame) || []) : [];
-    var xmax = 1, ymax = 1;
-    [live].concat(ghosts.map(function (s) { return s.frame.kernel.path; })).forEach(function (p) {
-      p.forEach(function (pt) { if (pt.x > xmax) xmax = pt.x; if (pt.y > ymax) ymax = pt.y; });
+    var bounds = worldBounds(ir, frame);
+    var xmax = bounds.x, ymax = bounds.y;
+    // A pinned ghost is real data and must never fall outside the frame, even
+    // if it came from a kernel the sweep could not reach.
+    ghosts.forEach(function (s) {
+      s.frame.kernel.path.forEach(function (pt) {
+        if (pt.x > xmax) xmax = pt.x;
+        if (pt.y > ymax) ymax = pt.y;
+      });
     });
-    xmax *= 1.07;
-    ymax = Math.max(ymax * 1.25, xmax * 0.30);   // headroom so the scene fills the frame
 
     var M = { l: 58, r: 24, t: 14, b: 42 };
     var scale = Math.min((W - M.l - M.r) / xmax, (H - M.t - M.b) / ymax);  // equal aspect

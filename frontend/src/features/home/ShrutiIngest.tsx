@@ -26,7 +26,7 @@ export default function ShrutiIngest() {
   return (
     <section className={s.panel}>
       <div className={s.head}>
-        <Label>Add a class recording</Label>
+        <Label>Add a class recording (takes a few minutes)</Label>
       </div>
 
       <form className={s.form} onSubmit={submit}>

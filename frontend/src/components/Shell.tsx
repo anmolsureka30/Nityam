@@ -36,7 +36,6 @@ export function Shell({
             <span className={s.wordmark}>Nityam</span>
           </Link>
           <div className={s.right}>
-            <RoleSwitch />
             <Link to="/sessions" className={s.profileLink}>My sessions</Link>
             <Link to="/profile" className={s.profileLink}>My profile</Link>
             <span className={s.clock}>{clock}</span>
@@ -86,39 +85,12 @@ export function TeacherShell({ children }: { children: ReactNode }) {
             </nav>
           </div>
           <div className={s.right}>
-            <RoleSwitch />
             <span className="mono">{teacher.klass}</span>
             <UserChip />
           </div>
         </header>
         {children}
       </div>
-    </div>
-  );
-}
-
-/** Student / teacher switch. Lives in the header on every screen because the
- *  two dashboards are the same product, seen from two sides. */
-function RoleSwitch() {
-  const nav = useNavigate();
-  const { pathname } = useLocation();
-  const isTeacher = pathname.startsWith("/teacher");
-  return (
-    <div className={s.roleSwitch} role="group" aria-label="Switch role">
-      <button
-        className={cx(s.roleBtn, !isTeacher && s.roleBtnOn)}
-        onClick={() => nav("/")}
-        aria-pressed={!isTeacher}
-      >
-        Student
-      </button>
-      <button
-        className={cx(s.roleBtn, isTeacher && s.roleBtnOn)}
-        onClick={() => nav("/teacher")}
-        aria-pressed={isTeacher}
-      >
-        Teacher
-      </button>
     </div>
   );
 }
