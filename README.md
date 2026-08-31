@@ -481,20 +481,3 @@ Job→Service sync webhook, is in
 does not reconnect. Locally that never matters; on Cloud Run an instance recycling mid-session
 (a new revision, `--min-instances` churn) silently ends a student's session. Confirmed real,
 deliberately out of scope for the deployment pass, and not an oversight.
-
-## ✅ Honest status
-
-This codebase's own convention is to disclose gaps rather than smooth over them, and that's worth
-keeping here too:
-
-- **Citation faithfulness is strong**: 5/5 on an automated LLM-as-judge check, reproduced twice.
-  The property SMRITI is specifically built to protect held up under real scrutiny.
-- **Personalization and memory-causality are the open problem.** Does the tutor *visibly* use what
-  it remembers to shape a new session's opening turn? That's the eval's own sharpest, still-open
-  finding, not a solved feature.
-- **Shruti's automation gap is real and disclosed.** The pipeline produces real, citable grounding
-  chunks; nothing yet automates the hop into the tutor's live Firestore corpus, so a person runs
-  `seed_demo_data.py` by hand today.
-- **New sign-ins are demo-seeded** (`NITYAM_SEED_NEW_STUDENTS`) with a fabricated prior history, so
-  a first session already looks personalized for a judge. Disclosed in-repo as a demo convenience;
-  turn it off for real students.
